@@ -1,5 +1,5 @@
-﻿import type mongoose from "mongoose";
-import { CommissionRule, SalesPartner } from "../models/index.js";
+import type mongoose from "mongoose";
+import { CommissionRule, SalesPartner, User } from "../models/index.js";
 import { fail, type Principal } from "../utils/core.js";
 export async function partnerCommission(
   auth: Principal,
@@ -8,7 +8,36 @@ export async function partnerCommission(
   partnerId?: string,
   session?: mongoose.ClientSession,
 ) {
-  if (!partnerId) return { commissionPaise: 0 };
+  if (!partnerId) {
+    if (auth.role === "booking_staff" && auth.userId) {
+      const user = await User.findById(auth.userId)
+        .session(session || null)
+        .lean();
+      if (user && user.commissionRate) {
+        const basisPaise = Math.max(0, pricing.grossPaise - pricing.discountPaise);
+        const commissionPaise =
+          user.commissionType === "Fixed"
+            ? Number(user.commissionRate)
+            : Math.round((basisPaise * Number(user.commissionRate)) / 10000);
+        return {
+          commissionPaise: Math.max(0, commissionPaise),
+          commissionSnapshot: {
+            partnerName: user.name,
+            partnerKind: "Agent",
+            agentId: String(user._id),
+            basis: "Fare after discount",
+            basisPaise,
+            kind: user.commissionType || "Percent",
+            basisPoints:
+              user.commissionType === "Percent" ? user.commissionRate : undefined,
+            fixedPaise:
+              user.commissionType === "Fixed" ? user.commissionRate : undefined,
+          },
+        };
+      }
+    }
+    return { commissionPaise: 0 };
+  }
   const partner = await SalesPartner.findOne({
     _id: partnerId,
     operatorId: auth.operatorId,

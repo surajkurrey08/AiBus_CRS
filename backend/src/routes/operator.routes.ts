@@ -1,4 +1,4 @@
-﻿import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 
 import mongoose from "mongoose";
 
@@ -1203,6 +1203,9 @@ export function operatorRouter(config: Config) {
         .transform((v) => v.toLowerCase()),
       password: z.string().min(12).max(128),
       role: z.enum(["manager", "booking_staff", "read_only"]),
+      phone: z.string().max(20).optional(),
+      commissionType: z.enum(["Percent", "Fixed"]).optional().default("Percent"),
+      commissionRate: z.coerce.number().min(0).max(1000000).optional().default(500),
     })
     .strict();
   router.post(
@@ -1220,6 +1223,9 @@ export function operatorRouter(config: Config) {
               name: input.name,
               email: input.email,
               role: input.role,
+              phone: input.phone,
+              commissionType: input.commissionType,
+              commissionRate: input.commissionRate,
               passwordHash,
             },
           ],
@@ -1234,6 +1240,9 @@ export function operatorRouter(config: Config) {
           name: user.name,
           email: user.email,
           role: user.role,
+          phone: user.phone,
+          commissionType: user.commissionType,
+          commissionRate: user.commissionRate,
           active: user.active,
         },
         undefined,
@@ -1250,6 +1259,9 @@ export function operatorRouter(config: Config) {
           .object({
             name: text.optional(),
             role: z.enum(["manager", "booking_staff", "read_only"]).optional(),
+            phone: z.string().max(20).optional(),
+            commissionType: z.enum(["Percent", "Fixed"]).optional(),
+            commissionRate: z.coerce.number().min(0).max(1000000).optional(),
             active: z.boolean().optional(),
           })
           .strict()
@@ -1280,7 +1292,129 @@ export function operatorRouter(config: Config) {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        commissionType: user.commissionType,
+        commissionRate: user.commissionRate,
         active: user.active,
+      });
+    }),
+  );
+  router.get(
+    "/agents/performance",
+    permit("read"),
+    asyncRoute(async (req, res) => {
+      if (!req.auth.operatorId) {
+        fail(403, "OPERATOR_REQUIRED", "Operator context required");
+      }
+      const opId = new mongoose.Types.ObjectId(req.auth.operatorId!);
+      const staffMembers = await M.User.find({
+        operatorId: opId,
+        role: "booking_staff",
+      }).lean();
+
+      const stats = await M.Booking.aggregate([
+        { $match: { operatorId: opId } },
+        {
+          $group: {
+            _id: "$userId",
+            totalBookings: { $sum: 1 },
+            confirmedBookings: {
+              $sum: {
+                $cond: [{ $in: ["$status", ["Confirmed", "Pending payment"]] }, 1, 0],
+              },
+            },
+            totalSalesPaise: {
+              $sum: {
+                $cond: [{ $eq: ["$paymentStatus", "Paid"] }, "$grossPaise", 0],
+              },
+            },
+            commissionEarnedPaise: { $sum: "$commissionPaise" },
+            lastBookingAt: { $max: "$createdAt" },
+          },
+        },
+      ]);
+
+      const statsMap = new Map(stats.map((s) => [String(s._id), s]));
+
+      const agents = (staffMembers as any[]).map((u) => {
+        const s = statsMap.get(String(u._id));
+        return {
+          id: String(u._id),
+          name: u.name,
+          email: u.email,
+          phone: u.phone || "",
+          role: u.role,
+          active: u.active,
+          commissionType: u.commissionType || "Percent",
+          commissionRate: u.commissionRate ?? 500,
+          totalBookings: s?.totalBookings || 0,
+          confirmedBookings: s?.confirmedBookings || 0,
+          totalSalesPaise: s?.totalSalesPaise || 0,
+          commissionEarnedPaise: s?.commissionEarnedPaise || 0,
+          lastBookingAt: s?.lastBookingAt || null,
+        };
+      });
+
+      const totals = {
+        totalAgents: agents.length,
+        activeAgents: agents.filter((a) => a.active).length,
+        totalBookings: agents.reduce((acc, a) => acc + a.totalBookings, 0),
+        totalSalesPaise: agents.reduce((acc, a) => acc + a.totalSalesPaise, 0),
+        commissionEarnedPaise: agents.reduce(
+          (acc, a) => acc + a.commissionEarnedPaise,
+          0,
+        ),
+      };
+
+      ok(res, { agents, totals });
+    }),
+  );
+  router.get(
+    "/agents/:id/bookings",
+    permit("read"),
+    asyncRoute(async (req, res) => {
+      const agentId = parseId(req);
+      const agent = (await M.User.findOne({
+        _id: agentId,
+        ...tenant(req),
+      }).lean()) as any;
+      if (!agent) fail(404, "NOT_FOUND", "Agent not found");
+
+      const bookings = await M.Booking.find({
+        ...tenant(req),
+        userId: agentId,
+      })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+
+      const data = (bookings as any[]).map((b: any) => ({
+        id: String(b._id),
+        reference: b.reference,
+        pnr: b.pnr || "Pending",
+        tripId: String(b.tripId),
+        seats: ((b.passengers || []) as any[]).map((p: any) => p.seat),
+        passengerName: b.passengers?.[0]?.name || b.contact?.email || "Passenger",
+        passengersCount: ((b.passengers || []) as any[]).length,
+        grossPaise: b.grossPaise,
+        totalPaise: b.totalPaise,
+        commissionPaise: b.commissionPaise,
+        commissionSnapshot: b.commissionSnapshot,
+        status: b.status,
+        paymentStatus: b.paymentStatus,
+        createdAt: b.createdAt,
+      }));
+
+      ok(res, {
+        agent: {
+          id: String(agent._id),
+          name: agent.name,
+          email: agent.email,
+          role: agent.role,
+          commissionType: agent.commissionType || "Percent",
+          commissionRate: agent.commissionRate ?? 500,
+        },
+        bookings: data,
       });
     }),
   );
