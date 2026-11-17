@@ -18,4 +18,12 @@ export const User = model("User", {
   },
   active: { type: Boolean, default: true },
   preferences: { type: Map, of: Boolean, default: {} },
+  phone: { type: String },
+  commissionType: {
+    type: String,
+    enum: ["Percent", "Fixed"],
+    default: "Percent",
+  },
+  commissionRate: { type: Number, default: 500 },
+  salesPartnerId: { type: objectId },
 });

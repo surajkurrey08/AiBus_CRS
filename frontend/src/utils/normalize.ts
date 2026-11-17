@@ -153,7 +153,19 @@ export function normalize(
       ...base,
       name: r.name,
       email: r.email,
+      phone: r.phone || "",
       role: r.role,
+      roleDisplay:
+        r.role === "booking_staff"
+          ? "Agent"
+          : r.role === "manager"
+            ? "Manager"
+            : r.role === "read_only"
+              ? "Read Only"
+              : r.role,
+      commissionType: r.commissionType || "Percent",
+      commissionRate: String((r.commissionRate || 0) / 100),
+      rawCommissionRate: String(r.commissionRate ?? 500),
       status: r.active ? "Active" : "Inactive",
     };
   return Object.fromEntries(

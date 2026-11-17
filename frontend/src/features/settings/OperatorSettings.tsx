@@ -1,4 +1,4 @@
-﻿import { Armchair, Save } from "lucide-react";
+import { Armchair, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client.ts";
 import { Badge, Panel } from "../../components/index.ts";
@@ -26,7 +26,7 @@ export function LiveSettings() {
         {[
           "Company profile",
           ...(ws.user.permissions.includes("staff:write")
-            ? ["Staff & access"]
+            ? ["Agents & Staff"]
             : []),
           "Notifications",
           "Integrations",
@@ -86,7 +86,7 @@ export function LiveSettings() {
             )}
           </form>
         </Panel>
-      ) : tab === "Staff & access" ? (
+      ) : tab === "Agents & Staff" || tab === "Staff & access" ? (
         <LiveStaff />
       ) : tab === "Notifications" ? (
         <Panel title="Notification preferences">

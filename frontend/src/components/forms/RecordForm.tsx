@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { loadAllRecords } from "../../api/loadAll";
 import { type Row } from "../../data/demo-data.ts";
 import { Overlay } from "../ui/Overlay";
@@ -45,28 +45,34 @@ export function RecordForm({
   const busForm = /^(add|edit) bus$/i.test(title);
   const fareForm = /^(add|edit) fare$/i.test(title);
   const labelFor = (field: string) =>
-    busForm && field === "id"
-      ? "Vehicle registration number"
-      : fareForm
-        ? {
-            route: "Route",
-            weekday: "Double-side weekday fare · INR per person",
-            single: "Single-side weekday fare · INR per person",
-            weekend: "Double-side weekend fare · INR per person",
-            singleWeekend: "Single-side weekend fare · INR per person",
-          }[field] || field
-        : routeForm
-          ? {
-              source: "From city",
-              destination: "To city",
-              boarding: "Boarding stops",
-              dropping: "Dropping stops",
-              departure: "Departure time · IST",
-              arrival: "Arrival time · IST",
-              durationMinutes: "Journey duration · minutes",
-              status: "Route status",
-            }[field] || field
-          : field.replace(/^./, (v) => v.toUpperCase());
+    field === "commissionType"
+      ? "Commission Strategy"
+      : field === "commissionRate"
+        ? values["commissionType"] === "Fixed"
+          ? "Fixed Commission (₹ per booking)"
+          : "Commission Percentage (%)"
+        : busForm && field === "id"
+          ? "Vehicle registration number"
+          : fareForm
+            ? {
+                route: "Route",
+                weekday: "Double-side weekday fare · INR per person",
+                single: "Single-side weekday fare · INR per person",
+                weekend: "Double-side weekend fare · INR per person",
+                singleWeekend: "Single-side weekend fare · INR per person",
+              }[field] || field
+            : routeForm
+              ? {
+                  source: "From city",
+                  destination: "To city",
+                  boarding: "Boarding stops",
+                  dropping: "Dropping stops",
+                  departure: "Departure time · IST",
+                  arrival: "Arrival time · IST",
+                  durationMinutes: "Journey duration · minutes",
+                  status: "Route status",
+                }[field] || field
+              : field.replace(/^./, (v) => v.toUpperCase());
   const routeHelp: Record<string, string> = {
     source: "Pune",
     destination: "Mumbai",
@@ -207,11 +213,38 @@ export function RecordForm({
                     setValues({ ...values, [f]: e.target.value })
                   }
                 >
-                  <option value="">Choose staff role</option>
-                  {["manager", "booking_staff", "read_only"].map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
+                  <option value="">Choose role</option>
+                  <option value="booking_staff">Agent</option>
+                  <option value="manager">Manager</option>
+                  <option value="read_only">Read Only</option>
                 </select>
+              ) : f === "commissionType" ? (
+                <select
+                  id={`field-${f}`}
+                  value={values[f] || "Percent"}
+                  onChange={(e) =>
+                    setValues({ ...values, [f]: e.target.value })
+                  }
+                >
+                  <option value="Percent">Percentage of Fare (%)</option>
+                  <option value="Fixed">Fixed Amount per Booking (₹)</option>
+                </select>
+              ) : f === "commissionRate" ? (
+                <input
+                  id={`field-${f}`}
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={
+                    values["commissionType"] === "Fixed"
+                      ? "e.g. 50 (in ₹)"
+                      : "e.g. 5 (5% commission)"
+                  }
+                  value={values[f] ?? ""}
+                  onChange={(e) =>
+                    setValues({ ...values, [f]: e.target.value })
+                  }
+                />
               ) : f === "status" ? (
                 <select
                   id={`field-${f}`}
