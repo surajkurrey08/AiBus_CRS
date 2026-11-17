@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+**/.env
+**/.env.*
+!**/.env.example
+**/var/
+**/test-results.json
+coverage/

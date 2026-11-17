@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+**/var
+**/*.tsbuildinfo
+**/test-results.json
+**/coverage
+**/*.test.ts
+**/*.test.tsx

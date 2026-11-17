@@ -1,0 +1,64 @@
+import { Schema } from "mongoose";
+import {
+  mapping,
+  model,
+  objectId,
+  passenger,
+  tenantFields,
+} from "./shared/schema.js";
+
+export const Booking = model(
+  "Booking",
+  {
+    ...tenantFields,
+    tripId: { type: objectId, required: true },
+    userId: { type: objectId, required: true },
+    holdId: { type: String, required: true },
+    reference: { type: String, required: true, unique: true },
+    pnr: String,
+    source: {
+      type: String,
+      enum: ["operator", "customer", "agent", "external"],
+      default: "operator",
+    },
+    status: {
+      type: String,
+      enum: [
+        "Pending payment",
+        "Confirmed",
+        "Failed",
+        "Cancelled",
+        "Reconciliation required",
+      ],
+      default: "Pending payment",
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed", "Refund pending", "Refunded"],
+      default: "Pending",
+    },
+    paidAt: Date,
+    passengers: [passenger],
+    contact: { phone: String, email: String },
+    gst: { number: String, company: String, address: String },
+    quoteId: objectId,
+    pricingSnapshot: Schema.Types.Mixed,
+    taxPaise: { type: Number, default: 0 },
+    chargePaise: { type: Number, default: 0 },
+    grossPaise: { type: Number, required: true },
+    discountPaise: { type: Number, default: 0 },
+    offerId: objectId,
+    promoCode: String,
+    salesPartnerId: objectId,
+    commissionSnapshot: Schema.Types.Mixed,
+    commissionPaise: { type: Number, default: 0 },
+    totalPaise: { type: Number, required: true },
+    idempotencyKey: { type: String, required: true },
+    requestHash: { type: String, required: true },
+    ...mapping,
+  },
+  [
+    { keys: { operatorId: 1, idempotencyKey: 1 }, options: { unique: true } },
+    { keys: { operatorId: 1, createdAt: -1 } },
+  ],
+);

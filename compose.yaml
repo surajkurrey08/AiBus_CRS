@@ -1,0 +1,50 @@
+# Local development stack only. MongoDB/Redis are isolated; never expose their ports.
+# Production requires authenticated managed services and HTTPS; see backend/README.md.
+services:
+ mongo:
+  image: mongo:7.0
+  command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+  volumes: ["mongo-data:/data/db"]
+  healthcheck:
+   test: ["CMD-SHELL", "mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}).ok }' | grep 1"]
+   interval: 5s
+   timeout: 10s
+   retries: 30
+  networks: [internal]
+ redis:
+  image: redis:7-alpine
+  command: ["redis-server", "--appendonly", "yes"]
+  volumes: ["redis-data:/data"]
+  healthcheck:
+   test: ["CMD", "redis-cli", "ping"]
+   interval: 5s
+   retries: 20
+  networks: [internal]
+ api:
+  build: {context: ., target: api}
+  env_file: backend/.env
+  environment:
+   NODE_ENV: development
+   MONGODB_URI: mongodb://mongo:27017/aibus?replicaSet=rs0
+   REDIS_URL: redis://redis:6379
+   WEB_ORIGIN: http://localhost:8080
+   TRUST_PROXY: 1
+   UPLOAD_DIR: /app/backend/var/uploads
+  volumes: ["bus-images:/app/backend/var/uploads"]
+  depends_on:
+   mongo: {condition: service_healthy}
+   redis: {condition: service_healthy}
+  networks: [internal, edge]
+ web:
+  build: {context: ., target: web}
+  ports: ["127.0.0.1:8080:80"]
+  depends_on:
+   api: {condition: service_healthy}
+  networks: [edge]
+volumes:
+ mongo-data:
+ redis-data:
+ bus-images:
+networks:
+ internal: {internal: true}
+ edge:

@@ -1,0 +1,20 @@
+﻿:root {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums;
+  color: #17201c;
+  background: #faf7f2;
+  --brand-accent: #c4522b;
+  --brand-accent-hover: #a94322;
+  --brand-header: #fffdf9;
+  --brand-soft: #fff0e8;
+  --brand-focus: #2563eb;
+  --crs-canvas: #faf7f2;
+  --crs-ink: #17201c;
+  --border: #e4e7ec;
+  --muted: #526773;
+  scrollbar-color: #bdcbd1 #f1f5f6;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}

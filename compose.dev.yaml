@@ -1,0 +1,9 @@
+# Native Node/Vite development only: bind databases to loopback, never public interfaces.
+# Use directConnection=true in the native Node MongoDB URI.
+services:
+ mongo:
+  ports: ["127.0.0.1:27018:27017"]
+  networks: [internal, edge]
+ redis:
+  ports: ["127.0.0.1:6380:6379"]
+  networks: [internal, edge]

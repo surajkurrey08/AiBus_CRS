@@ -1,0 +1,26 @@
+{
+  "name": "aibus-operator-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "admin"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup-env.mjs",
+    "infra:up": "docker compose -f compose.yaml -f compose.dev.yaml up -d --wait mongo redis",
+    "infra:stop": "docker compose -f compose.yaml -f compose.dev.yaml stop mongo redis",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:backend": "npm run dev -w backend",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "format": "prettier --write frontend/src admin/src backend/src backend/tests",
+    "format:check": "prettier --check frontend/src admin/src backend/src backend/tests",
+    "dev:admin": "npm run dev -w admin"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1"
+  }
+}
