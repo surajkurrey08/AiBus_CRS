@@ -28,29 +28,33 @@ const modules = [
 ] as const;
 export function MasterHub({
   onOpen,
+  allowedIds,
 }: {
   onOpen: (module: 12 | 13 | 14) => void;
+  allowedIds?: (12 | 13 | 14)[];
 }) {
   return (
     <section className="masters-hub" aria-label="Master modules">
-      {modules.map(({ id, name, icon: Icon, description, items }) => (
-        <button
-          className="masters-hub-card"
-          key={id}
-          aria-label={name}
-          onClick={() => onOpen(id)}
-        >
-          <span className="masters-hub-top">
-            <span className="masters-hub-icon">
-              <Icon size={27} aria-hidden="true" />
+      {modules
+        .filter(({ id }) => !allowedIds || allowedIds.includes(id))
+        .map(({ id, name, icon: Icon, description, items }) => (
+          <button
+            className="masters-hub-card"
+            key={id}
+            aria-label={name}
+            onClick={() => onOpen(id)}
+          >
+            <span className="masters-hub-top">
+              <span className="masters-hub-icon">
+                <Icon size={27} aria-hidden="true" />
+              </span>
+              <ArrowUpRight size={20} aria-hidden="true" />
             </span>
-            <ArrowUpRight size={20} aria-hidden="true" />
-          </span>
-          <strong>{name}</strong>
-          <span className="masters-hub-description">{description}</span>
-          <span className="masters-hub-items">{items}</span>
-        </button>
-      ))}
+            <strong>{name}</strong>
+            <span className="masters-hub-description">{description}</span>
+            <span className="masters-hub-items">{items}</span>
+          </button>
+        ))}
     </section>
   );
 }

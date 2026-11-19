@@ -132,6 +132,15 @@ const descriptions = [
   "Manage services, bulk scheduling, operational records and commission rules.",
   "Choose Bus Master, Area Master or Trip Master to manage your setup.",
 ];
+// Keep the workspace focused on the screens each operator role uses. The
+// API remains the source of truth for authorization; this controls navigation
+// and in-app page changes only.
+const rolePages: Record<string, number[]> = {
+  operator_admin: Array.from({ length: nav.length }, (_, index) => index),
+  manager: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15],
+  booking_staff: [0, 3, 4, 5, 11],
+  read_only: [0, 1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 15],
+};
 export function App({ demo = false }: { demo?: boolean }) {
   return (
     <WorkspaceProvider demo={demo}>
@@ -143,6 +152,8 @@ function Dashboard() {
   const ws = useWorkspace();
   const counterGuard = useRef<((proceed: () => void) => void) | null>(null);
   const permitted = (p: string) => ws.user.permissions.includes(p);
+  const visiblePages = rolePages[ws.user.role] || [0];
+  const canAccessPage = (index: number) => visiblePages.includes(index);
   const routeNames = ws.records.routes.map((r) => r.route);
   const [page, setPage] = useState(0),
     [collapsed, setCollapsed] = useState(false),
@@ -181,6 +192,9 @@ function Dashboard() {
   const setProfile = ws.setProfile;
   const [report, setReport] = useState<Record<string, any>>({});
   useEffect(() => {
+    if (!canAccessPage(page)) setPage(0);
+  }, [page, ws.user.role]);
+  useEffect(() => {
     if (!ws.demo && permitted("finance:read"))
       api("/operator/reports/revenue?from=" + reportFrom + "&to=" + date)
         .then((r) => setReport(r.data))
@@ -203,6 +217,7 @@ function Dashboard() {
     }
   }, [toast]);
   const navigate = (i: number) => {
+    if (!canAccessPage(i)) return;
     const proceed = () => {
       const target = i === 1 ? 12 : i === 2 ? 14 : i;
       if (i === 2) setTripMasterTab("trips");
@@ -317,6 +332,7 @@ function Dashboard() {
         <div className="nav-label">{collapsed ? "•••" : "WORKSPACE"}</div>
         <nav id="workspace-navigation" aria-label="Workspace navigation">
           {[0, 15, 3, 11, 4, 5, 6, 7, 8, 9, 10]
+            .filter(canAccessPage)
             .map((i) => ({
               entry: nav[i],
               i,
@@ -500,16 +516,18 @@ function Dashboard() {
             <div className="header-popover account-pop">
               <strong>{profile.company}</strong>
               <p>Operator ID · {ws.user.operatorId}</p>
-              <button
-                className="text-btn"
-                onClick={() => {
-                  navigate(10);
-                  setAccount(false);
-                }}
-              >
-                Manage account
-                <Settings size={15} />
-              </button>
+              {canAccessPage(10) && (
+                <button
+                  className="text-btn"
+                  onClick={() => {
+                    navigate(10);
+                    setAccount(false);
+                  }}
+                >
+                  Manage account
+                  <Settings size={15} />
+                </button>
+              )}
               <button className="text-btn" onClick={ws.logout}>
                 Sign out
               </button>
@@ -1185,7 +1203,12 @@ function Dashboard() {
             />
           )}
           {page === 13 && <AreaMaster />}
-          {page === 15 && <MasterHub onOpen={navigate} />}
+          {page === 15 && (
+            <MasterHub
+              onOpen={navigate}
+              allowedIds={([12, 13, 14] as const).filter(canAccessPage)}
+            />
+          )}
           {page === 14 && (
             <TripMaster
               onCounter={() => navigate(11)}
