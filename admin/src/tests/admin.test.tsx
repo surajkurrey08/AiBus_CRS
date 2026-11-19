@@ -66,6 +66,31 @@ beforeEach(() => {
           status: JSON.parse(options?.body as string).status,
         });
       if (url.endsWith("/operators/operator-1")) return reply(company);
+      if (url.includes("/platform/records/bookings"))
+        return reply({
+          counts: { api: 1, operator: 2 },
+          bookings: [{
+            id: "booking-1",
+            reference: "AB-API-001",
+            pnr: "PNR001",
+            source: "external",
+            status: "Confirmed",
+            paymentStatus: "Paid",
+            createdAt: "2026-11-16T10:00:00Z",
+            totalPaise: 125000,
+            passengers: [{ name: "Asha Rao", seat: "L1", phone: "9876543210", boarding: "Pune", dropping: "Goa" }],
+            operator: "Pune Travels",
+            operatorId: "operator-1",
+            route: "Pune → Goa",
+            journeyDate: "2026-11-20",
+            departureAt: "2026-11-20T15:30:00Z",
+            enteredBy: "API integration",
+            enteredByEmail: null,
+            enteredByRole: null,
+            agentHierarchy: ["Pune Branch (Branch)", "Central Agent (Agent)"],
+            totalPassengers: 1,
+          }],
+        }, 200, { page: 1, limit: 20, total: 1, pages: 1 });
       if (url.includes("/platform/operators?"))
         return reply([company], 200, {
           page: 1,
@@ -157,4 +182,14 @@ it("sends search and status filters to the platform API", async () => {
         ),
     ).toBe(true),
   );
+});
+it("shows platform API booking records and their agent detail", async () => {
+  const user = await signIn();
+  await user.click(screen.getByRole("button", { name: "Bookings through API" }));
+  expect(await screen.findByText("AB-API-001")).toBeTruthy();
+  expect(screen.getByText("Pune Branch (Branch) › Central Agent (Agent)")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "View" }));
+  const details = within(screen.getByRole("dialog", { name: "Booking AB-API-001" }));
+  expect(await details.findByText("Asha Rao")).toBeTruthy();
+  expect(details.getByText("Seat L1")).toBeTruthy();
 });

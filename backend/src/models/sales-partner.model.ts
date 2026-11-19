@@ -5,6 +5,7 @@ export const SalesPartner = model(
     ...tenantFields,
     name: { type: String, required: true },
     kind: { type: String, enum: ["Agent", "Branch"], required: true },
+    parentPartnerId: { type: objectId, default: null },
     phone: String,
     email: String,
     status: { type: String, default: "Active" },

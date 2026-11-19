@@ -48,6 +48,7 @@ export const configs: Record<
     fields: [
       { key: "name", label: "Name" },
       { key: "kind", label: "Partner type", options: ["Agent", "Branch"] },
+      { key: "parentPartnerId", label: "Reports to", lookup: "partners", optional: true },
       { key: "phone", label: "Phone", type: "tel" },
       { key: "email", label: "Email", type: "email", optional: true },
       { key: "status", label: "Status", options: ["Active", "Inactive"] },

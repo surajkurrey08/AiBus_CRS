@@ -98,7 +98,7 @@ export function TripMaster({
       : tab === "tablets"
         ? ["name", "serialNumber", "status", "assignment"]
         : tab === "partners"
-          ? ["name", "kind", "phone", "email", "status"]
+          ? ["name", "kind", "parentPartnerId", "phone", "email", "status"]
           : tab === "commissions"
             ? [
                 "partnerId",
@@ -128,6 +128,7 @@ export function TripMaster({
     tripId: "Trip",
     serviceId: "Service",
     partnerId: "Partner",
+    parentPartnerId: "Reports to",
     fromTripId: "From trip",
     toTripId: "To trip",
     doublePaise: "Double side · INR",
@@ -152,6 +153,7 @@ export function TripMaster({
       tripId: "trips",
       serviceId: "services",
       partnerId: "partners",
+      parentPartnerId: "partners",
       fromTripId: "trips",
       toTripId: "trips",
     };

@@ -1,10 +1,11 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building2,
   BusFront,
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   RefreshCw,
   Search,
@@ -13,6 +14,7 @@ import {
 import { api, logout, type Identity } from "../../api/client.ts";
 import { Overlay } from "../../components/ui/Overlay";
 import { Panel } from "../../components/ui/Panel";
+import { RecordsScreen } from "./RecordsScreen";
 type Raw = Record<string, any>;
 import "./platform.css";
 
@@ -133,7 +135,7 @@ function OperatorDetails({
   );
 }
 export function PlatformScreen({ user }: { user: Identity }) {
-  const [page, setPage] = useState<"overview" | "operators">("overview");
+  const [page, setPage] = useState<"overview" | "operators" | "records-api" | "records-operator">("overview");
   const [rows, setRows] = useState<Raw[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState("");
@@ -206,6 +208,8 @@ export function PlatformScreen({ user }: { user: Identity }) {
     setSearch("");
     setCurrentPage(1);
   }
+  const pageTitle = page === "overview" ? "Overview" : page === "operators" ? "Bus Operators" : "Records";
+  const recordsPage = page === "records-api" || page === "records-operator";
   return (
     <div className="platform-admin workspace-crs">
       <aside className="platform-sidebar">
@@ -233,6 +237,15 @@ export function PlatformScreen({ user }: { user: Identity }) {
             <Building2 size={19} />
             Bus Operators
           </button>
+          <div className="platform-nav-section">BOOKING RECORDS</div>
+          <button className={page === "records-api" ? "active" : ""} aria-current={page === "records-api" ? "page" : undefined} onClick={() => setPage("records-api")}>
+            <ListChecks size={19} />
+            Bookings through API
+          </button>
+          <button className={page === "records-operator" ? "active" : ""} aria-current={page === "records-operator" ? "page" : undefined} onClick={() => setPage("records-operator")}>
+            <Building2 size={19} />
+            Bookings through operators
+          </button>
         </nav>
         <div className="platform-sidebar-footer">
           <ShieldCheck size={18} />
@@ -243,7 +256,7 @@ export function PlatformScreen({ user }: { user: Identity }) {
         <header className="platform-topbar">
           <span>
             Admin <ChevronRight size={15} />{" "}
-            {page === "overview" ? "Overview" : "Bus Operators"}
+            {pageTitle}
           </span>
           <div>
             <span>{user.name}</span>
@@ -257,12 +270,16 @@ export function PlatformScreen({ user }: { user: Identity }) {
           <div className="page-heading">
             <div>
               <h1>
-                {page === "overview" ? "Admin overview" : "Bus Operators"}
+                {page === "overview" ? "Admin overview" : page === "operators" ? "Bus Operators" : page === "records-api" ? "Bookings through API" : "Bookings through operators"}
               </h1>
               <p>
                 {page === "overview"
                   ? "Operator registrations and fleet activity across Aibus."
-                  : "Review companies, contact details and account access."}
+                  : page === "operators"
+                    ? "Review companies, contact details and account access."
+                    : page === "records-api"
+                      ? "Review bookings submitted through API and customer channels."
+                      : "Review operator, agent, and branch booking activity."}
               </p>
             </div>
             <button
@@ -290,7 +307,7 @@ export function PlatformScreen({ user }: { user: Identity }) {
               </button>
             </div>
           )}
-          <div className="platform-summary">
+          {page !== "records-api" && page !== "records-operator" && <div className="platform-summary">
             {statuses.map((s) => (
               <button
                 key={s}
@@ -308,7 +325,7 @@ export function PlatformScreen({ user }: { user: Identity }) {
                 </small>
               </button>
             ))}
-          </div>
+          </div>}
           {page === "overview" ? (
             <>
               <Panel title="Platform activity">
@@ -361,6 +378,10 @@ export function PlatformScreen({ user }: { user: Identity }) {
                 </div>
               </Panel>
             </>
+          ) : recordsPage ? (
+            <Panel className="records-panel">
+              <RecordsScreen channel={page === "records-api" ? "api" : "operator"} />
+            </Panel>
           ) : (
             <Panel title="Operator directory">
               <div className="platform-filters">

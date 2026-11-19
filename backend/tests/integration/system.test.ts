@@ -713,6 +713,79 @@ describe("Bus Master", () => {
 });
 
 describe("platform admin panel", () => {
+  it("splits API and operator booking records and includes the partner hierarchy", async () => {
+    await M.User.create({
+      name: "Platform",
+      email: "platform-records@example.test",
+      passwordHash: await hashPassword(password),
+      role: "super_admin",
+    });
+    const login = await request(app)
+      .post("/api/v1/auth/login")
+      .set("Origin", "http://127.0.0.1:5174")
+      .set("X-Aibus-Client", "admin")
+      .send({ email: "platform-records@example.test", password });
+    const rootPartner = await M.SalesPartner.create({
+      operatorId: a.operatorId,
+      name: "City Branch",
+      kind: "Branch",
+    });
+    const childPartner = await M.SalesPartner.create({
+      operatorId: a.operatorId,
+      name: "Central Agent",
+      kind: "Agent",
+      parentPartnerId: rootPartner._id,
+    });
+    const actor = await M.User.findOne({ email: "a@example.test" });
+    await M.Booking.create([
+      {
+        operatorId: a.operatorId,
+        tripId,
+        userId: actor!._id,
+        holdId: "api-record-hold",
+        reference: "AB-API-RECORD",
+        source: "external",
+        status: "Confirmed",
+        paymentStatus: "Paid",
+        passengers: [{ name: "API Passenger", seat: "L1" }],
+        grossPaise: 10000,
+        totalPaise: 10000,
+        salesPartnerId: childPartner._id,
+        idempotencyKey: "api-record-key",
+        requestHash: "api-record-hash",
+      },
+      {
+        operatorId: a.operatorId,
+        tripId,
+        userId: actor!._id,
+        holdId: "operator-record-hold",
+        reference: "AB-OP-RECORD",
+        source: "operator",
+        status: "Pending payment",
+        paymentStatus: "Pending",
+        passengers: [{ name: "Counter Passenger", seat: "L2" }],
+        grossPaise: 8000,
+        totalPaise: 8000,
+        idempotencyKey: "operator-record-key",
+        requestHash: "operator-record-hash",
+      },
+    ]);
+    const token = login.body.data.accessToken;
+    const apiRecords = await get("/platform/records/bookings?channel=api", token);
+    expect(apiRecords.status).toBe(200);
+    expect(apiRecords.body.data.bookings).toHaveLength(1);
+    expect(apiRecords.body.data.bookings[0]).toMatchObject({
+      reference: "AB-API-RECORD",
+      source: "external",
+      operator: "Operator A",
+      agentHierarchy: ["City Branch (Branch)", "Central Agent (Agent)"],
+    });
+    expect(apiRecords.body.data.counts).toEqual({ api: 1, operator: 1 });
+    const operatorRecords = await get("/platform/records/bookings?channel=operator", token);
+    expect(operatorRecords.body.data.bookings.map((row: any) => row.reference)).toEqual(["AB-OP-RECORD"]);
+    expect((await get("/platform/records/bookings?channel=api&search=OP-RECORD", token)).body.data.bookings).toHaveLength(0);
+    expect((await get("/platform/records/bookings?channel=api", tokenA)).status).toBe(403);
+  });
   it("returns searchable paginated operators, overview and company-only details to administrators", async () => {
     await M.User.create({
       name: "Platform",
@@ -2136,6 +2209,40 @@ describe("Razorpay Test Mode adapter (mock provider transport)", () => {
 });
 
 describe("Trip Master", () => {
+  it("maintains partner reporting lines and rejects a hierarchy cycle", async () => {
+    const root = await post("/operator/trip-master/partners", {
+      name: "Main Branch",
+      kind: "Branch",
+      phone: "9876543210",
+      status: "Active",
+    });
+    expect(root.status).toBe(201);
+    const child = await post("/operator/trip-master/partners", {
+      name: "Local Agent",
+      kind: "Agent",
+      phone: "9876543211",
+      parentPartnerId: String(root.body.data._id),
+      status: "Active",
+    });
+    expect(child.status).toBe(201);
+    const listed = await get("/operator/trip-master/partners");
+    expect(listed.body.data.find((partner: any) => partner.name === "Local Agent")).toMatchObject({
+      parentPartnerId: root.body.data._id,
+      parentPartnerName: "Main Branch",
+    });
+    const cyclic = await request(app)
+      .patch(`/api/v1/operator/trip-master/partners/${root.body.data._id}`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .send({
+        name: "Main Branch",
+        kind: "Branch",
+        phone: "9876543210",
+        parentPartnerId: String(child.body.data._id),
+        status: "Active",
+      });
+    expect(cyclic.status).toBe(400);
+    expect(cyclic.body.error.code).toBe("PARTNER_HIERARCHY_CYCLE");
+  });
   async function serviceFixture() {
     await M.Layout.create({
       operatorId: a.operatorId,

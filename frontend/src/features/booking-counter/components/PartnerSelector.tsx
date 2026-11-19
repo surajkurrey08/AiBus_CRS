@@ -30,7 +30,7 @@ export function PartnerSelector({
         <option value="">Direct booking · no commission</option>
         {rows.map((r) => (
           <option value={r._id} key={r._id}>
-            {r.name} · {r.kind}
+            {r.parentPartnerName ? `${r.parentPartnerName} › ` : ""}{r.name} · {r.kind}
           </option>
         ))}
       </select>

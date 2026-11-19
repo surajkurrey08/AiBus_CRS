@@ -1,7 +1,9 @@
+import { ArrowLeft, BookOpen, CheckCircle2, Code2, KeyRound, Layers3, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { api, login } from "../../api/client.ts";
 
 export function AuthScreen() {
+  const [showDocs, setShowDocs] = useState(false);
   const [mode, setMode] = useState(
       new URLSearchParams(location.search).has("reset") ? "reset" : "login",
     ),
@@ -12,6 +14,48 @@ export function AuthScreen() {
     [busy, setBusy] = useState(false);
   return (
     <div className="auth-page">
+      {showDocs ? (
+        <section className="auth-docs" aria-labelledby="auth-docs-title">
+          <button className="auth-docs-back" onClick={() => setShowDocs(false)}>
+            <ArrowLeft size={17} /> Back to sign in
+          </button>
+          <div className="auth-docs-heading">
+            <span className="auth-docs-icon"><BookOpen size={22} /></span>
+            <div>
+              <div className="eyebrow">AIBUS API · GETTING STARTED</div>
+              <h1 id="auth-docs-title">API overview</h1>
+              <p>A first look at how customer applications will connect to Aibus.</p>
+            </div>
+          </div>
+          <div className="auth-docs-callout">
+            <ShieldCheck size={19} />
+            <p><strong>Integration details are being finalized.</strong> Endpoint paths, credentials, request fields, and live examples will be added once the API contract is ready.</p>
+          </div>
+          <div className="auth-docs-grid">
+            <article>
+              <Code2 size={20} />
+              <h2>What the API will do</h2>
+              <p>Allow approved customer applications to connect with Aibus services, request available travel information, and submit booking requests.</p>
+            </article>
+            <article>
+              <KeyRound size={20} />
+              <h2>Access and security</h2>
+              <p>API access will use credentials issued to an approved integration. Authentication, permissions, and credential setup instructions will be documented here.</p>
+            </article>
+            <article>
+              <Layers3 size={20} />
+              <h2>Responses and errors</h2>
+              <p>Each endpoint will include a request example, response fields, status meanings, and guidance for handling errors and retries.</p>
+            </article>
+            <article>
+              <CheckCircle2 size={20} />
+              <h2>Booking lifecycle</h2>
+              <p>Documentation will explain how to check availability, create a booking, confirm its status, and use the returned booking reference.</p>
+            </article>
+          </div>
+          <div className="auth-docs-footer">For operator account access, return to sign in. API access instructions will appear here when the integration is ready.</div>
+        </section>
+      ) : (
       <section className="auth-card">
         <div className="startup-brand">aibus</div>
         <div className="eyebrow">OPERATOR WORKSPACE</div>
@@ -24,7 +68,7 @@ export function AuthScreen() {
                 ? "Set a new password"
                 : "Reset your password"}
         </h1>
-        <p>Secure access to your operations.</p>
+        <p>Sign in to manage bookings, trips, and your operator account.</p>
         <form
           noValidate
           onSubmit={async (e) => {
@@ -136,12 +180,18 @@ export function AuthScreen() {
               : "Back to sign in"}
           </button>
           {mode === "login" && (
-            <button className="text-btn" onClick={() => setMode("forgot")}>
-              Forgot password?
-            </button>
+            <>
+              <button className="text-btn" onClick={() => setMode("forgot")}>
+                Forgot password?
+              </button>
+              <button className="text-btn auth-docs-link" onClick={() => setShowDocs(true)}>
+                <BookOpen size={15} /> API Docs
+              </button>
+            </>
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }

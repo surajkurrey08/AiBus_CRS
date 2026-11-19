@@ -106,7 +106,7 @@ export function tripMasterRouter() {
       schema: partnerInput,
       permission: "pricing:write" as const,
       fields: ["name", "kind", "phone", "email"],
-      optional: ["email"],
+      optional: ["email", "parentPartnerId"],
     },
     {
       path: "commissions",
@@ -156,6 +156,16 @@ export function tripMasterRouter() {
           resource.model.countDocuments(filter),
         ]);
         let data: any[] = rows;
+        if (resource.path === "partners") {
+          const parents = await M.SalesPartner.find({
+            ...tenant(req),
+            _id: { $in: rows.map((row: any) => row.parentPartnerId).filter(Boolean) },
+          }).select("name").lean();
+          data = rows.map((row: any) => ({
+            ...row,
+            parentPartnerName: parents.find((parent: any) => String(parent._id) === String(row.parentPartnerId))?.name || null,
+          }));
+        }
         if (resource.path === "tablets") {
           const assignments = await M.TabletAssignment.find({
             ...tenant(req),
@@ -275,6 +285,32 @@ export function tripMasterRouter() {
                   input.tripId,
                   session,
                 );
+            }
+            if (resource.path === "partners" && input.parentPartnerId) {
+              const parent = await ownedTripResource(
+                M.SalesPartner,
+                req.auth,
+                input.parentPartnerId,
+                session,
+              );
+              if (String(parent._id) === String(recordId || ""))
+                fail(400, "PARTNER_HIERARCHY_CYCLE", "A partner cannot report to itself");
+              const descendants = await M.SalesPartner.find({ ...tenant(req) })
+                .select("_id parentPartnerId")
+                .session(session)
+                .lean();
+              const parentById = new Map(descendants.map((item: any) => [String(item._id), item]));
+              let current: string | undefined = String(input.parentPartnerId);
+              const seen = new Set<string>();
+              while (current) {
+                if (current === String(recordId || ""))
+                  fail(400, "PARTNER_HIERARCHY_CYCLE", "This reporting line would create a loop");
+                if (seen.has(current))
+                  fail(409, "PARTNER_HIERARCHY_CYCLE", "The existing reporting line contains a loop");
+                seen.add(current);
+                const parentRecord: any = parentById.get(current);
+                current = parentRecord?.parentPartnerId ? String(parentRecord.parentPartnerId) : undefined;
+              }
             }
             if (resource.path === "links") {
               const from = await ownedTripResource(

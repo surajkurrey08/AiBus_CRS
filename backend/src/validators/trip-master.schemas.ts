@@ -110,6 +110,7 @@ export const partnerInput = z
   .object({
     name: text,
     kind: z.enum(["Agent", "Branch"]),
+    parentPartnerId: id.nullable().optional(),
     phone: contactInput.shape.phone,
     email: z.string().email().optional(),
     status,
