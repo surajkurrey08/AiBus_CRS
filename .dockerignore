@@ -10,3 +10,19 @@
 **/coverage
 **/*.test.ts
 **/*.test.tsx
+
+# Private database backups and laptop transfer bundles
+backups/
+
+# Local dependency cache and disposable browser artifacts
+.cache/
+playwright-report/
+test-results/
+.github/
+docs/
+tests/
+**/*.pem
+**/*.key
+**/*.p12
+**/*.bson
+**/*.log

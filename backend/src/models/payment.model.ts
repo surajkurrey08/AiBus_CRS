@@ -15,6 +15,7 @@ export const Payment = model(
       default: "pending",
     },
     confirmedAt: Date,
+    refundedPaise: { type: Number, default: 0, min: 0, validate: Number.isSafeInteger },
   },
   [{ keys: { providerId: 1, externalId: 1 }, options: { unique: true } }],
 );

@@ -52,7 +52,7 @@ export const multiScheduleInput = z
   );
 export const operationInput = z
   .object({
-    stage: z.enum(["Boarding", "Departed", "Arrived", "Completed"]),
+    stage: z.enum(["Boarding", "Boarding Completed", "Departed", "In Transit", "Arrived", "Completed"]),
     at: z.string().datetime({ offset: true }),
     odometerKm: km.optional(),
     fuelConsumedMillilitres: z

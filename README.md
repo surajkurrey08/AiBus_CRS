@@ -41,3 +41,8 @@ See [backend setup and deployment](backend/README.md), [system architecture and 
 Razorpay Test Mode is integrated for internal inventory: server-created orders, hosted Checkout, signed verification and captured-payment reconciliation. See [Razorpay setup](backend/RAZORPAY.md). External reservation APIs, live payments and automated refunds remain unavailable. Test payments are not real collections; complete production integrations before accepting real transactions.
 
 See [folder structure](FOLDER-STRUCTURE.md) for source responsibilities and entrypoints.
+
+For the isolated Hostinger/GHCR deployment pipeline, see the
+[deployment runbook](docs/DEPLOYMENT.md), [source audit](docs/DEPLOYMENT-AUDIT.md)
+and [local validation results](docs/CI-CD-VERIFICATION.md). Production deployment
+is manual only; configuring these files does not deploy or change the shared proxy.

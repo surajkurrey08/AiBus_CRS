@@ -128,7 +128,13 @@ export function tripMasterRouter() {
   for (const resource of resources) {
     router.get(
       `/${resource.path}`,
-      permit(resource.path === "commissions" ? "pricing:write" : "read"),
+      permit(
+        resource.path === "commissions"
+          ? "pricing:write"
+          : resource.path === "partners"
+            ? "agents:read"
+            : "read",
+      ),
       asyncRoute(async (req, res) => {
         const p = pagination(req);
         const filter = {
@@ -180,7 +186,13 @@ export function tripMasterRouter() {
     );
     router.get(
       `/${resource.path}/:id`,
-      permit(resource.path === "commissions" ? "pricing:write" : "read"),
+      permit(
+        resource.path === "commissions"
+          ? "pricing:write"
+          : resource.path === "partners"
+            ? "agents:read"
+            : "read",
+      ),
       asyncRoute(async (req, res) =>
         ok(
           res,
@@ -209,6 +221,37 @@ export function tripMasterRouter() {
                 recordId,
                 session,
               );
+            if (
+              resource.path === "partners" &&
+              !req.auth.permissions.includes("agents:write")
+            ) {
+              const existing: any = recordId
+                ? await M.SalesPartner.findOne({
+                    _id: recordId,
+                    ...tenant(req),
+                  })
+                    .session(session)
+                    .lean()
+                : null;
+              if (input.kind === "Agent" || existing?.kind === "Agent")
+                fail(
+                  403,
+                  "FORBIDDEN",
+                  "Agent management permission is required",
+                );
+            }
+            if (resource.path === "partners" && recordId) {
+              const linked = await M.User.exists({
+                ...tenant(req),
+                salesPartnerId: recordId,
+              }).session(session);
+              if (linked && input.kind !== "Agent")
+                fail(
+                  409,
+                  "AGENT_LINK_CONFLICT",
+                  "A linked agency cannot become a branch",
+                );
+            }
             if (resource.path === "services") {
               if (!req.auth.permissions.includes("pricing:write"))
                 fail(
@@ -480,7 +523,7 @@ export function tripMasterRouter() {
         req.auth,
         id.parse(req.params.id),
       );
-      const [events, stops, gps] = await Promise.all([
+      const [events, stops, gps, crew, tablets, incidents] = await Promise.all([
         M.TripOperation.find({ ...tenant(req), tripId: trip._id })
           .sort({ at: 1 })
           .lean(),
@@ -488,6 +531,9 @@ export function tripMasterRouter() {
           .sort({ arrivedAt: 1 })
           .lean(),
         M.BusGps.findOne({ ...tenant(req), busId: trip.busId }).lean(),
+        M.CrewMember.find({ ...tenant(req), _id: { $in: trip.crewIds || [] } }).select("name role status").lean(),
+        M.TabletAssignment.find({ ...tenant(req), tripId: trip._id, releasedAt: null }).select("tabletId assignedAt crewId").lean(),
+        M.TripIncident.find({ ...tenant(req), tripId: trip._id }).select("kind reason at").sort({ at: -1 }).limit(100).lean(),
       ]);
       delete trip.seats;
       ok(res, {
@@ -502,6 +548,7 @@ export function tripMasterRouter() {
           longitude: null,
           lastReportedAt: null,
         },
+        crew, tablets, incidents,
         integrations: { gps: false, revmax: false },
       });
     }),
@@ -533,11 +580,13 @@ export function tripMasterRouter() {
         const current = trip.operationStage || trip.status;
         const next: Record<string, string> = {
           Scheduled: "Boarding",
-          Boarding: "Departed",
-          Departed: "Arrived",
+          Boarding: "Boarding Completed",
+          "Boarding Completed": "Departed",
+          Departed: "In Transit",
+          "In Transit": "Arrived",
           Arrived: "Completed",
         };
-        if (next[current] !== input.stage || trip.status === "Cancelled")
+        if ((next[current] !== input.stage && !(current === "Boarding" && input.stage === "Departed") && !(current === "Departed" && input.stage === "Arrived")) || trip.status === "Cancelled")
           fail(
             409,
             "OPERATION_ORDER",
@@ -587,6 +636,13 @@ export function tripMasterRouter() {
             "Arrival odometer cannot be below the departure reading",
           );
         const changes: any = { operationStage: input.stage };
+        if (input.stage === "Boarding Completed") changes.bookingOpen = false;
+        if (input.stage === "Departed") {
+          const bus = await ownedTripResource(M.Bus, req.auth, String(trip.busId), session);
+          if (bus.status !== "Active") fail(409, "BUS_NOT_ACTIVE", "Departure requires the assigned active bus");
+          const crew = await M.CrewMember.countDocuments({ ...tenant(req), _id: { $in: trip.crewIds || [] }, status: "Active" }).session(session);
+          if (crew !== (trip.crewIds || []).length) fail(409, "CREW_NOT_ACTIVE", "Review assigned crew before departure");
+        }
         if (input.stage === "Departed") {
           changes.status = "Departed";
           changes.bookingOpen = false;

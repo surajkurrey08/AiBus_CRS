@@ -1,4 +1,10 @@
-﻿import { useEffect, useState } from "react";
+import {
+  OperationalReports,
+  OperationalIssues,
+  TripIntegrity,
+} from "./OperationalReliability";
+import { MasterForm } from "./MasterForm";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { asIso, localNow, optionLabel, today } from "./config";
 export function ScheduleServices({
@@ -303,7 +309,8 @@ export function Tracker({
     [data, setData] = useState<any>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [revision, setRevision] = useState(0);
+    [revision, setRevision] = useState(0),
+    [incident, setIncident] = useState(false);
   const [at, setAt] = useState(localNow()),
     [odo, setOdo] = useState(""),
     [fuel, setFuel] = useState(""),
@@ -333,8 +340,10 @@ export function Tracker({
   }, [id, revision]);
   const next: Record<string, string> = {
     Scheduled: "Boarding",
-    Boarding: "Departed",
-    Departed: "Arrived",
+    Boarding: "Boarding Completed",
+    "Boarding Completed": "Departed",
+    Departed: "In Transit",
+    "In Transit": "Arrived",
     Arrived: "Completed",
   };
   const stage = data
@@ -380,6 +389,38 @@ export function Tracker({
               Refresh tracker
             </button>
           </div>
+          <TripIntegrity tripId={id} />
+          <p>
+            Crew:{" "}
+            {(data.crew || [])
+              .map((c: any) => c.name + " (" + c.role + ")")
+              .join(", ") || "No assigned crew"}
+            . Active tablet assignments: {(data.tablets || []).length}.
+          </p>
+          <Results
+            rows={(data.incidents || []).map((i: any) => ({
+              Type: i.kind,
+              Reason: i.reason,
+              Time: i.at,
+            }))}
+          />
+          {canWrite && (
+            <button className="btn" onClick={() => setIncident(true)}>
+              Record incident
+            </button>
+          )}
+          {incident && (
+            <MasterForm
+              resource="incidents"
+              endpoint={`/operator/operations/trips/${id}/incidents`}
+              lookup={lookup}
+              onClose={() => setIncident(false)}
+              onSaved={() => {
+                setIncident(false);
+                setRevision((r) => r + 1);
+              }}
+            />
+          )}
           <Results
             rows={data.events.map((e: any) => ({
               Stage: e.stage,
@@ -503,6 +544,8 @@ export function Reports() {
   return (
     <section className="tm-card">
       <h3>Operational reports</h3>
+      <OperationalIssues />
+      <OperationalReports />
       <p className="muted">
         Delay and mileage use recorded actual times, odometer readings and
         measured fuel consumption. Fuel purchases are reported separately.

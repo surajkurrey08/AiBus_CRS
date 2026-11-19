@@ -29,13 +29,36 @@ export function originGuard(config: Config): RequestHandler {
   return (req, _res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
     const origin = req.get("origin");
+    const client = req.get("X-Aibus-Client");
+    const portal =
+      client === "partner"
+        ? "Partner"
+        : client === "admin"
+          ? "Admin"
+          : client === "agent"
+            ? "Agent"
+            : "Operator";
+    const portalOrigin =
+      client === "partner"
+        ? config.PARTNER_WEB_ORIGIN ||
+          (config.NODE_ENV !== "production"
+            ? "http://127.0.0.1:5176"
+            : config.WEB_ORIGIN)
+        : client === "admin"
+          ? config.ADMIN_WEB_ORIGIN ||
+            (config.NODE_ENV !== "production"
+              ? "http://127.0.0.1:5174"
+              : config.WEB_ORIGIN)
+          : client === "agent"
+            ? config.AGENT_WEB_ORIGIN || config.WEB_ORIGIN
+            : config.WEB_ORIGIN;
     if (origin && !allowedWebOrigins(config).includes(origin))
       return next(
         new AppError(
           403,
           "ORIGIN_REJECTED",
-          "Request origin is not allowed. Open the operator workspace at " +
-            new URL(config.WEB_ORIGIN).origin +
+          `Request origin is not allowed. Open the ${portal.toLowerCase()} workspace at ` +
+            new URL(portalOrigin).origin +
             ".",
         ),
       );
@@ -44,7 +67,10 @@ export function originGuard(config: Config): RequestHandler {
         new AppError(403, "ORIGIN_REJECTED", "Cross-site request blocked"),
       );
     if (
-      (req.cookies?.aibus_refresh || req.cookies?.aibus_admin_refresh) &&
+      (req.cookies?.aibus_refresh ||
+        req.cookies?.aibus_admin_refresh ||
+        req.cookies?.aibus_agent_refresh ||
+        req.cookies?.aibus_partner_refresh) &&
       !origin
     )
       return next(

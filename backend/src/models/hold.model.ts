@@ -16,5 +16,5 @@ export const Hold = model(
       default: "held",
     },
   },
-  [{ keys: { expiresAt: 1 }, options: { expireAfterSeconds: 604800 } }],
+  [{ keys: { expiresAt: 1 }, options: { expireAfterSeconds: 604800 } }, { keys: { status: 1, expiresAt: 1, _id: 1 } }],
 );

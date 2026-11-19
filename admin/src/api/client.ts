@@ -7,6 +7,7 @@ export type Identity = {
   name: string;
   email: string;
   role: string;
+  platformProfile?: string;
   operatorId: string | null;
   permissions: string[];
 };
@@ -100,4 +101,19 @@ export async function logout() {
     identity = null;
     listeners.forEach((fn) => fn());
   }
+}
+
+export async function downloadFinancialReport(name: string, query: Record<string, string>, retry = true): Promise<void> {
+ const response = await fetch('/api/v1/platform/finance/reports/' + encodeURIComponent(name) + '.csv?' + new URLSearchParams(query), { credentials: 'include', headers: { Authorization: 'Bearer ' + accessToken, 'X-Aibus-Client': 'admin' } });
+ if (response.status === 401 && retry) { await refreshSession(); return downloadFinancialReport(name, query, false); }
+ if (!response.ok) { const body = await readApiResponse(response); throw Error(body.error?.message || 'Financial export failed'); }
+ const url = URL.createObjectURL(await response.blob()), link = document.createElement('a'); link.href = url; link.download = 'aibus-platform-finance.csv'; link.click(); URL.revokeObjectURL(url);
+}
+
+export async function downloadPlatformCsv(path: string, query: string, retry = true): Promise<void> {
+ if (!path.startsWith('/platform/')) throw Error('Invalid platform export');
+ const response = await fetch('/api/v1' + path + '.csv?' + query, { credentials: 'include', headers: { Authorization: 'Bearer ' + accessToken, 'X-Aibus-Client': 'admin' } });
+ if (response.status === 401 && retry) { await refreshSession(); return downloadPlatformCsv(path, query, false); }
+ if (!response.ok) { const body = await readApiResponse(response); throw Error(body.error?.message || 'Platform export failed'); }
+ const url = URL.createObjectURL(await response.blob()), link = document.createElement('a'); link.href = url; link.download = 'aibus-platform-report.csv'; link.click(); URL.revokeObjectURL(url);
 }

@@ -1,0 +1,25 @@
+.finance-workspace {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.finance-workspace .panel-body {
+  padding: 20px;
+}
+.finance-workspace .panel-body p {
+  margin: 0 0 12px;
+}
+.finance-workspace dl {
+  margin: 0;
+}
+.finance-workspace dt {
+  font-size: 13px;
+}
+.finance-workspace dd {
+  margin: 8px 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.finance-workspace .table-wrap {
+  overflow-x: auto;
+}

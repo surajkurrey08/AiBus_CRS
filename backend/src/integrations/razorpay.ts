@@ -30,6 +30,7 @@ export async function razorpayRequest(
   config: Config,
   endpoint: string,
   body?: unknown,
+  extraHeaders: { "X-Refund-Idempotency"?: string } = {},
 ): Promise<any> {
   requireRazorpay(config);
   let response: Response;
@@ -39,6 +40,7 @@ export async function razorpayRequest(
       headers: {
         Authorization: `Basic ${Buffer.from(`${config.RAZORPAY_KEY_ID}:${config.RAZORPAY_KEY_SECRET}`).toString("base64")}`,
         "Content-Type": "application/json",
+        ...extraHeaders,
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(12000),

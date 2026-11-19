@@ -1,0 +1,124 @@
+name: Deploy production (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY exactly. Deploys this run’s main commit only.'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: bookmybus-production
+  cancel-in-progress: false
+jobs:
+  reject-invalid-request:
+    if: github.ref != 'refs/heads/main' || inputs.confirmation != 'DEPLOY'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - run: |
+          echo '::error::Select main and type DEPLOY exactly. No deployment was performed.'
+          exit 1
+  verify:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'DEPLOY'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/ci/verify-ci.mjs
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api: ${{ steps.publish.outputs.api }}
+      web: ${{ steps.publish.outputs.web }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: publish
+        env:
+          REVISION: ${{ needs.verify.outputs.sha }}
+        run: |
+          set -Eeuo pipefail
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          api="$prefix-api:$REVISION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          web="$prefix-web:$REVISION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker buildx build --platform linux/amd64 --load --target api --build-arg REVISION="$REVISION" -t "$api" .
+          docker buildx build --platform linux/amd64 --load --target web-production --build-arg REVISION="$REVISION" -t "$web" .
+          bash scripts/ci/image-smoke.sh "$api" "$web" "$REVISION"
+          docker push "$api"
+          docker push "$web"
+          api_digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api")
+          web_digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web")
+          [[ $api_digest == "$prefix-api@sha256:"* && $web_digest == "$prefix-web@sha256:"* ]]
+          echo "api=$api_digest" >> "$GITHUB_OUTPUT"
+          echo "web=$web_digest" >> "$GITHUB_OUTPUT"
+          printf 'Tested images for `%s`:\n\n- `%s`\n- `%s`\n' "$REVISION" "$api_digest" "$web_digest" >> "$GITHUB_STEP_SUMMARY"
+  deploy:
+    needs: [verify, publish]
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - name: Recheck exact CI after approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/ci/verify-ci.mjs
+      - name: Transfer release and deploy exact tested digests
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS || secrets.VPS_KNOWN_HOSTS }}
+          API_IMAGE: ${{ needs.publish.outputs.api }}
+          WEB_IMAGE: ${{ needs.publish.outputs.web }}
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: bash scripts/ci/ssh-deploy.sh
+      - name: Report deployment result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: echo "Production deployment result — $RESULT. No database migration was run." >> "$GITHUB_STEP_SUMMARY"

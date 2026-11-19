@@ -1,7 +1,15 @@
 export type Role =
-  "super_admin" | "operator_admin" | "manager" | "booking_staff" | "read_only";
+  | "super_admin"
+  | "operator_admin"
+  | "manager"
+  | "booking_staff"
+  | "read_only"
+  | "agent"
+  | "partner";
 
 export type Permission =
+  | (typeof import("./partner-portal.js").partnerPermissions)[number]
+  | (typeof import("./platform.js").platformPermissions)[number]
   | "read"
   | "fleet:write"
   | "routes:write"
@@ -15,11 +23,22 @@ export type Permission =
   | "staff:write"
   | "settings:write"
   | "finance:read"
+  | "finance:manage"
+  | "platform:finance:read"
+  | "refunds:review"
+  | "settlements:prepare"
+  | "settlements:approve"
+  | "payouts:authorize"
+  | "agents:read"
+  | "agents:write"
   | "platform:manage";
 
 export const rolePermissions: Record<Role, Permission[]> = {
   super_admin: ["platform:manage"],
   operator_admin: [
+    "finance:manage",
+    "agents:read",
+    "agents:write",
     "read",
     "fleet:write",
     "routes:write",
@@ -35,6 +54,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "finance:read",
   ],
   manager: [
+    "agents:read",
     "read",
     "fleet:write",
     "routes:write",
@@ -49,6 +69,8 @@ export const rolePermissions: Record<Role, Permission[]> = {
   ],
   booking_staff: ["read", "bookings:write", "manifest:read", "manifest:write"],
   read_only: ["read"],
+  agent: [],
+  partner: [],
 };
 
 export interface Principal {
@@ -57,6 +79,9 @@ export interface Principal {
   role: Role;
   sessionId: string;
   permissions: Permission[];
+  agentId?: string;
+  partnerId?: string;
+  partnerRole?: string;
 }
 
 declare global {

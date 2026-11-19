@@ -5,12 +5,14 @@ import { CrewFields } from "../fleet/components/CrewFields";
 import { asIso, configs, localNow, optionLabel } from "./config";
 export function MasterForm({
   resource,
+  endpoint,
   record,
   lookup,
   onClose,
   onSaved,
 }: {
   resource: string;
+  endpoint?: string;
   record?: any;
   lookup: Record<string, any[]>;
   onClose: () => void;
@@ -90,12 +92,20 @@ export function MasterForm({
                     ? asIso(value)
                     : value;
             }
+            if (
+              resource === "incidents" &&
+              (values.reason || "").trim().length < 5
+            )
+              throw Error(
+                "Explain the incident using at least five characters.",
+              );
             if (resource === "services") {
               payload.daysOfWeek = days;
               payload.crewIds = crew;
             }
             await api(
-              `/operator/trip-master/${resource}${record ? `/${record._id}` : ""}`,
+              endpoint ||
+                `/operator/trip-master/${resource}${record ? `/${record._id}` : ""}`,
               {
                 method: record ? "PATCH" : "POST",
                 headers: { "Idempotency-Key": key },

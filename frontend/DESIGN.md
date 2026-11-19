@@ -27,3 +27,15 @@ Navigation consolidation: the compact sidebar now exposes Master instead of sepa
 
 
 All three Master modules use the shared grouped section navigation: a 210px secondary rail with 44px rows on desktop and a native compact selector on smaller screens. The active row uses the established soft orange fill and inset accent. This replaces crowded wrapping tab strips while preserving the global sidebar and content width constraints.
+
+## Agency management
+
+Preserve the warm shared theme. Settings separates canonical operator-owned agencies from internal staff. Reuse Overlay, DataTable, MiniStats, RecordForm and existing form-grid controls. Scoped agency checkbox fieldsets use shared border tokens; no palette or unrelated navigation changes.
+
+## Finance extension
+
+Finance preserves runtime token ownership in styles/theme.css. Panel, DataTable, Overlay and native select/date ownership remain canonical. FinanceActionForm is the shared business variant for financial amounts, review-before-action, stable retry keys and draft retention. Separate prepaid liability, reservations and credit exposure in text and labels. Test-provider evidence is always labelled as isolated test evidence; no financial UI implies a bank deposit, payout or spendable commission. The external Agent Dashboard remains outside this source tree.
+
+Finance now also uses the canonical MasterSectionLayout secondary rail for earnings, commissions, wallets, settlements, refunds and reports. Reports are generated on explicit submit, with CSV for Excel and evidence labels separating gross ticket value, platform revenue, liabilities and bank receipt availability. Settlement detail shows original payable lines, approval history and simulated payout references.
+
+Operational reliability extension: Trip Master Tracker reuses MasterForm for incident recording, shows assigned crew/tablets and offers an explicit read-only reservation integrity check. Detailed operational reports preserve existing native filters, integer paise outputs, table scrolling and authenticated CSV handling. No GPS coordinates or financial revenue are invented.

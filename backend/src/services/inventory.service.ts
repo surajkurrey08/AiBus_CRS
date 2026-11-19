@@ -1,10 +1,14 @@
+import { postDuplicateCapture } from "./payment-exception.service.js";
 import { partnerCommission } from "./commission.service.js";
+import { postCapturedBooking, type AccountSpec } from "./ledger.service.js";
+import { authorizeAgent } from "./agent.service.js";
 import mongoose from "mongoose";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireCapability } from "../integrations/providers.js";
 import {
   Audit,
+  Operator,
   Booking,
   Hold,
   Offer,
@@ -14,6 +18,9 @@ import {
   Ticket,
   Trip,
   WebhookEvent,
+  Cancellation,
+  RefundIntent,
+  FinanceException,
 } from "../models/index.js";
 import { fail, type Principal } from "../utils/core.js";
 import {
@@ -54,18 +61,24 @@ const available = (number: string, now: Date) => ({
     $or: [{ state: "available" }, { state: "held", holdUntil: { $lte: now } }],
   },
 });
+async function newSalesAllowed(operatorId: string | null, session: mongoose.ClientSession) {
+  const owner = await Operator.findOneAndUpdate({ _id: operatorId, status: "approved", salesBlocked: { $ne: true } }, { $inc: { salesRevision: 1 } }, { session });
+  if (!owner) fail(409, "OPERATOR_SALES_BLOCKED", "New reservations are blocked by operator policy; existing bookings are preserved");
+}
 export async function createHold(
   auth: Principal,
   tripId: string,
   numbers: string[],
+  trustedHoldId?: string,
 ) {
   if (!auth.permissions.includes("bookings:write"))
     fail(403, "FORBIDDEN", "Booking permission is required to hold seats");
-  const holdId = randomUUID(),
-    now = new Date(),
-    expiresAt = new Date(Date.now() + 5 * 60000);
+  const holdId = trustedHoldId || randomUUID();
   let result: unknown;
   await mongoose.connection.transaction(async (session) => {
+    await newSalesAllowed(auth.operatorId, session);
+    const now = new Date(),
+      expiresAt = new Date(+now + 5 * 60000);
     const trip = await Trip.findOne({
       _id: tripId,
       operatorId: auth.operatorId,
@@ -73,6 +86,7 @@ export async function createHold(
       .session(session)
       .lean();
     internalTrip(trip);
+    if (auth.agentId) await authorizeAgent(auth, "book", session, trip);
     const existing = trip!.seats as { number: string; farePaise: number }[];
     if (numbers.some((n) => !existing.some((s) => s.number === n)))
       fail(400, "INVALID_SEAT", "One or more seats do not exist");
@@ -94,6 +108,11 @@ export async function createHold(
           "seats.$[seat].holdId": holdId,
           "seats.$[seat].holdUserId": auth.userId,
           "seats.$[seat].holdUntil": expiresAt,
+        },
+        // A replacement hold must never inherit the previous checkout's owner.
+        $unset: {
+          "seats.$[seat].bookingId": 1,
+          "seats.$[seat].quotaLabel": 1,
         },
       },
       { session, arrayFilters: [{ "seat.number": { $in: numbers } }] },
@@ -167,6 +186,7 @@ export async function releaseHold(
       {
         $set: { "seats.$[seat].state": "available" },
         $unset: {
+          "seats.$[seat].bookingId": 1,
           "seats.$[seat].holdId": 1,
           "seats.$[seat].holdUserId": 1,
           "seats.$[seat].holdUntil": 1,
@@ -224,6 +244,7 @@ export async function blockSeats(
       {
         $set: { "seats.$[seat].state": block ? "blocked" : "available" },
         $unset: {
+          "seats.$[seat].bookingId": 1,
           "seats.$[seat].holdId": 1,
           "seats.$[seat].holdUserId": 1,
           "seats.$[seat].holdUntil": 1,
@@ -302,6 +323,16 @@ export async function createBooking(
   channel = z
     .enum(["operator", "customer", "agent", "external"])
     .parse(channel);
+  if (auth.agentId) {
+    await authorizeAgent(auth, "book");
+    if (input.salesPartnerId)
+      fail(
+        400,
+        "AGENT_ID_FORBIDDEN",
+        "Agency identity is derived from your session",
+      );
+    channel = "agent";
+  }
   input = {
     ...input,
     passengers: z.array(passengerInput).min(1).max(6).parse(input.passengers),
@@ -316,6 +347,12 @@ export async function createBooking(
     idempotencyKey: key,
   }).lean();
   if (prior) {
+    if (auth.agentId && String(prior.agentId) !== auth.agentId)
+      fail(
+        409,
+        "IDEMPOTENCY_CONFLICT",
+        "This booking request key is unavailable",
+      );
     if (prior.requestHash !== requestHash)
       fail(
         409,
@@ -327,6 +364,7 @@ export async function createBooking(
   let result: unknown;
   try {
     await mongoose.connection.transaction(async (session) => {
+      await newSalesAllowed(auth.operatorId, session);
       const trip = await Trip.findOne({
         _id: input.tripId,
         operatorId: auth.operatorId,
@@ -334,6 +372,15 @@ export async function createBooking(
         .session(session)
         .lean();
       internalTrip(trip);
+      if (auth.agentId) {
+        await authorizeAgent(auth, "book", session, trip);
+        if (input.salesPartnerId)
+          fail(
+            400,
+            "AGENT_ID_FORBIDDEN",
+            "Agency identity is derived from your session",
+          );
+      }
       const hold = await Hold.findOneAndUpdate(
         {
           operatorId: auth.operatorId,
@@ -449,8 +496,14 @@ export async function createBooking(
             userId: auth.userId,
             holdId: input.holdId,
             reference: `AB-${randomUUID()}`,
-            source: channel,
+            source: auth.agentId ? "agent" : channel,
+            createdByUserId: auth.userId,
+            ...(auth.agentId ? { agentId: auth.agentId } : {}),
             ...commission,
+            ...(commission.salesPartnerId &&
+            commission.commissionSnapshot?.partnerKind === "Agent"
+              ? { agentId: commission.salesPartnerId }
+              : {}),
             passengers: input.passengers,
             grossPaise: hold!.amountPaise,
             totalPaise: pricing.totalPaise,
@@ -482,6 +535,7 @@ export async function createBooking(
                 number,
                 state: "held",
                 holdId: input.holdId,
+                holdUserId: auth.userId,
                 holdUntil: { $gt: new Date() },
               },
             },
@@ -490,7 +544,13 @@ export async function createBooking(
         { $set: { "seats.$[seat].bookingId": booking._id } },
         {
           session,
-          arrayFilters: [{ "seat.holdId": input.holdId, "seat.state": "held" }],
+          arrayFilters: [
+            {
+              "seat.holdId": input.holdId,
+              "seat.holdUserId": auth.userId,
+              "seat.state": "held",
+            },
+          ],
         },
       );
       if (locked.modifiedCount !== 1)
@@ -528,6 +588,16 @@ export async function createBooking(
         operatorId: auth.operatorId,
         idempotencyKey: key,
       }).lean();
+      if (
+        duplicate &&
+        auth.agentId &&
+        String(duplicate.agentId) !== auth.agentId
+      )
+        fail(
+          409,
+          "IDEMPOTENCY_CONFLICT",
+          "This booking request key is unavailable",
+        );
       if (duplicate?.requestHash === requestHash) return duplicate;
     }
     throw error;
@@ -536,237 +606,319 @@ export async function createBooking(
 }
 // Callable only by a future server-side adapter after signature verification and
 // authoritative amount/status verification. No public endpoint trusts this shape.
-export async function applyVerifiedPayment(event: {
-  verified: true;
-  providerId: string;
-  eventId: string;
-  externalId: string;
-  operatorId: string;
-  bookingId: string;
-  amountPaise: number;
-  currency: "INR";
-  status: "captured" | "failed";
-}) {
+export async function applyVerifiedPayment(
+  event: {
+    verified: true;
+    providerId: string;
+    eventId: string;
+    externalId: string;
+    operatorId: string;
+    bookingId: string;
+    amountPaise: number;
+    currency: "INR";
+    status: "captured" | "failed";
+  },
+  ledgerRetry = 0,
+  fundingContext?: {
+    session: mongoose.ClientSession;
+    debitAccount: AccountSpec;
+  },
+) {
   const payloadHash = createHash("sha256")
     .update(JSON.stringify(event))
     .digest("hex");
   const previous = await WebhookEvent.findOne({
     providerId: event.providerId,
     eventId: event.eventId,
-  }).lean();
+  })
+    .session(fundingContext?.session || null)
+    .lean();
   if (previous) {
     if (previous.payloadHash !== payloadHash)
       fail(409, "EVENT_CONFLICT", "Webhook identifier has conflicting content");
     return { duplicate: true };
   }
   try {
-    await mongoose.connection.transaction(async (session) => {
-      await WebhookEvent.create(
-        [
+    const transact = fundingContext
+      ? async (
+          fn: (session: mongoose.ClientSession) => Promise<void>,
+          _options: unknown,
+        ) => fn(fundingContext.session)
+      : mongoose.connection.transaction.bind(mongoose.connection);
+    await transact(
+      async (session: mongoose.ClientSession) => {
+        await WebhookEvent.create(
+          [
+            {
+              providerId: event.providerId,
+              eventId: event.eventId,
+              payloadHash,
+              status: "processing",
+            },
+          ],
+          { session },
+        );
+        const booking = await Booking.findOne({
+          _id: event.bookingId,
+          operatorId: event.operatorId,
+        }).session(session);
+        if (!booking) fail(404, "NOT_FOUND", "Booking not found");
+        if (
+          event.currency !== "INR" ||
+          event.amountPaise !== booking!.totalPaise
+        )
+          fail(
+            409,
+            "PAYMENT_MISMATCH",
+            "Payment amount does not match booking",
+          );
+        if (
+          ![
+            "Pending payment",
+            "Confirmed",
+            "Reconciliation required",
+            "Failed",
+            "Cancelled",
+          ].includes(String(booking!.status))
+        )
+          fail(409, "BOOKING_CLOSED", "Booking cannot accept a payment");
+        const captured = await Payment.findOne({ operatorId: event.operatorId, bookingId: event.bookingId, status: { $in: ["captured", "refunded"] } }).session(session).lean();
+        const priorPayment = await Payment.findOne({ providerId: event.providerId, externalId: event.externalId }).session(session).lean();
+        const newCapture = event.status === "captured" && !["captured", "refunded"].includes(String(priorPayment?.status));
+        const additionalCapture = event.status === "captured" && captured && (captured.externalId !== event.externalId || captured.providerId !== event.providerId);
+        const payment = await Payment.findOneAndUpdate(
+          { providerId: event.providerId, externalId: event.externalId },
           {
-            providerId: event.providerId,
-            eventId: event.eventId,
-            payloadHash,
-            status: "processing",
+            $setOnInsert: {
+              operatorId: event.operatorId,
+              bookingId: event.bookingId,
+              amountPaise: event.amountPaise,
+              currency: "INR",
+              status: event.status === "captured" ? "captured" : "failed",
+              confirmedAt: new Date(),
+            },
           },
-        ],
-        { session },
-      );
-      const booking = await Booking.findOne({
-        _id: event.bookingId,
-        operatorId: event.operatorId,
-      }).session(session);
-      if (!booking) fail(404, "NOT_FOUND", "Booking not found");
-      if (event.currency !== "INR" || event.amountPaise !== booking!.totalPaise)
-        fail(409, "PAYMENT_MISMATCH", "Payment amount does not match booking");
-      if (
-        ![
-          "Pending payment",
-          "Confirmed",
-          "Reconciliation required",
-          "Failed",
-          "Cancelled",
-        ].includes(String(booking!.status))
-      )
-        fail(409, "BOOKING_CLOSED", "Booking cannot accept a payment");
-      const captured = await Payment.findOne({
-        operatorId: event.operatorId,
-        bookingId: event.bookingId,
-        status: "captured",
-      })
-        .session(session)
-        .lean();
-      if (captured && captured.externalId !== event.externalId)
-        fail(
-          409,
-          "DUPLICATE_PAYMENT",
-          "A different payment has already been captured for this booking",
+          { session, upsert: true, new: true },
         );
-      const payment = await Payment.findOneAndUpdate(
-        { providerId: event.providerId, externalId: event.externalId },
-        {
-          $setOnInsert: {
-            operatorId: event.operatorId,
-            bookingId: event.bookingId,
-            amountPaise: event.amountPaise,
-            currency: "INR",
-            status: event.status === "captured" ? "captured" : "failed",
-            confirmedAt: new Date(),
-          },
-        },
-        { session, upsert: true, new: true },
-      );
-      if (
-        String(payment!.bookingId) !== event.bookingId ||
-        String(payment!.operatorId) !== event.operatorId
-      )
-        fail(409, "PAYMENT_CONFLICT", "Payment belongs to another booking");
-      if (event.status === "captured" && payment!.status === "failed") {
-        payment!.status = "captured";
-        payment!.confirmedAt = new Date();
-        await payment!.save({ session });
-      }
-      if (event.status === "failed" && payment!.status === "captured")
-        fail(
-          409,
-          "PAYMENT_CONFLICT",
-          "A captured payment cannot be downgraded by a failure event",
-        );
-      if (booking!.status === "Confirmed") {
-        if (event.status !== "captured" || payment!.status !== "captured")
+        if (
+          String(payment!.bookingId) !== event.bookingId ||
+          String(payment!.operatorId) !== event.operatorId
+        )
+          fail(409, "PAYMENT_CONFLICT", "Payment belongs to another booking");
+        if (event.status === "captured" && payment!.status === "failed") {
+          payment!.status = "captured";
+          payment!.confirmedAt = new Date();
+          await payment!.save({ session });
+        }
+        if (event.status === "failed" && ["captured", "refunded"].includes(String(payment!.status)))
           fail(
             409,
             "PAYMENT_CONFLICT",
-            "Payment status conflicts with confirmation",
+            "A captured payment cannot be downgraded by a failure event",
           );
-      } else if (event.status === "failed") {
-        booking!.paymentStatus = "Failed";
-        booking!.status = "Failed";
-        await Trip.updateOne(
-          { _id: booking!.tripId, operatorId: event.operatorId },
-          {
-            $set: { "seats.$[seat].state": "available" },
-            $unset: {
-              "seats.$[seat].bookingId": 1,
-              "seats.$[seat].holdId": 1,
-              "seats.$[seat].holdUserId": 1,
-              "seats.$[seat].holdUntil": 1,
-            },
-          },
-          {
-            session,
-            arrayFilters: [
-              { "seat.bookingId": booking!._id, "seat.state": "held" },
-            ],
-          },
-        );
-      } else {
-        booking!.paymentStatus = "Paid";
-        booking!.paidAt = booking!.paidAt || new Date();
-        const now = new Date();
-        const trip = await Trip.findOne({
-          _id: booking!.tripId,
-          operatorId: event.operatorId,
-        })
-          .session(session)
-          .lean();
-        const passengers = booking!.passengers as { seat: string }[];
-        const changed =
-          booking!.status !== "Cancelled" &&
-          trip?.inventoryOwner === "internal" &&
-          trip.status === "Scheduled" &&
-          new Date(trip.departureAt as Date) > now
-            ? await Trip.updateOne(
-                {
-                  _id: trip._id,
-                  operatorId: event.operatorId,
-                  inventoryOwner: "internal",
-                  status: "Scheduled",
-                  $and: passengers.map((p) => ({
-                    seats: {
-                      $elemMatch: {
-                        number: p.seat,
-                        state: "held",
-                        bookingId: booking!._id,
-                        holdUntil: { $gt: now },
-                      },
-                    },
-                  })),
-                },
-                {
-                  $set: { "seats.$[seat].state": "booked" },
-                  $unset: {
-                    "seats.$[seat].holdUntil": 1,
-                    "seats.$[seat].holdUserId": 1,
-                  },
-                },
-                {
-                  session,
-                  arrayFilters: [
-                    { "seat.bookingId": booking!._id, "seat.state": "held" },
-                  ],
-                },
-              )
-            : null;
-        if (changed?.modifiedCount === 1) {
-          booking!.status = "Confirmed";
-          if (booking!.offerId)
-            await Offer.updateOne(
-              { _id: booking!.offerId, operatorId: event.operatorId },
-              { $inc: { usage: 1 } },
-              { session },
+        const approvedCancellation = await Cancellation.findOne({ operatorId: event.operatorId, bookingId: event.bookingId, status: "Approved", accountingJournalId: { $exists: true } }).session(session).lean();
+        const completedRefund = await RefundIntent.exists({ operatorId: event.operatorId, paymentId: payment!._id, status: "Processed" }).session(session);
+        if (additionalCapture && fundingContext) fail(409, "FUNDING_CONFLICT", "Booking already has another captured payment");
+        if (additionalCapture) {
+          await postDuplicateCapture(booking, payment, event.eventId, session, newCapture);
+          await WebhookEvent.updateOne({ providerId: event.providerId, eventId: event.eventId }, { $set: { status: "processed", processedAt: new Date() } }, { session });
+          return;
+        }
+        if (event.status === "captured" && (approvedCancellation || completedRefund)) {
+          await WebhookEvent.updateOne({ providerId: event.providerId, eventId: event.eventId }, { $set: { status: "processed", processedAt: new Date() } }, { session });
+          return;
+        }
+        if (booking!.status === "Confirmed") {
+          if (event.status !== "captured" || payment!.status !== "captured")
+            fail(
+              409,
+              "PAYMENT_CONFLICT",
+              "Payment status conflicts with confirmation",
             );
-          booking!.pnr = `AI-${randomUUID().replaceAll("-", "").toUpperCase()}`;
-          await Ticket.create(
-            [
-              {
-                operatorId: event.operatorId,
-                bookingId: booking!._id,
-                pnr: booking!.pnr,
-                issuedAt: new Date(),
+        } else if (event.status === "failed") {
+          booking!.paymentStatus = "Failed";
+          booking!.status = "Failed";
+          await Trip.updateOne(
+            { _id: booking!.tripId, operatorId: event.operatorId },
+            {
+              $set: { "seats.$[seat].state": "available" },
+              $unset: {
+                "seats.$[seat].bookingId": 1,
+                "seats.$[seat].holdId": 1,
+                "seats.$[seat].holdUserId": 1,
+                "seats.$[seat].holdUntil": 1,
               },
-            ],
-            { session },
-          );
-          await Outbox.create(
-            [
-              {
-                operatorId: event.operatorId,
-                event: "booking.confirmed",
-                resourceId: String(booking!._id),
-              },
-            ],
-            { session },
+            },
+            {
+              session,
+              arrayFilters: [
+                {
+                  "seat.bookingId": booking!._id,
+                  "seat.holdId": booking!.holdId,
+                  "seat.holdUserId": booking!.userId,
+                  "seat.state": "held",
+                },
+              ],
+            },
           );
         } else {
-          booking!.status = "Reconciliation required";
-        }
-      }
-      await booking!.save({ session });
-      await WebhookEvent.updateOne(
-        { providerId: event.providerId, eventId: event.eventId },
-        { $set: { status: "processed", processedAt: new Date() } },
-        { session },
-      );
-      await Outbox.create(
-        [
-          {
+          booking!.paymentStatus = "Paid";
+          booking!.paidAt = booking!.paidAt || new Date();
+          const now = new Date();
+          const trip = await Trip.findOne({
+            _id: booking!.tripId,
             operatorId: event.operatorId,
-            event: "seat.availability.changed",
-            resourceId: String(booking!.tripId),
-          },
-        ],
-        { session },
-      );
-    });
+          })
+            .session(session)
+            .lean();
+          const passengers = booking!.passengers as { seat: string }[];
+          // Serialize with hold expiry/release as well as the trip seat update.
+          // The original hold record is authoritative; a newer seat expiry must
+          // never extend the life of an older checkout.
+          const currentHold =
+            booking!.status !== "Cancelled" &&
+            trip?.inventoryOwner === "internal" &&
+            trip.status === "Scheduled" &&
+            new Date(trip.departureAt as Date) > now
+              ? await Hold.updateOne(
+                  {
+                    operatorId: event.operatorId,
+                    tripId: booking!.tripId,
+                    holdId: booking!.holdId,
+                    userId: booking!.userId,
+                    status: "consumed",
+                    expiresAt: { $gt: now },
+                    seats: {
+                      $size: passengers.length,
+                      $all: passengers.map((p) => p.seat),
+                    },
+                  },
+                  { $inc: { __v: 1 } },
+                  { session },
+                )
+              : null;
+          const changed =
+            currentHold?.matchedCount === 1
+              ? await Trip.updateOne(
+                  {
+                    _id: trip!._id,
+                    operatorId: event.operatorId,
+                    inventoryOwner: "internal",
+                    status: "Scheduled",
+                    $and: passengers.map((p) => ({
+                      seats: {
+                        $elemMatch: {
+                          number: p.seat,
+                          state: "held",
+                          bookingId: booking!._id,
+                          holdId: booking!.holdId,
+                          holdUserId: booking!.userId,
+                          holdUntil: { $gt: now },
+                        },
+                      },
+                    })),
+                  },
+                  {
+                    $set: { "seats.$[seat].state": "booked" },
+                    $unset: {
+                      "seats.$[seat].holdUntil": 1,
+                      "seats.$[seat].holdUserId": 1,
+                    },
+                  },
+                  {
+                    session,
+                    arrayFilters: [
+                      {
+                        "seat.number": { $in: passengers.map((p) => p.seat) },
+                        "seat.bookingId": booking!._id,
+                        "seat.holdId": booking!.holdId,
+                        "seat.holdUserId": booking!.userId,
+                        "seat.holdUntil": { $gt: now },
+                        "seat.state": "held",
+                      },
+                    ],
+                  },
+                )
+              : null;
+          if (changed?.modifiedCount === 1) {
+            booking!.status = "Confirmed";
+            if (booking!.offerId)
+              await Offer.updateOne(
+                { _id: booking!.offerId, operatorId: event.operatorId },
+                { $inc: { usage: 1 } },
+                { session },
+              );
+            booking!.pnr = `AI-${randomUUID().replaceAll("-", "").toUpperCase()}`;
+            await Ticket.create(
+              [
+                {
+                  operatorId: event.operatorId,
+                  bookingId: booking!._id,
+                  pnr: booking!.pnr,
+                  issuedAt: new Date(),
+                },
+              ],
+              { session },
+            );
+            await Outbox.create(
+              [
+                {
+                  operatorId: event.operatorId,
+                  event: "booking.confirmed",
+                  resourceId: String(booking!._id),
+                },
+              ],
+              { session },
+            );
+          } else {
+            booking!.status = "Reconciliation required";
+          }
+        }
+        await booking!.save({ session });
+        if (fundingContext && booking!.status !== "Confirmed")
+          fail(
+            409,
+            "HOLD_EXPIRED",
+            "Funding was not consumed because seat ownership expired",
+          );
+        if (newCapture)
+          await postCapturedBooking(
+            booking,
+            payment,
+            event.eventId,
+            session,
+            fundingContext?.debitAccount,
+          );
+        if (event.status === "captured" && booking!.status === "Reconciliation required") await FinanceException.findOneAndUpdate({ operatorId: event.operatorId, kind: "Late capture", resourceKey: String(payment!._id) }, { $setOnInsert: { operatorId: event.operatorId, bookingId: booking!._id, paymentId: payment!._id, kind: "Late capture", resourceKey: String(payment!._id), code: "CAPTURE_WITHOUT_TICKET", status: "Open" }, $set: { lastSeenAt: new Date() } }, { upsert: true, session });
+        await WebhookEvent.updateOne(
+          { providerId: event.providerId, eventId: event.eventId },
+          { $set: { status: "processed", processedAt: new Date() } },
+          { session },
+        );
+        await Outbox.create(
+          [
+            {
+              operatorId: event.operatorId,
+              event: "seat.availability.changed",
+              resourceId: String(booking!.tripId),
+            },
+          ],
+          { session },
+        );
+      },
+      { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } },
+    );
     return { duplicate: false };
   } catch (error) {
+    if (fundingContext) throw error;
     if ((error as { code?: number }).code === 11000) {
       const found = await WebhookEvent.findOne({
         providerId: event.providerId,
         eventId: event.eventId,
       }).lean();
       if (found?.payloadHash === payloadHash) return { duplicate: true };
+      if (!found && ledgerRetry < 3)
+        return applyVerifiedPayment(event, ledgerRetry + 1);
     }
     throw error;
   }

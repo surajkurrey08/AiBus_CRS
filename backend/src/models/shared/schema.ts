@@ -79,5 +79,7 @@ export const passenger = new Schema(
     checkedInAt: Date,
     checkedInBy: objectId,
   },
-  { _id: false, strict: "throw" },
+  // Embedded passengers have no version field. Disabling the implicit version
+  // key also lets Mongoose restore transaction state after an accounting abort.
+  { _id: false, strict: "throw", versionKey: false },
 );

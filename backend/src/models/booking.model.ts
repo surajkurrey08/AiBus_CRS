@@ -13,6 +13,8 @@ export const Booking = model(
     ...tenantFields,
     tripId: { type: objectId, required: true },
     userId: { type: objectId, required: true },
+    createdByUserId: objectId,
+    agentId: objectId,
     holdId: { type: String, required: true },
     reference: { type: String, required: true, unique: true },
     pnr: String,
@@ -38,6 +40,7 @@ export const Booking = model(
       default: "Pending",
     },
     paidAt: Date,
+    fundingMethod: { type: String, enum: ["gateway", "wallet", "credit"] },
     passengers: [passenger],
     contact: { phone: String, email: String },
     gst: { number: String, company: String, address: String },
@@ -59,6 +62,8 @@ export const Booking = model(
   },
   [
     { keys: { operatorId: 1, idempotencyKey: 1 }, options: { unique: true } },
+    { keys: { operatorId: 1, tripId: 1, status: 1 } },
     { keys: { operatorId: 1, createdAt: -1 } },
+    { keys: { operatorId: 1, agentId: 1, createdAt: -1 } },
   ],
 );

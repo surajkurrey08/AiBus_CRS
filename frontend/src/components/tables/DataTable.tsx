@@ -30,6 +30,7 @@ export function DataTable({
   emptyDescription,
   resourcePath,
   unsortableColumns = [],
+  refreshKey,
 }: {
   rows: Row[];
   columns: [string, string][];
@@ -43,6 +44,7 @@ export function DataTable({
   emptyDescription?: string;
   resourcePath?: string;
   unsortableColumns?: string[];
+  refreshKey?: number;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -109,6 +111,7 @@ export function DataTable({
     ws.revision,
     retry,
     journeyDate,
+    refreshKey,
   ]);
   const filtered = (remote ? remoteRows : rows)
     .filter(

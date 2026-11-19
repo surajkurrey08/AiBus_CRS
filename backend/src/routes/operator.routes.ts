@@ -1,3 +1,4 @@
+import { requestCancellation } from "../services/cancellation.service.js";
 import { Router, type Request, type Response } from "express";
 
 import mongoose from "mongoose";
@@ -48,6 +49,7 @@ import { analytics } from "../services/analytics.service.js";
 
 import { counterRouter } from "./counter.routes.js";
 import { createScheduledTrip } from "../services/trip-scheduling.service.js";
+import { commissionConfig } from "../validators/agent.schemas.js";
 
 import { contactInput, gstInput } from "../services/pricing.service.js";
 
@@ -242,12 +244,16 @@ function registerCrud(
   );
 }
 
-function redactBooking(row: any, pii: boolean) {
+function redactBooking(row: any, pii: boolean, finance = false) {
   const result =
     typeof row.toObject === "function" ? row.toObject() : { ...row };
   if (!pii) {
     delete result.contact;
     delete result.gst;
+  }
+  if (!finance) {
+    delete result.commissionSnapshot;
+    delete result.commissionPaise;
   }
   if (!pii)
     result.passengers = (result.passengers || []).map((p: any) => ({
@@ -679,7 +685,11 @@ export function operatorRouter(config: Config) {
       ok(
         res,
         rows.map((r) =>
-          redactBooking(r, req.auth.permissions.includes("manifest:read")),
+          redactBooking(
+            r,
+            req.auth.permissions.includes("manifest:read"),
+            req.auth.permissions.includes("finance:read"),
+          ),
         ),
         {
           page: p.page,
@@ -724,6 +734,7 @@ export function operatorRouter(config: Config) {
         redactBooking(
           await owned(M.Booking, req, parseId(req)),
           req.auth.permissions.includes("manifest:read"),
+          req.auth.permissions.includes("finance:read"),
         ),
       ),
     ),
@@ -975,64 +986,13 @@ export function operatorRouter(config: Config) {
     "/bookings/:id/cancellation",
     permit("refunds:write"),
     asyncRoute(async (req, res) => {
-      const bookingId = parseId(req),
-        { reason } = z.object({ reason: text }).strict().parse(req.body);
-      const booking = await owned(M.Booking, req, bookingId);
-      if (booking.status !== "Confirmed")
-        fail(409, "NOT_CONFIRMED", "Only a confirmed booking can be cancelled");
-      const prior = await M.Cancellation.findOne({
-        ...tenant(req),
-        bookingId,
-      }).lean();
-      if (prior) return ok(res, prior);
-      const trip = await owned(M.Trip, req, String(booking.tripId));
-      if (new Date(trip.departureAt) <= new Date())
-        fail(409, "DEPARTED", "Trip has already departed");
-      const policy = await M.Policy.findOne(tenant(req)).lean();
-      if (!policy)
-        fail(
-          409,
-          "POLICY_REQUIRED",
-          "Configure an operator cancellation policy first",
-        );
-      const hours = (+new Date(trip.departureAt) - Date.now()) / 3600000;
-      const rule = (policy!.rules as any[])
-        .sort((a, b) => b.hoursBefore - a.hoursBefore)
-        .find((r) => hours >= r.hoursBefore);
-      const refundPaise = Math.floor(
-        (booking.totalPaise * (rule?.refundPercent || 0)) / 100,
+      const { reason } = z.object({ reason: text }).strict().parse(req.body);
+      const cancellation = await requestCancellation(
+        req.auth,
+        parseId(req),
+        reason,
+        req.requestId,
       );
-      let cancellation: any;
-      await mongoose.connection.transaction(async (session) => {
-        [cancellation] = await M.Cancellation.create(
-          [
-            {
-              ...tenant(req),
-              bookingId,
-              reason,
-              requestedBy: req.auth.userId,
-              policySnapshot: {
-                version: policy!.version,
-                rules: policy!.rules,
-              },
-              refundPaise,
-            },
-          ],
-          { session },
-        );
-        await M.Refund.create(
-          [
-            {
-              ...tenant(req),
-              bookingId,
-              cancellationId: cancellation._id,
-              amountPaise: refundPaise,
-            },
-          ],
-          { session },
-        );
-        await audit(req, "cancellation.request", bookingId, session);
-      });
       ok(res, cancellation, undefined, 201);
     }),
   );
@@ -1204,8 +1164,11 @@ export function operatorRouter(config: Config) {
       password: z.string().min(12).max(128),
       role: z.enum(["manager", "booking_staff", "read_only"]),
       phone: z.string().max(20).optional(),
-      commissionType: z.enum(["Percent", "Fixed"]).optional().default("Percent"),
-      commissionRate: z.coerce.number().min(0).max(1000000).optional().default(500),
+      commissionType: z
+        .enum(["Percent", "Fixed"])
+        .optional()
+        .default("Percent"),
+      commissionRate: amount.optional().default(500),
     })
     .strict();
   router.post(
@@ -1214,6 +1177,10 @@ export function operatorRouter(config: Config) {
     asyncRoute(async (req, res) => {
       const input = staffInput.parse(req.body),
         passwordHash = await hashPassword(input.password);
+      commissionConfig.parse({
+        commissionType: input.commissionType,
+        commissionRate: input.commissionRate,
+      });
       let user: any;
       await mongoose.connection.transaction(async (session) => {
         [user] = await M.User.create(
@@ -1261,7 +1228,7 @@ export function operatorRouter(config: Config) {
             role: z.enum(["manager", "booking_staff", "read_only"]).optional(),
             phone: z.string().max(20).optional(),
             commissionType: z.enum(["Percent", "Fixed"]).optional(),
-            commissionRate: z.coerce.number().min(0).max(1000000).optional(),
+            commissionRate: amount.optional(),
             active: z.boolean().optional(),
           })
           .strict()
@@ -1274,6 +1241,30 @@ export function operatorRouter(config: Config) {
         );
       let user: any;
       await mongoose.connection.transaction(async (session) => {
+        const existing: any = await M.User.findOne({
+          _id: userId,
+          ...tenant(req),
+          role: { $ne: "operator_admin" },
+        })
+          .session(session)
+          .lean();
+        if (!existing) fail(404, "NOT_FOUND", "Staff account not found");
+        if (
+          existing.salesPartnerId &&
+          input.role &&
+          input.role !== "booking_staff"
+        )
+          fail(
+            409,
+            "AGENT_LINK_CONFLICT",
+            "Linked agency users cannot be promoted through staff access",
+          );
+        commissionConfig.parse({
+          commissionType:
+            input.commissionType ?? existing.commissionType ?? "Percent",
+          commissionRate:
+            input.commissionRate ?? existing.commissionRate ?? 500,
+        });
         user = await M.User.findOneAndUpdate(
           { _id: userId, ...tenant(req), role: { $ne: "operator_admin" } },
           { $set: input },
@@ -1296,125 +1287,6 @@ export function operatorRouter(config: Config) {
         commissionType: user.commissionType,
         commissionRate: user.commissionRate,
         active: user.active,
-      });
-    }),
-  );
-  router.get(
-    "/agents/performance",
-    permit("read"),
-    asyncRoute(async (req, res) => {
-      if (!req.auth.operatorId) {
-        fail(403, "OPERATOR_REQUIRED", "Operator context required");
-      }
-      const opId = new mongoose.Types.ObjectId(req.auth.operatorId!);
-      const staffMembers = await M.User.find({
-        operatorId: opId,
-        role: "booking_staff",
-      }).lean();
-
-      const stats = await M.Booking.aggregate([
-        { $match: { operatorId: opId } },
-        {
-          $group: {
-            _id: "$userId",
-            totalBookings: { $sum: 1 },
-            confirmedBookings: {
-              $sum: {
-                $cond: [{ $in: ["$status", ["Confirmed", "Pending payment"]] }, 1, 0],
-              },
-            },
-            totalSalesPaise: {
-              $sum: {
-                $cond: [{ $eq: ["$paymentStatus", "Paid"] }, "$grossPaise", 0],
-              },
-            },
-            commissionEarnedPaise: { $sum: "$commissionPaise" },
-            lastBookingAt: { $max: "$createdAt" },
-          },
-        },
-      ]);
-
-      const statsMap = new Map(stats.map((s) => [String(s._id), s]));
-
-      const agents = (staffMembers as any[]).map((u) => {
-        const s = statsMap.get(String(u._id));
-        return {
-          id: String(u._id),
-          name: u.name,
-          email: u.email,
-          phone: u.phone || "",
-          role: u.role,
-          active: u.active,
-          commissionType: u.commissionType || "Percent",
-          commissionRate: u.commissionRate ?? 500,
-          totalBookings: s?.totalBookings || 0,
-          confirmedBookings: s?.confirmedBookings || 0,
-          totalSalesPaise: s?.totalSalesPaise || 0,
-          commissionEarnedPaise: s?.commissionEarnedPaise || 0,
-          lastBookingAt: s?.lastBookingAt || null,
-        };
-      });
-
-      const totals = {
-        totalAgents: agents.length,
-        activeAgents: agents.filter((a) => a.active).length,
-        totalBookings: agents.reduce((acc, a) => acc + a.totalBookings, 0),
-        totalSalesPaise: agents.reduce((acc, a) => acc + a.totalSalesPaise, 0),
-        commissionEarnedPaise: agents.reduce(
-          (acc, a) => acc + a.commissionEarnedPaise,
-          0,
-        ),
-      };
-
-      ok(res, { agents, totals });
-    }),
-  );
-  router.get(
-    "/agents/:id/bookings",
-    permit("read"),
-    asyncRoute(async (req, res) => {
-      const agentId = parseId(req);
-      const agent = (await M.User.findOne({
-        _id: agentId,
-        ...tenant(req),
-      }).lean()) as any;
-      if (!agent) fail(404, "NOT_FOUND", "Agent not found");
-
-      const bookings = await M.Booking.find({
-        ...tenant(req),
-        userId: agentId,
-      })
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
-
-      const data = (bookings as any[]).map((b: any) => ({
-        id: String(b._id),
-        reference: b.reference,
-        pnr: b.pnr || "Pending",
-        tripId: String(b.tripId),
-        seats: ((b.passengers || []) as any[]).map((p: any) => p.seat),
-        passengerName: b.passengers?.[0]?.name || b.contact?.email || "Passenger",
-        passengersCount: ((b.passengers || []) as any[]).length,
-        grossPaise: b.grossPaise,
-        totalPaise: b.totalPaise,
-        commissionPaise: b.commissionPaise,
-        commissionSnapshot: b.commissionSnapshot,
-        status: b.status,
-        paymentStatus: b.paymentStatus,
-        createdAt: b.createdAt,
-      }));
-
-      ok(res, {
-        agent: {
-          id: String(agent._id),
-          name: agent.name,
-          email: agent.email,
-          role: agent.role,
-          commissionType: agent.commissionType || "Percent",
-          commissionRate: agent.commissionRate ?? 500,
-        },
-        bookings: data,
       });
     }),
   );

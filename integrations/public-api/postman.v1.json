@@ -1,0 +1,523 @@
+{
+  "info": {
+    "name": "AIBUS Public API v1 ? sandbox only",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "No live endpoint or credentials included. Provision isolated sandbox first. Separate stable idempotency key per operation. Unsupported operations intentionally return 501."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://sandbox.example.invalid/api/v1/public"
+    },
+    {
+      "key": "apiCredential",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "tripId",
+      "value": ""
+    },
+    {
+      "key": "fromCityId",
+      "value": ""
+    },
+    {
+      "key": "toCityId",
+      "value": ""
+    },
+    {
+      "key": "journeyDate",
+      "value": ""
+    },
+    {
+      "key": "holdId",
+      "value": ""
+    },
+    {
+      "key": "quoteId",
+      "value": ""
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    },
+    {
+      "key": "partnerReference",
+      "value": ""
+    },
+    {
+      "key": "cancellationQuoteId",
+      "value": ""
+    },
+    {
+      "key": "holdKey",
+      "value": ""
+    },
+    {
+      "key": "bookingKey",
+      "value": ""
+    },
+    {
+      "key": "confirmKey",
+      "value": ""
+    },
+    {
+      "key": "cancelKey",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "authenticate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiCredential}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/token",
+        "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "capabilities",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/capabilities",
+        "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "cities",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/cities",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "trips",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips?from={{fromCityId}}&to={{toCityId}}&journeyDate={{journeyDate}}",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "tripDetails",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "seatLayout",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}/seats",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "stops",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}/stops",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "fareRecheck",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}/quotes",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"seats\": [\n    \"L1\"\n  ],\n  \"holdId\": \"{{holdId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cancellationPolicy",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}/cancellation-policy",
+        "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "seatHold",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{holdKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/trips/{{tripId}}/holds",
+        "description": "Required scope: holds:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"seats\": [\n    \"L1\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "pendingBooking",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{bookingKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings",
+        "description": "Required scope: bookings:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tripId\": \"{{tripId}}\",\n  \"holdId\": \"{{holdId}}\",\n  \"quoteId\": \"{{quoteId}}\",\n  \"partnerReference\": \"{{partnerReference}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Sandbox Passenger\",\n      \"seat\": \"L1\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "confirmSandboxBooking",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{confirmKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/confirm",
+        "description": "Required scope: bookings:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authorization\": \"sandbox-allowance\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "bookingStatus",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}",
+        "description": "Required scope: bookings:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "ticket",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/ticket",
+        "description": "Required scope: tickets:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "requestCancellation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{cancelKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/cancellations",
+        "description": "Required scope: cancellations:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quoteId\": \"{{cancellationQuoteId}}\",\n  \"reason\": \"Sandbox cancellation request\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cancellationCharges",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/cancellation-quotes",
+        "description": "Required scope: cancellations:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refundStatus",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/refund",
+        "description": "Required scope: refunds:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    },
+    {
+      "name": "rescheduleUnavailable",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/reschedule",
+        "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract.",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "walletUnavailable",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/wallet",
+        "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract."
+      }
+    },
+    {
+      "name": "webhookDeliveries",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/webhook-deliveries",
+        "description": "Required scope: webhooks:read. Sandbox only. Production funding/ticket issuance disabled. "
+      }
+    }
+  ]
+}

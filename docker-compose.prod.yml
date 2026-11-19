@@ -1,0 +1,86 @@
+name: bookmybus-crs
+services:
+  redis:
+    image: redis:8.2-alpine@sha256:da23c2478319ceb4903857d77a2fd7aa5137d9e9d4c8165dafbacedac6403e95
+    command: [redis-server, /etc/bookmybus-redis/redis.conf]
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    volumes:
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/redis.conf:/etc/bookmybus-redis/redis.conf:ro
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/redis.password:/etc/bookmybus-redis/redis.password:ro
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/ca.crt:/etc/bookmybus-redis/ca.crt:ro
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/server.crt:/etc/bookmybus-redis/server.crt:ro
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/server.key:/etc/bookmybus-redis/server.key:ro
+      - redis-data:/data
+    networks:
+      data:
+        aliases: [bookmybus-redis]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /etc/bookmybus-redis/redis.password)" redis-cli --tls --cacert /etc/bookmybus-redis/ca.crt -h bookmybus-redis ping | grep -qx PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+  api:
+    image: ${API_IMAGE:?Digest-pinned API_IMAGE is required}
+    env_file:
+      - path: ${APP_ENV_FILE:?Private APP_ENV_FILE is required}
+        format: raw
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      TRUST_PROXY: 2
+      UPLOAD_DIR: /app/backend/var/uploads
+      NODE_EXTRA_CA_CERTS: /etc/bookmybus-redis/ca.crt
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 25s
+    read_only: true
+    tmpfs: ['/tmp:size=64m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: 1.5
+    pids_limit: 160
+    volumes:
+      - uploads:/app/backend/var/uploads
+      - ${REDIS_TLS_DIR:?Private Redis TLS directory required}/ca.crt:/etc/bookmybus-redis/ca.crt:ro
+    networks: [edge, data]
+    depends_on:
+      redis: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+  web:
+    image: ${WEB_IMAGE:?Digest-pinned WEB_IMAGE is required}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx:size=32m, /var/run:size=1m, /tmp:size=16m]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    ports: ['127.0.0.1:5020:8080']
+    depends_on:
+      api: {condition: service_healthy}
+    networks:
+      edge:
+        aliases: [bookmybus-crs-gateway]
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+volumes:
+  uploads:
+  redis-data:
+networks:
+  edge:
+    name: bookmybus-crs_edge
+  data:
+    name: bookmybus-crs_data
+    internal: true

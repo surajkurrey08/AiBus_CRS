@@ -5,14 +5,37 @@ import { Booking, Hold, Outbox, Trip } from "../models/index.js";
 import { logger } from "../utils/core.js";
 export async function reconcileExpiredHolds() {
   const now = new Date();
-  const trips = await Trip.find({
-    inventoryOwner: "internal",
-    seats: { $elemMatch: { state: "held", holdUntil: { $lte: now } } },
-  })
-    .select("_id operatorId")
-    .limit(100)
-    .lean();
-  for (const trip of trips)
+  const [trips, holds] = await Promise.all([
+    Trip.find({
+      inventoryOwner: "internal",
+      seats: { $elemMatch: { state: "held", holdUntil: { $lte: now } } },
+    })
+      .select("_id operatorId")
+      .limit(100)
+      .lean(),
+    // Reassignment may remove every expired seat from a trip. The expired hold
+    // and its pending booking must still be processed in that case.
+    Hold.find({
+      expiresAt: { $lte: now },
+      status: { $in: ["held", "consumed"] },
+    })
+      .select("tripId operatorId")
+      .sort({ expiresAt: 1, _id: 1 })
+      .limit(100)
+      .lean(),
+  ]);
+  const candidates = new Map<string, { _id: unknown; operatorId: unknown }>(
+    trips.map((trip) => [
+      String(trip._id),
+      { _id: trip._id, operatorId: trip.operatorId },
+    ]),
+  );
+  for (const hold of holds)
+    candidates.set(String(hold.tripId), {
+      _id: hold.tripId,
+      operatorId: hold.operatorId,
+    });
+  for (const trip of candidates.values())
     await mongoose.connection.transaction(async (session) => {
       const filter = {
         _id: trip._id,
@@ -74,7 +97,7 @@ export async function reconcileExpiredHolds() {
         { session },
       );
     });
-  return trips.length;
+  return candidates.size;
 }
 export async function reconcileExternalBookings() {
   if (!provider.capabilities.has("status"))

@@ -5,6 +5,15 @@ dist/
 **/.env
 **/.env.*
 !**/.env.example
+!.env.production.example
 **/var/
 **/test-results.json
 coverage/
+
+# Private database backups and laptop transfer bundles
+backups/
+
+# Disposable Phase 6 browser infrastructure and artifacts
+.cache/
+playwright-report/
+test-results/

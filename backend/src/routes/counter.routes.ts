@@ -423,6 +423,7 @@ export function counterRouter(config: Config) {
                 : {}),
             },
             $unset: {
+              "seats.$[seat].bookingId": 1,
               "seats.$[seat].holdId": 1,
               "seats.$[seat].holdUserId": 1,
               "seats.$[seat].holdUntil": 1,
@@ -630,7 +631,12 @@ export function counterRouter(config: Config) {
           {
             session,
             arrayFilters: [
-              { "seat.bookingId": booking!._id, "seat.state": "held" },
+              {
+                "seat.bookingId": booking!._id,
+                "seat.holdId": booking!.holdId,
+                "seat.holdUserId": booking!.userId,
+                "seat.state": "held",
+              },
             ],
           },
         );

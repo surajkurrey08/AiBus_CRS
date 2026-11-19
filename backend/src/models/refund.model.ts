@@ -8,9 +8,11 @@ export const Refund = model("Refund", {
   amountPaise: Number,
   status: {
     type: String,
-    enum: ["Requested", "Provider pending", "Refunded", "Failed"],
+    enum: ["Requested", "Provider pending", "Refunded", "Failed", "Not due"],
     default: "Requested",
   },
   externalId: String,
+  workflowIntentId: objectId,
+  liabilityJournalId: objectId,
   confirmedAt: Date,
 });

@@ -1,0 +1,55 @@
+/* Dialogs are portalled to document.body: never depend on a dashboard ancestor. */
+.modal[open],
+.drawer[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal > .dialog-head,
+.drawer > .dialog-head {
+  flex-shrink: 0;
+}
+.modal > .dialog-body,
+.drawer > .dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 22px 24px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.drawer > .dialog-body {
+  flex: 1;
+}
+.modal > .dialog-body,
+.drawer > .dialog-body,
+.review-form > .dialog-body {
+  overscroll-behavior: contain;
+}
+.modal .dialog-footer,
+.drawer .dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--brand-header);
+  flex-shrink: 0;
+}
+@media (max-width: 540px) {
+  .modal > .dialog-body,
+  .drawer > .dialog-body {
+    padding: 18px;
+  }
+  .modal .dialog-footer,
+  .drawer .dialog-footer {
+    padding: 14px 18px;
+  }
+  .dialog-head {
+    padding: 16px 18px;
+  }
+  .dialog-head h3 {
+    font-size: 16px;
+  }
+}

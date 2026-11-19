@@ -1,3 +1,7 @@
+import {
+  reconcileRefundWebhook,
+  recordFinanceException,
+} from "./refund-workflow.service.js";
 import type { Config } from "../config/env.js";
 import {
   razorpayRequest,
@@ -5,19 +9,22 @@ import {
   RAZORPAY_PROVIDER,
   validSignature,
 } from "../integrations/razorpay.js";
-import { Audit, Booking, PaymentOrder, Trip } from "../models/index.js";
+import { Audit, Booking, Hold, PaymentOrder, Trip } from "../models/index.js";
 import { AppError, fail, type Principal } from "../utils/core.js";
 import { applyVerifiedPayment } from "./inventory.service.js";
+import { agencyBookingScope } from "./agent.service.js";
 
 async function ownedBooking(auth: Principal, bookingId: string): Promise<any> {
   const booking = await Booking.findOne({
     _id: bookingId,
     operatorId: auth.operatorId,
+    ...(auth.agentId ? agencyBookingScope(auth.operatorId!, auth.agentId) : {}),
   }).lean();
   if (!booking) fail(404, "NOT_FOUND", "Booking not found");
   return booking!;
 }
 async function activeSeats(booking: any) {
+  const now = new Date();
   const trip = await Trip.findOne({
     _id: booking.tripId,
     operatorId: booking.operatorId,
@@ -31,30 +38,47 @@ async function activeSeats(booking: any) {
   if (
     booking.status !== "Pending payment" ||
     trip!.status !== "Scheduled" ||
-    new Date(trip!.departureAt as Date) <= new Date()
+    new Date(trip!.departureAt as Date) <= now
   )
     fail(
       409,
       "BOOKING_CLOSED",
       "This booking is no longer open for payment. Create a new booking if its hold expired.",
     );
+  const hold = await Hold.findOne({
+    operatorId: booking.operatorId,
+    tripId: booking.tripId,
+    holdId: booking.holdId,
+    userId: booking.userId,
+    status: "consumed",
+    expiresAt: { $gt: now },
+    seats: {
+      $size: booking.passengers.length,
+      $all: booking.passengers.map((p: any) => p.seat),
+    },
+  }).lean();
   const held = (booking.passengers as any[]).map((p) =>
     (trip!.seats as any[]).find(
       (s) =>
         s.number === p.seat &&
         s.state === "held" &&
         String(s.bookingId) === String(booking._id) &&
-        new Date(s.holdUntil) > new Date(),
+        s.holdId === booking.holdId &&
+        String(s.holdUserId) === String(booking.userId) &&
+        new Date(s.holdUntil) > now,
     ),
   );
-  if (!held.length || held.some((s) => !s))
+  if (!hold || !held.length || held.some((s) => !s))
     fail(
       409,
       "HOLD_EXPIRED",
       "The seat hold expired. Payment cannot be started; reserve seats again.",
     );
   return new Date(
-    Math.min(...held.map((s) => new Date(s.holdUntil).getTime())),
+    Math.min(
+      +new Date(hold!.expiresAt as Date),
+      ...held.map((s) => new Date(s.holdUntil).getTime()),
+    ),
   );
 }
 function binding(order: any, config: Config) {
@@ -110,6 +134,21 @@ export async function startRazorpayPayment(
   const booking = await ownedBooking(auth, bookingId);
   if (booking.status === "Confirmed")
     return { status: booking.status, reference: booking.reference };
+  const fundingClaim = await Booking.updateOne(
+    {
+      _id: bookingId,
+      operatorId: auth.operatorId,
+      status: "Pending payment",
+      fundingMethod: { $nin: ["wallet", "credit"] },
+    },
+    { $set: { fundingMethod: "gateway" } },
+  );
+  if (fundingClaim.matchedCount !== 1)
+    fail(
+      409,
+      "FUNDING_CONFLICT",
+      "This booking already selected agency funding; mixed funding is unsupported",
+    );
   const expiresAt = await activeSeats(booking);
   if (!Number.isSafeInteger(booking.totalPaise) || booking.totalPaise < 100)
     fail(
@@ -221,12 +260,36 @@ async function applyCapture(
     payment.amount === order.amountPaise &&
     payment.currency === "INR" &&
     !(Number(payment.amount_refunded) > 0);
-  if (!matches())
+  async function quarantineCapturedMismatch() {
+    // Evidence is fetched server-side. A foreign order must never become this
+    // operator's financial record, and a mismatched capture must never be lost.
+    if (
+      payment.id === paymentId &&
+      payment.order_id === order.externalOrderId &&
+      payment.status === "captured" &&
+      payment.captured === true &&
+      Number.isSafeInteger(payment.amount) &&
+      payment.amount >= 0
+    )
+      await recordFinanceException({
+        operatorId: String(order.operatorId),
+        bookingId: String(order.bookingId),
+        kind: "Captured evidence mismatch",
+        resourceKey: paymentId,
+        code: "PAYMENT_MISMATCH",
+        observedAmountPaise: payment.amount,
+        observedCurrency: String(payment.currency || "unknown").slice(0, 12),
+        externalPaymentId: paymentId,
+      });
+  }
+  if (!matches()) {
+    await quarantineCapturedMismatch();
     fail(
       409,
       "PAYMENT_MISMATCH",
       "The verified Razorpay payment does not match this booking/order/amount.",
     );
+  }
   if (payment.status === "authorized" && allowCapture) {
     const booking = await Booking.findById(order.bookingId).lean();
     await activeSeats(booking);
@@ -245,12 +308,14 @@ async function applyCapture(
         /* Never repeat an uncertain capture; authoritative GET/webhooks reconcile it. */
       }
       payment = await razorpayRequest(config, `/payments/${paymentId}`);
-      if (!matches())
+      if (!matches()) {
+        await quarantineCapturedMismatch();
         fail(
           409,
           "PAYMENT_MISMATCH",
           "Razorpay payment changed unexpectedly during verification.",
         );
+      }
     }
   }
   if (payment.status !== "captured" || payment.captured !== true)
@@ -405,6 +470,12 @@ export async function razorpayWebhook(
   } catch {
     fail(400, "INVALID_WEBHOOK", "Invalid webhook JSON.");
   }
+  if (
+    ["refund.created", "refund.processed", "refund.failed"].includes(
+      event.event,
+    )
+  )
+    return reconcileRefundWebhook(config, event.payload?.refund?.entity);
   if (event.event !== "payment.captured") return { ignored: true };
   const payment = event.payload?.payment?.entity;
   if (

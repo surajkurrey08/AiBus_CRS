@@ -214,7 +214,7 @@ export function RecordForm({
                   }
                 >
                   <option value="">Choose role</option>
-                  <option value="booking_staff">Agent</option>
+                  <option value="booking_staff">Booking staff</option>
                   <option value="manager">Manager</option>
                   <option value="read_only">Read Only</option>
                 </select>

@@ -10,7 +10,13 @@
     "test": "vitest run",
     "bootstrap": "tsx src/scripts/bootstrap.ts",
     "worker": "tsx src/workers/reconciliation.worker.ts",
-    "indexes": "tsx src/scripts/create-indexes.ts"
+    "indexes": "tsx src/scripts/create-indexes.ts",
+    "migrate:agents": "tsx src/scripts/migrate-agents.ts",
+    "ledger:assess": "tsx src/scripts/assess-ledger.ts",
+    "finance:preflight": "tsx src/scripts/finance-v2-preflight.ts",
+    "platform:preflight": "tsx src/scripts/platform-preflight.ts",
+    "operations:preflight": "tsx src/scripts/operations-readiness.ts",
+    "public:sandbox": "tsx src/scripts/public-sandbox.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
@@ -45,6 +51,6 @@
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "~5.7.2",
-    "vitest": "^3.0.0"
+    "vitest": "^3.2.7"
   }
 }

@@ -11,6 +11,19 @@ export const configs: Record<
   string,
   { title: string; permission: string; fields: Field[] }
 > = {
+  incidents: {
+    title: "Operational incident",
+    permission: "routes:write",
+    fields: [
+      {
+        key: "kind",
+        label: "Incident type",
+        options: ["Delay", "Breakdown", "Safety", "Other"],
+      },
+      { key: "reason", label: "What happened (no passenger personal data)" },
+      { key: "at", label: "Actual time ? IST", type: "datetime-local" },
+    ],
+  },
   services: {
     title: "Services",
     permission: "routes:write",

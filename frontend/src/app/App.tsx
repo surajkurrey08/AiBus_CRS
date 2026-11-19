@@ -1,4 +1,5 @@
 import { MasterHub } from "../features/masters/MasterHub";
+import { FinanceHub } from "../features/finance/FinanceHub";
 import {
   Armchair,
   ArrowRight,
@@ -95,6 +96,7 @@ const nav = [
   ["Area Master", MapPin],
   ["Trip Master", CalendarClock],
   ["Master", Folders],
+  ["Finance", IndianRupee],
 ] as const;
 const navCaptions = [
   "Overview",
@@ -113,6 +115,7 @@ const navCaptions = [
   "Area Master",
   "Trip Master",
   "Master",
+  "Finance",
 ];
 const descriptions = [
   "Your operator records, departures and recorded ticket sales.",
@@ -131,6 +134,7 @@ const descriptions = [
   "Manage service cities, pickup/drop points, landmarks and route stop assignments.",
   "Manage services, bulk scheduling, operational records and commission rules.",
   "Choose Bus Master, Area Master or Trip Master to manage your setup.",
+  "Manage agency prepaid funds and approved credit with ledger-backed records.",
 ];
 export function App({ demo = false }: { demo?: boolean }) {
   return (
@@ -316,13 +320,13 @@ function Dashboard() {
         </button>
         <div className="nav-label">{collapsed ? "•••" : "WORKSPACE"}</div>
         <nav id="workspace-navigation" aria-label="Workspace navigation">
-          {[0, 15, 3, 11, 4, 5, 6, 7, 8, 9, 10]
+          {[0, 15, 3, 11, 4, 5, 6, 7, 8, 9, 16, 10]
             .map((i) => ({
               entry: nav[i],
               i,
             }))
             .map(({ entry: [label, Icon], i }) =>
-              [5, 7, 9].includes(i) &&
+              [5, 7, 9, 16].includes(i) &&
               !permitted(
                 i === 5
                   ? "manifest:read"
@@ -1186,6 +1190,7 @@ function Dashboard() {
           )}
           {page === 13 && <AreaMaster />}
           {page === 15 && <MasterHub onOpen={navigate} />}
+          {page === 16 && permitted("finance:read") && <FinanceHub />}
           {page === 14 && (
             <TripMaster
               onCounter={() => navigate(11)}

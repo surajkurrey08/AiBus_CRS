@@ -44,3 +44,28 @@ export { TabletAssignment } from "./tablet-assignment.model.js";
 export { TripLink } from "./trip-link.model.js";
 export { SalesPartner } from "./sales-partner.model.js";
 export { CommissionRule } from "./commission-rule.model.js";
+export { LedgerAccount } from "./ledger-account.model.js";
+export { JournalEntry } from "./journal-entry.model.js";
+export { FinancialOperation } from "./financial-operation.model.js";
+export { AccountBalanceProjection } from "./account-balance-projection.model.js";
+export {
+  AgentWallet,
+  CreditFacility,
+  FinancePolicy,
+  WalletFundingIntent,
+  WalletReservation,
+  CreditLimitHistory,
+  TestFundingEvidence,
+} from "./agency-finance.model.js";
+
+export { CancellationAccountingPolicy, CancellationQuote, RefundIntent, RefundAttempt, FinanceException } from "./refund-workflow.model.js";
+
+export { SettlementPolicy, SettlementLine, SettlementApproval, TestSettlementReceipt, PayoutIntent, TestPayoutRecord, PayoutAttempt, SettlementReconciliation } from "./settlement-workflow.model.js";
+
+export { OperatorDocument, PlatformSettings, PlatformCommand } from "./platform.model.js";
+
+export { OperationalJob, OperationalJobRun, OperationalIssue, TripIncident } from "./operations.model.js";
+
+export * from "./public-api.model.js";
+
+export { PartnerSupport } from "./partner-portal.model.js";

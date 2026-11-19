@@ -114,14 +114,28 @@ it("opens the separate admin app, reviews company details and confirms status ch
     confirmation.getByLabelText("New status"),
     "approved",
   );
+  await user.type(
+    confirmation.getByLabelText("Business reason"),
+    "Company evidence reviewed and approved",
+  );
+  await user.type(
+    confirmation.getByLabelText("Your current password"),
+    "example-password-123",
+  );
+  await user.click(confirmation.getByRole("button", { name: "Review action" }));
   await user.click(
-    confirmation.getByRole("button", { name: "Confirm status change" }),
+    confirmation.getByRole("button", { name: "Record reviewed change" }),
   );
   expect(await screen.findByText("Pune Travels is now approved.")).toBeTruthy();
   const saved = vi
     .mocked(fetch)
     .mock.calls.find(([, o]) => o?.method === "PATCH")!;
-  expect(JSON.parse(saved[1]!.body as string)).toEqual({ status: "approved" });
+  expect(JSON.parse(saved[1]!.body as string)).toMatchObject({
+    status: "approved",
+    version: 0,
+    reason: "Company evidence reviewed and approved",
+    password: "example-password-123",
+  });
   expect(new Headers(saved[1]?.headers).get("X-Aibus-Client")).toBe("admin");
 });
 it("shows an API failure and recovers through retry", async () => {

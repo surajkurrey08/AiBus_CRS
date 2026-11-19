@@ -68,6 +68,35 @@ const resources = [
   "notifications",
   "audit-logs",
 ];
+for (const resource of ["accounts", "journals"])
+  add(
+    `/api/v1/finance/${resource}`,
+    "get",
+    `Read authorized ledger ${resource}; no wallet or settlement access`,
+    {
+      tags: ["Finance"],
+      parameters: [
+        {
+          in: "query",
+          name: "page",
+          schema: { type: "integer", minimum: 1, maximum: 100000, default: 1 },
+        },
+        {
+          in: "query",
+          name: "limit",
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+        },
+      ],
+      description:
+        "Server-derived operator/agency scope. Super Admin requires explicit platform:finance:read. Agent journals expose only the agency's own lines. Historical payments are not backfilled. Other query fields are rejected.",
+    },
+  );
+add(
+  "/api/v1/finance/journals/{id}",
+  "get",
+  "Read an authorized posted journal",
+  { tags: ["Finance"] },
+);
 for (const resource of resources)
   add(`/api/v1/operator/${resource}`, "get", `List tenant-owned ${resource}`, {
     parameters: [
@@ -521,9 +550,19 @@ add(
   "Super-admin approval/suspension",
   {
     requestBody: body(
-      object({
-        status: { type: "string", enum: ["approved", "suspended", "rejected"] },
-      }),
+      object(
+        {
+          status: {
+            type: "string",
+            enum: ["pending", "approved", "suspended", "rejected"],
+          },
+          salesBlocked: { type: "boolean" },
+          version: { type: "integer", minimum: 0 },
+          reason: { type: "string", minLength: 5, maxLength: 240 },
+          password: { type: "string", writeOnly: true, maxLength: 128 },
+        },
+        ["version", "reason", "password"],
+      ),
     ),
   },
 );
@@ -1170,6 +1209,95 @@ add(
   },
 );
 
+// Phase 5 read-only platform monitoring; operator masters remain operator-owned.
+for (const resource of [
+  "buses",
+  "trips",
+  "routes",
+  "agencies",
+  "bookings",
+  "alerts",
+  "audit",
+  "admin-users",
+  "settings",
+  "capabilities",
+])
+  add(
+    "/api/v1/platform/" + resource,
+    "get",
+    "Phase 5 authorized platform " + resource,
+    {
+      description:
+        "Explicit platform permission required; passenger and financial evidence require separate grants. Server pagination and scope filters apply. See backend/PLATFORM-ADMIN.md.",
+    },
+  );
+for (const resource of [
+  "buses",
+  "trips",
+  "routes",
+  "agencies",
+  "bookings",
+  "alerts",
+  "audit",
+])
+  add(
+    "/api/v1/platform/" + resource + ".csv",
+    "get",
+    "Authorized bounded platform CSV",
+    {
+      description:
+        "Requires complete from/to dates, the matching read grant, and sanitized scope filters; passenger data is excluded.",
+    },
+  );
+for (const report of [
+  "operator-performance",
+  "agency-performance",
+  "booking-source",
+  "route-bookings",
+  "bus-occupancy",
+  "confirmed-cancelled",
+  "payment-status",
+  "operational-alerts",
+])
+  add(
+    "/api/v1/platform/reports/" + report,
+    "get",
+    "Operational report " + report,
+  );
+add(
+  "/api/v1/platform/admin-users",
+  "post",
+  "Create functional admin staff; bootstrap Super Admin creation forbidden",
+  {
+    description:
+      "Requires platform:staff:write, current password re-verification, business reason, stable Idempotency-Key and a role-constrained permission set. Full strict request schema in PLATFORM-ADMIN.md.",
+  },
+);
+add(
+  "/api/v1/platform/admin-users/{id}",
+  "patch",
+  "Versioned staff access change with session revocation",
+);
+add(
+  "/api/v1/platform/admin-users/{id}/revoke-sessions",
+  "post",
+  "Revoke staff sessions after password verification; self/bootstrap protected",
+);
+add(
+  "/api/v1/platform/operators/{id}/documents",
+  "post",
+  "Record an external company evidence reference; not a file upload vault",
+);
+add(
+  "/api/v1/platform/operators/{operatorId}/documents/{id}/review",
+  "post",
+  "Versioned manual document reference review; approval is separate",
+);
+add(
+  "/api/v1/platform/settings",
+  "put",
+  "Versioned controlled profile and template drafts; no secret or live integration settings",
+);
 export const openapi = {
   openapi: "3.0.3",
   info: {

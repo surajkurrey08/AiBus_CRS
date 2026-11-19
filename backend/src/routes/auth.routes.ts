@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { z } from "zod";
 import type { Config } from "../config/env.js";
+import { identityFor } from "../services/agent.service.js";
 import {
   authenticate,
   rateLimit,
@@ -19,20 +20,35 @@ import {
   setRefresh,
   signAccess,
 } from "../services/auth.service.js";
-import {
-  AppError,
-  asyncRoute,
-  fail,
-  ok,
-  rolePermissions,
-  text,
-  type Role,
-} from "../utils/core.js";
+import { AppError, asyncRoute, fail, ok, text } from "../utils/core.js";
 
+const authClient = (req: Request) =>
+  req.get("X-Aibus-Client") === "partner" ? "partner" :
+  req.get("X-Aibus-Client") === "agent"
+    ? "agent"
+    : req.get("X-Aibus-Client") === "admin"
+      ? "admin"
+      : "operator";
 const refreshCookieName = (req: Request) =>
-  req.get("X-Aibus-Client") === "admin"
-    ? "aibus_admin_refresh"
-    : "aibus_refresh";
+  authClient(req) === "partner" ? "aibus_partner_refresh" :
+  authClient(req) === "agent"
+    ? "aibus_agent_refresh"
+    : authClient(req) === "admin"
+      ? "aibus_admin_refresh"
+      : "aibus_refresh";
+async function clientIdentity(req: Request, user: any) {
+  const identity = await identityFor(user);
+  if ((authClient(req) === "partner") !== (identity.role === "partner")) fail(403, "PARTNER_PORTAL_REQUIRED", "Use the correct organization portal");
+  if (authClient(req) === "agent" && identity.role !== "agent")
+    fail(403, "AGENT_REQUIRED", "Sign in with an operator-owned agency login");
+  if (authClient(req) === "admin" && identity.role !== "super_admin")
+    fail(
+      403,
+      "ADMIN_REQUIRED",
+      "Sign in with a platform administrator account",
+    );
+  return identity;
+}
 
 export const credentials = z
   .object({
@@ -54,6 +70,12 @@ export function authRouter(config: Config, limiter: Limiter) {
     "/register",
     rateLimit(limiter, "register", 5, 3600),
     asyncRoute(async (req, res) => {
+      if (["agent", "partner"].includes(authClient(req)))
+        fail(
+          403,
+          "AGENT_PROVISIONING_REQUIRED",
+          "Agency logins must be provisioned by the owning operator",
+        );
       const input = credentials
         .extend({
           password: strongPassword,
@@ -127,7 +149,7 @@ export function authRouter(config: Config, limiter: Limiter) {
       if (!user || !valid)
         fail(401, "INVALID_CREDENTIALS", "Invalid email or password");
       if (
-        user!.role !== "super_admin" &&
+        user!.role !== "super_admin" && user!.role !== "partner" &&
         !(await Operator.exists({ _id: user!.operatorId, status: "approved" }))
       )
         fail(
@@ -135,6 +157,7 @@ export function authRouter(config: Config, limiter: Limiter) {
           "OPERATOR_NOT_APPROVED",
           "Your operator account is pending approval or suspended",
         );
+      await clientIdentity(req, user!);
       await Audit.create({
         operatorId: user!.operatorId,
         actorId: user!._id,
@@ -165,6 +188,15 @@ export function authRouter(config: Config, limiter: Limiter) {
       const tokenHash = hashToken(token);
       const old = await Session.findOne({ refreshHash: tokenHash }).lean();
       if (!old) fail(401, "UNAUTHENTICATED", "Refresh session is invalid");
+      if (
+        (old!.client && old!.client !== authClient(req)) ||
+        (authClient(req) === "agent" && old!.client !== "agent")
+      )
+        fail(
+          401,
+          "SESSION_CLIENT_MISMATCH",
+          "This session belongs to a different dashboard. Sign in again.",
+        );
       if (old!.revokedAt) {
         await Session.updateMany(
           { family: old!.family, revokedAt: null },
@@ -185,11 +217,12 @@ export function authRouter(config: Config, limiter: Limiter) {
       }).lean();
       if (!user) fail(401, "SESSION_REVOKED", "Session ended");
       if (
-        user!.role !== "super_admin" &&
+        user!.role !== "super_admin" && user!.role !== "partner" &&
         !(await Operator.exists({ _id: user!.operatorId, status: "approved" }))
       )
         fail(403, "OPERATOR_NOT_APPROVED", "Operator is not approved");
       const fresh = randomBytes(48).toString("base64url");
+      const identity = await clientIdentity(req, user!);
       let newId = "";
       try {
         await mongoose.connection.transaction(async (session) => {
@@ -205,6 +238,7 @@ export function authRouter(config: Config, limiter: Limiter) {
               {
                 userId: user!._id,
                 family: old!.family,
+                client: authClient(req),
                 refreshHash: hashToken(fresh),
                 expiresAt: new Date(Date.now() + 7 * 86400000),
               },
@@ -231,9 +265,8 @@ export function authRouter(config: Config, limiter: Limiter) {
           id: String(user!._id),
           name: user!.name,
           email: user!.email,
-          role: user!.role,
+          ...identity,
           operatorId: user!.operatorId ? String(user!.operatorId) : null,
-          permissions: rolePermissions[user!.role as Role],
         },
       });
     }),
@@ -246,7 +279,11 @@ export function authRouter(config: Config, limiter: Limiter) {
         const session = await Session.findOne({
           refreshHash: hashToken(token),
         }).lean();
-        if (session)
+        if (
+          session &&
+          (!session.client || session.client === authClient(req)) &&
+          (authClient(req) !== "agent" || session.client === "agent")
+        )
           await Session.updateMany(
             { family: session.family, revokedAt: null },
             { $set: { revokedAt: new Date() } },
@@ -277,6 +314,10 @@ export function authRouter(config: Config, limiter: Limiter) {
         );
       const user = await User.findOne({ email, active: true }).lean();
       if (user) {
+        try { await clientIdentity(req, user); } catch {
+          ok(res, { message: "If the account exists, a reset link has been sent" });
+          return;
+        }
         const token = randomBytes(48).toString("base64url");
         await Reset.create({
           userId: user._id,
@@ -295,7 +336,7 @@ export function authRouter(config: Config, limiter: Limiter) {
           from: config.MAIL_FROM,
           to: email,
           subject: "Reset your Aibus password",
-          text: `Reset your password: ${config.WEB_ORIGIN}/?reset=${token}\nThis link expires in 30 minutes.`,
+          text: `Reset your password: ${authClient(req) === "partner" ? (config.PARTNER_WEB_ORIGIN || (config.NODE_ENV !== "production" ? "http://127.0.0.1:5176" : config.WEB_ORIGIN)) : config.WEB_ORIGIN}/?reset=${token}\nThis link expires in 30 minutes.`,
         });
       }
       ok(res, { message: "If the account exists, a reset link has been sent" });

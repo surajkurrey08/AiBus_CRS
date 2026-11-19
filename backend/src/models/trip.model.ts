@@ -46,6 +46,7 @@ export const Trip = model(
   },
   [
     { keys: { operatorId: 1, journeyDate: 1 } },
+    { keys: { operatorId: 1, status: 1, departureAt: 1 } },
     { keys: { busId: 1, departureAt: 1 }, options: { unique: true } },
     {
       keys: { operatorId: 1, serviceId: 1, journeyDate: 1 },

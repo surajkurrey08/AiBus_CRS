@@ -1,6 +1,17 @@
 import type { Request, RequestHandler } from "express";
 import { Permission } from "../types/permissions.js";
 import { AppError, fail } from "../utils/errors.js";
+export const operatorStaffOnly: RequestHandler = (req, _res, next) => {
+  if (req.auth.agentId || req.auth.role === "agent" || req.auth.partnerId || req.auth.role === "partner")
+    return next(
+      new AppError(
+        403,
+        "OPERATOR_STAFF_REQUIRED",
+        "Use the agency API for agent operations",
+      ),
+    );
+  next();
+};
 
 export function permit(permission: Permission): RequestHandler {
   return (req, _res, next) => {

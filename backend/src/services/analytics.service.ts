@@ -68,6 +68,7 @@ export async function analytics(operatorId: string, from: string, to: string) {
           $match: {
             operatorId: owner,
             status: "settled",
+            mode: { $ne: "Test" },
             settledAt: { $gte: start, $lte: end },
           },
         },

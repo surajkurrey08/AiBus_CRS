@@ -1,0 +1,55 @@
+.admin-finance-hub {
+  display: grid;
+  grid-template-columns: 205px minmax(0, 1fr);
+  gap: 20px;
+}
+.admin-finance-hub > nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: start;
+}
+.admin-finance-hub > nav .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+.admin-finance,
+.admin-finance-hub > div {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.admin-finance-hub .panel-body {
+  padding: 20px;
+}
+.admin-finance-hub .table-wrap {
+  overflow: auto;
+  max-width: 100%;
+}
+.admin-finance-hub label,
+.admin-finance-hub .finance-filters {
+  display: grid;
+  gap: 8px;
+}
+.admin-finance-hub .finance-filters {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin: 20px 0;
+}
+.admin-finance-hub td {
+  max-width: 320px;
+  overflow-wrap: anywhere;
+}
+.admin-finance-hub .btn {
+  margin: 4px;
+}
+@media (max-width: 900px) {
+  .admin-finance-hub {
+    grid-template-columns: 1fr;
+  }
+  .admin-finance-hub > nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

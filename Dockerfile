@@ -1,32 +1,53 @@
-FROM node:24-alpine AS build
+# Update these verified multi-platform digests through a reviewed PR.
+FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/package.json
 COPY backend/package.json backend/package.json
 COPY admin/package.json admin/package.json
-RUN npm ci
+COPY partner/package.json partner/package.json
+RUN npm ci --no-audit --no-fund
+
+FROM dependencies AS build
 COPY frontend frontend
 COPY backend backend
 COPY admin admin
+COPY partner partner
+COPY integrations integrations
 COPY scripts scripts
 RUN npm run build
 
-FROM node:24-alpine AS api
+FROM dependencies AS production-dependencies
+RUN npm prune --omit=dev --no-audit --no-fund
+
+FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS api
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CRS" org.opencontainers.image.revision=$REVISION
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY frontend/package.json frontend/package.json
-COPY backend/package.json backend/package.json
-COPY admin/package.json admin/package.json
-RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./backend/dist
+COPY backend/package.json ./backend/package.json
 RUN mkdir -p /app/backend/var/uploads && chown -R node:node /app/backend/var
 WORKDIR /app/backend
 USER node
 EXPOSE 4000
-HEALTHCHECK --interval=20s --timeout=5s CMD node -e "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node","dist/server.js"]
+HEALTHCHECK --interval=15s --timeout=6s --start-period=30s --retries=8 CMD node -e "fetch('http://127.0.0.1:4000/health/ready',{signal:AbortSignal.timeout(4500)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "dist/server.js"]
 
-FROM nginx:stable-alpine AS web
+FROM nginx:stable-alpine@sha256:3bc3836dc0be3b811f238210360bf8e7ca8a2d0effdae46160bf1f3578710051 AS web-production
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CRS" org.opencontainers.image.revision=$REVISION
+COPY deploy/nginx/gateway.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/proxy.inc /etc/nginx/bookmybus-proxy.inc
+COPY --from=build /app/frontend/dist /usr/share/nginx/operator
+COPY --from=build /app/admin/dist /usr/share/nginx/admin
+COPY --from=build /app/partner/dist /usr/share/nginx/partner
+RUN printf '%s\n' "$REVISION" > /usr/share/nginx/revision.txt
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD wget -q -O /dev/null http://127.0.0.1:8080/gateway-health || exit 1
+
+# Preserve the existing compose.yaml development web target and port mapping.
+FROM nginx:stable-alpine@sha256:3bc3836dc0be3b811f238210360bf8e7ca8a2d0effdae46160bf1f3578710051 AS web
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/frontend/dist /usr/share/nginx/html
 EXPOSE 80

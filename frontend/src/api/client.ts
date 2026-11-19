@@ -8,6 +8,7 @@ export type Identity = {
   email: string;
   role: string;
   operatorId: string | null;
+  agentId?: string;
   permissions: string[];
 };
 let accessToken = "",
@@ -99,6 +100,34 @@ export async function logout() {
 }
 export const can = (permission: string) =>
   identity?.permissions.includes(permission) || false;
+export async function downloadFinanceStatement(
+  agentId: string,
+  from: string,
+  to: string,
+  retry = true,
+): Promise<void> {
+  const response = await fetch(
+    `/api/v1/operator/finance/wallets/${encodeURIComponent(agentId)}/statement.csv?${new URLSearchParams({ from, to })}`,
+    {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+  if (response.status === 401 && retry) {
+    await refreshSession();
+    return downloadFinanceStatement(agentId, from, to, false);
+  }
+  if (!response.ok) {
+    const body = await readApiResponse(response);
+    throw Error(body.error?.message || "Statement download failed");
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "aibus-agency-statement.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 export async function downloadRevenue(
   from: string,
   to: string,
@@ -126,4 +155,11 @@ export async function downloadRevenue(
   link.download = "aibus-revenue.csv";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+export async function downloadFinancialReport(name: string, query: Record<string, string>, retry = true, channel: "finance" | "operations" = "finance"): Promise<void> {
+ const response = await fetch('/api/v1/operator/' + channel + '/reports/' + encodeURIComponent(name) + '.csv?' + new URLSearchParams(query), { credentials: 'include', headers: { Authorization: 'Bearer ' + accessToken } });
+ if (response.status === 401 && retry) { await refreshSession(); return downloadFinancialReport(name, query, false, channel); }
+ if (!response.ok) { const body = await readApiResponse(response); throw Error(body.error?.message || 'Financial export failed'); }
+ const url = URL.createObjectURL(await response.blob()), link = document.createElement('a'); link.href = url; link.download = 'aibus-finance.csv'; link.click(); URL.revokeObjectURL(url);
 }

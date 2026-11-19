@@ -1,20 +1,10 @@
 import mongoose from "mongoose";
 import { readConfig } from "../config/env.js";
-import { reconcileRazorpayOrders } from "../services/razorpay.service.js";
-import {
-  reconcileExpiredHolds,
-  reconcileExternalBookings,
-} from "../jobs/booking.jobs.js";
+import { runOperationalJobs } from "../jobs/operational.jobs.js";
 const config = readConfig();
-await mongoose.connect(config.MONGODB_URI);
+await mongoose.connect(config.MONGODB_URI, { autoIndex: false, autoCreate: false });
 try {
-  await reconcileRazorpayOrders(config);
-  console.log(
-    JSON.stringify({
-      expiredTripCount: await reconcileExpiredHolds(),
-      external: await reconcileExternalBookings(),
-    }),
-  );
-} finally {
-  await mongoose.disconnect();
-}
+ const results = await runOperationalJobs(config);
+ console.log(JSON.stringify({ jobs: results }));
+ if (results.some(r => r.succeeded === false)) process.exitCode = 1;
+} finally { await mongoose.disconnect(); }

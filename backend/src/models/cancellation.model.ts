@@ -14,4 +14,9 @@ export const Cancellation = model("Cancellation", {
   policySnapshot: Schema.Types.Mixed,
   refundPaise: Number,
   idempotencyKey: String,
+  acceptedQuoteId: objectId,
+  accountingJournalId: objectId,
+  reviewedBy: objectId,
+  reviewedAt: Date,
+  reviewReason: String,
 });

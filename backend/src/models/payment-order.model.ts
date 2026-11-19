@@ -24,6 +24,7 @@ export const PaymentOrder = model(
     lastCheckedAt: Date,
   },
   [
+    { keys: { providerId: 1, keyId: 1, state: 1, settledAt: 1, lastCheckedAt: 1, createdAt: 1 } },
     { keys: { providerId: 1, bookingId: 1 }, options: { unique: true } },
     { keys: { externalOrderId: 1 }, options: { unique: true, sparse: true } },
   ],

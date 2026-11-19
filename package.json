@@ -6,7 +6,8 @@
   "workspaces": [
     "frontend",
     "backend",
-    "admin"
+    "admin",
+    "partner"
   ],
   "scripts": {
     "setup": "node scripts/setup-env.mjs",
@@ -18,9 +19,22 @@
     "test": "npm run test --workspaces",
     "format": "prettier --write frontend/src admin/src backend/src backend/tests",
     "format:check": "prettier --check frontend/src admin/src backend/src backend/tests",
-    "dev:admin": "npm run dev -w admin"
+    "dev:admin": "npm run dev -w admin",
+    "test:agent-adapter": "npm run test -w backend -- tests/agent-client.test.ts",
+    "check:agent-adapter": "tsc integrations/agent-dashboard/client.ts --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --skipLibCheck",
+    "test:e2e:isolated": "node scripts/run-isolated-e2e.mjs",
+    "check:public-client": "tsc integrations/public-api/client.ts --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --skipLibCheck",
+    "dev:partner": "npm run dev -w partner",
+    "lint": "eslint .",
+    "typecheck": "node scripts/ci/typecheck.mjs",
+    "check:ci-env": "tsx scripts/ci/check-env.ts",
+    "test:deployment": "node --test scripts/ci/deployment.test.mjs"
   },
   "devDependencies": {
-    "prettier": "^3.10.1"
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.65.1",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
+    "typescript-eslint": "^8.73.0"
   }
 }

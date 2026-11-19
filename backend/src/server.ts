@@ -1,15 +1,10 @@
+import { runOperationalJobs } from "./jobs/operational.jobs.js";
 import { createAdapter } from "@socket.io/redis-adapter";
 import mongoose from "mongoose";
 import http from "node:http";
 import { createClient } from "redis";
 import { createApp } from "./app.js";
 import { readConfig } from "./config/env.js";
-import { reconcileRazorpayOrders } from "./services/razorpay.service.js";
-import {
-  publishOutbox,
-  reconcileExpiredHolds,
-  reconcileExternalBookings,
-} from "./jobs/booking.jobs.js";
 import { attachRealtime } from "./realtime/socket.js";
 import { logger } from "./utils/core.js";
 const config = readConfig();
@@ -52,10 +47,7 @@ const timer = setInterval(async () => {
   if (busy) return;
   busy = true;
   try {
-    await reconcileRazorpayOrders(config);
-    await reconcileExpiredHolds();
-    await reconcileExternalBookings();
-    await publishOutbox(io);
+    await runOperationalJobs(config, io);
   } catch {
     logger.error("Background reconciliation failed");
   } finally {

@@ -25,7 +25,8 @@ export function LiveSettings() {
       <div className="tabs">
         {[
           "Company profile",
-          ...(ws.user.permissions.includes("staff:write")
+          ...(ws.user.permissions.includes("staff:write") ||
+          ws.user.permissions.includes("agents:read")
             ? ["Agents & Staff"]
             : []),
           "Notifications",

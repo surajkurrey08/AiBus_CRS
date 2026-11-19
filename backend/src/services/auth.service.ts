@@ -9,14 +9,9 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import type { Config } from "../config/env.js";
+import { identityFor } from "./agent.service.js";
 import { Operator, Session, User } from "../models/index.js";
-import {
-  fail,
-  ok,
-  rolePermissions,
-  type Principal,
-  type Role,
-} from "../utils/core.js";
+import { fail, ok, type Principal } from "../utils/core.js";
 export const scrypt = (password: string, salt: string, length: number) =>
   new Promise<Buffer>((resolve, reject) =>
     scryptCallback(
@@ -89,7 +84,8 @@ export async function principal(
   const user = await User.findOne({ _id: claims!.sub, active: true }).lean();
   if (!session || !user)
     fail(401, "SESSION_REVOKED", "Your session has ended. Sign in again.");
-  if (user!.role !== "super_admin") {
+  if (user!.role === "partner" && session!.client !== "partner") fail(401, "SESSION_CLIENT_MISMATCH", "Partner portal session required");
+  if (user!.role !== "super_admin" && user!.role !== "partner") {
     const operator = await Operator.findOne({
       _id: user!.operatorId,
       status: "approved",
@@ -101,13 +97,11 @@ export async function principal(
         "Your operator account is not approved or is suspended",
       );
   }
-  const role = user!.role as Role;
   return {
     userId: String(user!._id),
     operatorId: user!.operatorId ? String(user!.operatorId) : null,
-    role,
+    ...(await identityFor(user!)),
     sessionId: String(session!._id),
-    permissions: rolePermissions[role],
   };
 }
 
@@ -146,10 +140,18 @@ export async function sessionResponse(
   family = randomUUID(),
   cookieName = "aibus_refresh",
 ) {
+  const identity = await identityFor(user);
   const refresh = randomBytes(48).toString("base64url");
   const session = await Session.create({
     userId: user._id,
     family,
+    client:
+      cookieName === "aibus_partner_refresh" ? "partner" :
+      cookieName === "aibus_agent_refresh"
+        ? "agent"
+        : cookieName === "aibus_admin_refresh"
+          ? "admin"
+          : "operator",
     refreshHash: hashToken(refresh),
     expiresAt: new Date(Date.now() + 7 * 86400000),
   });
@@ -161,9 +163,8 @@ export async function sessionResponse(
       id: String(user._id),
       name: user.name,
       email: user.email,
-      role: user.role,
+      ...identity,
       operatorId: user.operatorId ? String(user.operatorId) : null,
-      permissions: rolePermissions[user.role as Role],
     },
   });
 }
