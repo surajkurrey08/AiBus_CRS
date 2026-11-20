@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import * as M from "../../src/models/index.js";
 import * as P from "../../src/models/public-api.model.js";
 import { createApp } from "../../src/app.js";
@@ -28,6 +28,9 @@ const config = readConfig({
   PUBLIC_API_JWT_SECRET: "p".repeat(64),
   PUBLIC_WEBHOOK_SIGNING_KEY: "b".repeat(64),
   PUBLIC_WEBHOOK_ALLOWED_HOSTS: "partner.example.test",
+  RAZORPAY_KEY_ID: "rzp_test_portal_fixture",
+  RAZORPAY_KEY_SECRET: "portal-fixture-secret-not-a-real-key",
+  FINANCE_TEST_MODE: "true",
 });
 const app = createApp(config, { check: async () => true });
 let mongo: MongoMemoryReplSet,
@@ -88,7 +91,10 @@ const issue = (extra: any = {}) =>
     }),
   );
 beforeAll(async () => {
-  mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  mongo = await MongoMemoryReplSet.create({
+    replSet: { count: 1 },
+    binary: { version: "7.0.14" },
+  });
   await mongoose.connect(mongo.getUri("aibus_public_sandbox_portal"));
   await Promise.all(Object.values(mongoose.models).map((m) => m.init()));
   hash = await hashPassword(password);
@@ -866,10 +872,6 @@ describe("Phase 8 partner platform boundaries", () => {
       targetId: trip._id,
       expiresAt: new Date("2031-01-01"),
     });
-    await P.ApiPartner.updateOne(
-      { _id: partner._id },
-      { $set: { sandboxAllowancePaise: 1000000 } },
-    );
     const call = async (operationId: string, values: any = {}) => {
       const r = await post("/partner/playground", { operationId, ...values });
       expect(r.status).toBe(200);
@@ -907,11 +909,77 @@ describe("Phase 8 partner platform boundaries", () => {
     expect(created.status).toBe(201);
     const replay = await call("pendingBooking", { body, idempotencyKey: key });
     expect(replay.response.data.id).toBe(created.response.data.id);
-    const confirmation = await call("confirmSandboxBooking", {
-      params: { id: created.response.data.id },
-      body: { authorization: "sandbox-allowance" },
-      idempotencyKey: randomUUID(),
-    });
+    const previousFetch = globalThis.fetch;
+    const orderId = "order_portalfixture",
+      paymentId = "pay_portalfixture";
+    let confirmation: any;
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.origin !== "https://api.razorpay.com")
+        throw Error("Unexpected provider host");
+      if (url.pathname === "/v1/orders" && init?.method === "POST") {
+        const order = JSON.parse(String(init.body));
+        return Response.json({
+          id: orderId,
+          amount: order.amount,
+          currency: order.currency,
+          receipt: order.receipt,
+          partial_payment: false,
+        });
+      }
+      if (
+        url.pathname === `/v1/payments/${paymentId}` &&
+        init?.method === "GET"
+      )
+        return Response.json({
+          id: paymentId,
+          order_id: orderId,
+          amount: created.response.data.totalPaise,
+          currency: "INR",
+          amount_refunded: 0,
+          status: "captured",
+          captured: true,
+        });
+      throw Error("Unexpected provider request");
+    };
+    try {
+      const started = await call("startTestPayment", {
+        params: { id: created.response.data.id },
+        body: {},
+        idempotencyKey: randomUUID(),
+      });
+      expect(started.status).toBe(200);
+      expect(started.response.data).toMatchObject({
+        mode: "test",
+        orderId,
+        amountPaise: created.response.data.totalPaise,
+      });
+      const verifyBody = {
+        razorpay_order_id: orderId,
+        razorpay_payment_id: paymentId,
+        razorpay_signature: createHmac("sha256", config.RAZORPAY_KEY_SECRET!)
+          .update(`${orderId}|${paymentId}`)
+          .digest("hex"),
+      };
+      const verifyKey = randomUUID();
+      confirmation = await call("verifyTestPayment", {
+        params: { id: created.response.data.id },
+        body: verifyBody,
+        idempotencyKey: verifyKey,
+      });
+      const verifiedReplay = await call("verifyTestPayment", {
+        params: { id: created.response.data.id },
+        body: verifyBody,
+        idempotencyKey: verifyKey,
+      });
+      expect(verifiedReplay.response.data.pnr).toBe(
+        confirmation.response.data.pnr,
+      );
+      expect(await M.PaymentOrder.countDocuments()).toBe(1);
+      expect(await M.Ticket.countDocuments()).toBe(1);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
     expect(confirmation.status).toBe(200);
     expect(confirmation.response.data.status).toBe("Confirmed");
     const ticket = await call("ticket", {

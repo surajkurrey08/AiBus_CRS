@@ -17,6 +17,7 @@
     "platform:preflight": "tsx src/scripts/platform-preflight.ts",
     "operations:preflight": "tsx src/scripts/operations-readiness.ts",
     "public:sandbox": "tsx src/scripts/public-sandbox.ts",
+    "public:preflight": "tsx src/scripts/public-readiness.ts",
     "cities:indexes": "tsx src/scripts/city-catalog-indexes.ts"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
 import { inspectTripIntegrity } from "../../src/services/operations-integrity.service.js";
+import { inspectPublicReadiness } from "../../src/services/public-readiness.service.js";
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
@@ -209,10 +210,11 @@ const paymentPost = (
   path: string,
   body: unknown = {},
   key = randomUUID(),
+  auth = token,
 ) =>
   request(paymentApp)
     .post("/api/v1/public" + path)
-    .set("Authorization", "Bearer " + token)
+    .set("Authorization", "Bearer " + auth)
     .set("Idempotency-Key", key)
     .send(body);
 async function withRazorpayMock<T>(
@@ -272,7 +274,10 @@ async function withRazorpayMock<T>(
         status: "processed",
       });
     }
-    if (url.pathname === `/v1/refunds/${ids.refundId}` && init?.method === "GET")
+    if (
+      url.pathname === `/v1/refunds/${ids.refundId}` &&
+      init?.method === "GET"
+    )
       return Response.json({
         id: ids.refundId,
         payment_id: ids.paymentId,
@@ -289,13 +294,23 @@ async function withRazorpayMock<T>(
     globalThis.fetch = previousFetch;
   }
 }
-async function pending(seat = "L1", key = randomUUID()) {
-  const held = await post(`/trips/${publicTripId}/holds`, { seats: [seat] });
+async function pending(seat = "L1", key = randomUUID(), auth = token) {
+  const held = await post(
+    `/trips/${publicTripId}/holds`,
+    { seats: [seat] },
+    randomUUID(),
+    auth,
+  );
   expect(held.status).toBe(201);
-  const quoted = await post(`/trips/${publicTripId}/quotes`, {
-    seats: [seat],
-    holdId: held.body.data.id,
-  });
+  const quoted = await post(
+    `/trips/${publicTripId}/quotes`,
+    {
+      seats: [seat],
+      holdId: held.body.data.id,
+    },
+    randomUUID(),
+    auth,
+  );
   expect(quoted.status).toBe(200);
   const body = {
     tripId: publicTripId,
@@ -306,16 +321,18 @@ async function pending(seat = "L1", key = randomUUID()) {
       { name: "PRIVATE Passenger", seat, boarding: "Wakad", dropping: "Dadar" },
     ],
   };
-  const created = await post("/bookings", body, key);
+  const created = await post("/bookings", body, key, auth);
   expect(created.status).toBe(201);
   return { booking: created.body.data, body, key, holdId: held.body.data.id };
 }
-async function confirmed() {
-  const result = await pending();
+async function confirmed(seat = "L1", auth = token) {
+  const result = await pending(seat, randomUUID(), auth);
   return withRazorpayMock(result.booking.totalPaise, async (ids) => {
     const order = await paymentPost(
       `/bookings/${result.booking.id}/payment`,
       {},
+      randomUUID(),
+      auth,
     );
     expect(order.status).toBe(200);
     expect(order.body.data).toMatchObject({
@@ -333,12 +350,138 @@ async function confirmed() {
         razorpay_payment_id: ids.paymentId,
         razorpay_signature: signature,
       },
+      randomUUID(),
+      auth,
     );
     expect(response.status).toBe(200);
     return { ...result, booking: response.body.data };
   });
 }
 describe("Phase 7 public API provider", () => {
+  it("allows own-app and external-app bookings while isolating tickets, recovery and occupied seats", async () => {
+    const own = await confirmed("L1", token);
+    const external = await confirmed("L2", otherToken);
+    expect(own.booking.status).toBe("Confirmed");
+    expect(external.booking.status).toBe("Confirmed");
+    expect(own.booking.pnr).not.toBe(external.booking.pnr);
+    for (const [booking, mine, foreign] of [
+      [own.booking, token, otherToken],
+      [external.booking, otherToken, token],
+    ] as const) {
+      expect((await get(`/bookings/${booking.id}/ticket`, mine)).status).toBe(
+        200,
+      );
+      expect(
+        (await get(`/bookings/${booking.id}/ticket`, foreign)).status,
+      ).toBe(404);
+      expect(
+        (
+          await paymentPost(
+            `/bookings/${booking.id}/payment/reconcile`,
+            {},
+            randomUUID(),
+            foreign,
+          )
+        ).status,
+      ).toBe(404);
+    }
+    expect(
+      (
+        await post(
+          `/trips/${publicTripId}/holds`,
+          { seats: ["L1"] },
+          randomUUID(),
+          otherToken,
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await post(
+          `/trips/${publicTripId}/holds`,
+          { seats: ["L2"] },
+          randomUUID(),
+          token,
+        )
+      ).status,
+    ).toBe(409);
+    expect(await M.Booking.countDocuments({ status: "Confirmed" })).toBe(2);
+    expect(await M.Ticket.countDocuments()).toBe(2);
+  });
+  it("checks two independent app partners without changing reservation or financial records", async () => {
+    const before = await Promise.all(
+      Object.values(mongoose.models).map((m) => m.countDocuments()),
+    );
+    const report = await inspectPublicReadiness(paymentConfig, [
+      partner.publicId,
+      other.publicId,
+    ]);
+    expect(report.ready).toBe(true);
+    expect(report.partners).toHaveLength(2);
+    expect(
+      report.partners.every((p) => p.credentialsReady && p.sellableTrips === 1),
+    ).toBe(true);
+    expect(
+      await Promise.all(
+        Object.values(mongoose.models).map((m) => m.countDocuments()),
+      ),
+    ).toEqual(before);
+    expect(JSON.stringify(report)).not.toContain(credential);
+    expect(JSON.stringify(report)).not.toContain("secretHash");
+  });
+  it("does not call expired credentials, missing grants or duplicate app identities ready", async () => {
+    await P.ApiCredential.updateMany(
+      { partnerId: other._id },
+      { $set: { expiresAt: new Date(0) } },
+    );
+    await P.PartnerInventoryGrant.updateMany(
+      { partnerId: other._id },
+      { $set: { active: false } },
+    );
+    const report = await inspectPublicReadiness(paymentConfig, [
+      partner.publicId,
+      other.publicId,
+    ]);
+    expect(report.ready).toBe(false);
+    expect(report.partners[0].ready).toBe(true);
+    expect(report.partners[1]).toMatchObject({
+      credentialsReady: false,
+      sellableTrips: 0,
+      ready: false,
+    });
+    expect(
+      (
+        await inspectPublicReadiness(paymentConfig, [
+          partner.publicId,
+          partner.publicId,
+        ])
+      ).ready,
+    ).toBe(false);
+  });
+  it("fails preflight for foreign-owned bus records and production configuration", async () => {
+    // Deliberately corrupt the disposable fixture; normal updates protect immutable ownership.
+    await M.Bus.collection.updateOne(
+      { _id: trip.busId },
+      { $set: { operatorId: other._id } },
+    );
+    expect(
+      (
+        await inspectPublicReadiness(paymentConfig, [
+          partner.publicId,
+          other.publicId,
+        ])
+      ).ready,
+    ).toBe(false);
+    const production = { ...paymentConfig, NODE_ENV: "production" as const };
+    expect(
+      (
+        await inspectPublicReadiness(production, [
+          partner.publicId,
+          other.publicId,
+        ])
+      ).checks,
+    ).toEqual([{ name: "isolated-sandbox", ready: false }]);
+  });
   it("rejects the ordinary database boundary even with valid sandbox credentials", async () => {
     const original = mongoose.connection.name;
     try {
@@ -405,7 +548,9 @@ describe("Phase 7 public API provider", () => {
       liveRefunds: false,
       liveTicketIssuance: false,
     });
-    expect((await get("/capabilities", token, paymentApp)).body.data).toMatchObject({
+    expect(
+      (await get("/capabilities", token, paymentApp)).body.data,
+    ).toMatchObject({
       paymentMode: "razorpay_test",
       testRefunds: true,
     });
@@ -601,20 +746,20 @@ describe("Phase 7 public API provider", () => {
       ).status,
     ).toBe(400);
     expect(
-      (await post(`/bookings/${booking.id}/confirm`, {
-        authorization: "sandbox-allowance",
-      })).status,
+      (
+        await post(`/bookings/${booking.id}/confirm`, {
+          authorization: "sandbox-allowance",
+        })
+      ).status,
     ).toBe(404);
     expect(await M.Ticket.countDocuments()).toBe(0);
     expect(await M.JournalEntry.countDocuments()).toBe(0);
   });
   it("reports missing Razorpay Test Mode configuration without creating a payment order", async () => {
     const { booking } = await pending();
-    expect(
-      (
-        await post(`/bookings/${booking.id}/payment`, {})
-      ).status,
-    ).toBe(503);
+    expect((await post(`/bookings/${booking.id}/payment`, {})).status).toBe(
+      503,
+    );
     expect(await M.PaymentOrder.countDocuments()).toBe(0);
     expect(await M.Ticket.countDocuments()).toBe(0);
   });
@@ -622,16 +767,8 @@ describe("Phase 7 public API provider", () => {
     const { booking } = await pending();
     await withRazorpayMock(booking.totalPaise, async (ids) => {
       const key = randomUUID(),
-        started = await paymentPost(
-          `/bookings/${booking.id}/payment`,
-          {},
-          key,
-        ),
-        replay = await paymentPost(
-          `/bookings/${booking.id}/payment`,
-          {},
-          key,
-        );
+        started = await paymentPost(`/bookings/${booking.id}/payment`, {}, key),
+        replay = await paymentPost(`/bookings/${booking.id}/payment`, {}, key);
       expect(started.status).toBe(200);
       expect(started.body.data).toMatchObject({
         provider: "razorpay",
@@ -679,9 +816,7 @@ describe("Phase 7 public API provider", () => {
     const { booking, holdId } = await pending();
     await withRazorpayMock(booking.totalPaise, async (ids) => {
       expect(
-        (
-          await paymentPost(`/bookings/${booking.id}/payment`, {})
-        ).status,
+        (await paymentPost(`/bookings/${booking.id}/payment`, {})).status,
       ).toBe(200);
       await M.Hold.updateOne({ holdId }, { $set: { expiresAt: new Date(0) } });
       await M.Trip.updateOne(
@@ -752,9 +887,7 @@ describe("Phase 7 public API provider", () => {
     const { booking } = await pending();
     await withRazorpayMock(booking.totalPaise, async (ids) => {
       expect(
-        (
-          await paymentPost(`/bookings/${booking.id}/payment`, {})
-        ).status,
+        (await paymentPost(`/bookings/${booking.id}/payment`, {})).status,
       ).toBe(200);
       const signature = createHmac("sha256", paymentConfig.RAZORPAY_KEY_SECRET!)
         .update(`${ids.orderId}|${ids.paymentId}`)
@@ -768,9 +901,7 @@ describe("Phase 7 public API provider", () => {
           })
         ).body.data.status,
       ).toBe("Confirmed");
-      const quote = await post(
-          `/bookings/${booking.id}/cancellation-quotes`,
-        ),
+      const quote = await post(`/bookings/${booking.id}/cancellation-quotes`),
         cancellationRequest = await post(
           `/bookings/${booking.id}/cancellations`,
           {
@@ -779,9 +910,11 @@ describe("Phase 7 public API provider", () => {
           },
         ),
         cancellation = await M.Cancellation.findOne({
-          bookingId: (await P.PartnerBookingReference.findOne({
-            publicId: booking.id,
-          }))?.bookingId,
+          bookingId: (
+            await P.PartnerBookingReference.findOne({
+              publicId: booking.id,
+            })
+          )?.bookingId,
         }).lean(),
         quoteMapping = await P.PublicResource.findOne({
           publicId: quote.body.data.id,
