@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { cityCatalogRouter } from "./city-catalog.routes.js";
 import { z } from "zod";
 import mongoose from "mongoose";
 import type { Config } from "../config/env.js";
@@ -84,8 +85,11 @@ export function platformRouter(config: Config, limiter?: Limiter) {
     router.use((req, res, next) =>
       req.method === "GET"
         ? next()
-        : rateLimit(limiter, "platform-privileged", 20, 900)(req, res, next),
+        : /^\/city-catalog\/imports\/[a-f0-9]{24}\/commit$/.test(req.path)
+          ? rateLimit(limiter, "platform-city-import", 240, 900)(req, res, next)
+          : rateLimit(limiter, "platform-privileged", 20, 900)(req, res, next),
     );
+  router.use("/city-catalog", cityCatalogRouter());
   router.get(
     "/capabilities",
     asyncRoute(async (req, res) => {

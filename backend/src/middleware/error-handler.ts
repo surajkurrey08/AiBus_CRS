@@ -34,6 +34,10 @@ export function errorHandler(
     status = 400;
     code = "INVALID_JSON";
     message = "Request body must be valid JSON";
+  } else if ((error as { type?: string })?.type === "entity.too.large") {
+    status = 413;
+    code = "REQUEST_TOO_LARGE";
+    message = "Request body exceeds this endpoint's size limit";
   } else if ((error as { code?: string })?.code === "LIMIT_FILE_SIZE") {
     status = 413;
     code = "FILE_TOO_LARGE";

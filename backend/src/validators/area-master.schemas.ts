@@ -9,7 +9,7 @@ const coordinates = {
 const coordinatePair = (value: { latitude?: number; longitude?: number }) =>
   (value.latitude === undefined) === (value.longitude === undefined);
 export const cityInput = z
-  .object({ name: text, state: text, country: text.default("India"), status })
+  .object({ name: text, state: text, country: text.default("India"), status, catalogId: id.optional() })
   .strict();
 export const locationInput = z
   .object({

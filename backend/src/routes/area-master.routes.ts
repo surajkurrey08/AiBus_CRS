@@ -1,5 +1,6 @@
 ﻿import { Router, type Request } from "express";
 import mongoose from "mongoose";
+import { listCatalogCities } from "./city-catalog.routes.js";
 import * as M from "../models/index.js";
 import {
   asyncRoute,
@@ -53,6 +54,10 @@ async function audit(
 }
 export function areaMasterRouter() {
   const router = Router();
+  router.get("/catalog", permit("read"), asyncRoute(async (req, res) => {
+    const result = await listCatalogCities(req.query, true);
+    ok(res, result.rows, result.meta);
+  }));
   const resources = [
     {
       path: "cities",
@@ -154,6 +159,17 @@ export function areaMasterRouter() {
           const input = resource.schema.parse(req.body) as Record<string, any>;
           let result: any;
           await mongoose.connection.transaction(async (session) => {
+            if (resource.path === "cities" && method === "patch") {
+              const current = await owned(M.City, req, id.parse(req.params.id), session);
+              if (input.catalogId && input.catalogId !== String(current.catalogId || ""))
+                fail(409, "CATALOG_LINK_IMMUTABLE", "An existing city cannot be linked to a different catalog city.");
+              if (current.catalogId) input.catalogId = String(current.catalogId);
+            }
+            if (resource.path === "cities" && input.catalogId) {
+              const canonical: any = await M.CatalogCity.findOne({ _id: input.catalogId, status: "Active" }).session(session).lean();
+              if (!canonical) fail(409, "CATALOG_CITY_UNAVAILABLE", "Select an active catalog city.");
+              input.name = canonical.name; input.state = canonical.state; input.country = canonical.country;
+            }
             if (input.cityId) {
               const city = await owned(M.City, req, input.cityId, session);
               if (city.status !== "Active" && input.status === "Active")

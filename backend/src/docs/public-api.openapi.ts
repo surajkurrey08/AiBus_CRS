@@ -22,6 +22,7 @@ const response = (schema: any) => ({
         required: ["data"],
         properties: {
           data: schema,
+          success: { type: "boolean", description: "City list compatibility flag; present on GET /cities." },
           meta: {
             type: "object",
             description: "List paging: page, limit, total",
@@ -481,7 +482,7 @@ export const publicApiSpec = {
         environment: { enum: ["sandbox"] },
         scopes: { type: "array", items: string },
       }),
-      City: object({ id: identifier, name: string }),
+      City: object({ id: identifier, name: string, CityId: identifier, City: string, CityKey: { type: "string", nullable: true }, State: { type: "string", nullable: true }, CatalogCityId: { type: "string", nullable: true } }, ["id", "name"]),
       Seats: {
         type: "array",
         minItems: 1,

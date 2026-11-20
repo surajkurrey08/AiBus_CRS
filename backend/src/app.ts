@@ -1,4 +1,7 @@
-import { partnerPortalRouter, platformPartnersRouter } from "./routes/partner-portal.routes.js";
+import {
+  partnerPortalRouter,
+  platformPartnersRouter,
+} from "./routes/partner-portal.routes.js";
 import { publicApiRouter } from "./routes/public-api.routes.js";
 import { operationsRouter } from "./routes/operations.routes.js";
 import { observeRequests } from "./services/observability.service.js";
@@ -87,7 +90,44 @@ export function createApp(
     }),
   );
   app.use(
-    express.json({ limit: "128kb" }),
+    // Only the authenticated catalog upload accepts larger JSON. Other API
+    // requests keep the existing 128KB cap.
+    (req, res, next) => {
+      if (
+        req.path !== "/api/v1/platform/city-catalog/imports/preview" ||
+        req.method !== "POST"
+      )
+        return express.json({ limit: "128kb" })(req, res, next);
+      rateLimit(
+        limiter,
+        "city-catalog-upload",
+        10,
+        900,
+      )(req, res, (limitError) => {
+        if (limitError) return next(limitError);
+        authenticate(config)(req, res, (error) => {
+          if (error) return next(error);
+          if (
+            req.auth.role !== "super_admin" ||
+            req.auth.operatorId ||
+            req.auth.agentId ||
+            !req.auth.permissions.includes("platform:settings:write")
+          )
+            return next(
+              new AppError(
+                403,
+                "FORBIDDEN",
+                "City catalog import permission required",
+              ),
+            );
+          originGuard(config)(req, res, (originError) =>
+            originError
+              ? next(originError)
+              : express.json({ limit: "8mb" })(req, res, next),
+          );
+        });
+      });
+    },
     cookieParser(),
     originGuard(config),
   );
@@ -110,7 +150,11 @@ export function createApp(
     "/health/ready",
     asyncRoute(async (_req, res) => {
       let healthy = false;
-      try { healthy = await ready(); } catch { /* Readiness fails closed. */ }
+      try {
+        healthy = await ready();
+      } catch {
+        /* Readiness fails closed. */
+      }
       res
         .status(healthy ? 200 : 503)
         .json({ data: { status: healthy ? "ready" : "unavailable" } });
@@ -141,7 +185,11 @@ export function createApp(
     ),
   );
   app.use("/api/v1/agent", authenticate(config), agentRouter(config));
-  app.use("/api/v1/agent", authenticate(config), refundWorkflowRouter(config, "agent"));
+  app.use(
+    "/api/v1/agent",
+    authenticate(config),
+    refundWorkflowRouter(config, "agent"),
+  );
   app.use(
     "/api/v1/agent",
     authenticate(config),
@@ -150,7 +198,11 @@ export function createApp(
   app.use("/api/v1/finance", authenticate(config), financeRouter());
   app.use("/api/v1/operator", authenticate(config), operatorStaffOnly);
   app.use("/api/v1/operator/operations", operationsRouter(config));
-  app.use("/api/v1/platform/operations", authenticate(config), operationsRouter(config, true, ready));
+  app.use(
+    "/api/v1/platform/operations",
+    authenticate(config),
+    operationsRouter(config, true, ready),
+  );
   app.use("/api/v1/operator/finance", agencyFinanceRouter(config));
   app.use("/api/v1/operator/finance", refundWorkflowRouter(config));
   app.use("/api/v1/operator/finance", settlementRouter(config, "operator"));
@@ -176,9 +228,21 @@ export function createApp(
     paymentRouter(config),
     operatorRouter(config),
   );
-  app.use("/api/v1/platform/finance", authenticate(config), refundWorkflowRouter(config, "platform"));
-  app.use("/api/v1/platform/finance", authenticate(config), settlementRouter(config, "platform"));
-  app.use("/api/v1/agent/finance", authenticate(config), settlementRouter(config, "agent"));
+  app.use(
+    "/api/v1/platform/finance",
+    authenticate(config),
+    refundWorkflowRouter(config, "platform"),
+  );
+  app.use(
+    "/api/v1/platform/finance",
+    authenticate(config),
+    settlementRouter(config, "platform"),
+  );
+  app.use(
+    "/api/v1/agent/finance",
+    authenticate(config),
+    settlementRouter(config, "agent"),
+  );
   app.use("/api/v1/platform", platformRouter(config, limiter));
   app.use((_req, _res, next) =>
     next(new AppError(404, "NOT_FOUND", "Endpoint not found")),

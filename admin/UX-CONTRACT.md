@@ -1,5 +1,22 @@
 # Admin interaction contract
 
+## Central City Master
+
+Read permission is `platform:settings:read`; adding/importing requires `platform:settings:write` and the existing reviewed current-password flow. Upload previews all source rows without creating cities. Conflicts and invalid rows remain excluded; importing never overwrites existing cities. The browser shows actual committed progress, preserves the import ID for retry/resume, and guards unload during processing. Uncertain chunk responses replay the same cursor. Read-only users see the catalog without import/add controls. Existing operator city IDs and public search IDs remain compatible. Partner city responses contain only authorized inventory, not the complete master catalog.
+
+## Canonical UI Map
+
+| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
+| --- | --- | --- | --- | --- |
+| Form | FinanceReviewForm; CityCatalog resume form | Existing current-password review contract; server Zod schemas | Platform intent, explicit client validation for resume ID | Component and browser review tests; Mongo integration tests |
+| Table | PlatformTable; native table for source evidence | Paginated catalog/import endpoints | Read-only import evidence inside table-wrap | Desktop/mobile browser overflow checks |
+| CRUD | CityCatalog using PlatformTable and FinanceReviewForm | City Catalog create/preview/commit endpoints | Create/read/import; no delete or overwrite controls | Mongo integration tests and browser review tests |
+| Scrollbar | Native browser scroll in table-wrap and Overlay | platform.css and overlay.css | Panel-contained horizontal evidence tables | 390px browser check |
+| Select/Listbox | Native select | Existing OperationsConsole, PlatformUsers and PlatformWorkspace controls | Single selection; no authored popup | Existing workspace tests |
+| Date | Native date input | Existing PlatformOverview filters | Native date-only filters | Existing workspace tests |
+| Dialog | Overlay and FinanceReviewForm | Existing platform review/draft-discard behavior | Platform intent with masked password | Existing review and City Catalog browser tests |
+| Upload | Native file input; CityCatalog preview | City Catalog endpoint validation | JSON/text file, 5 MB maximum, full-file preview | Preview component and browser tests |
+
 ## Ownership and navigation
 
 PlatformScreen owns module navigation, the user identity and page title. Access is derived from the authenticated server identity, never a selected operator identifier. Hidden modules must not request their data. Finance access remains an independent grant. Existing Panel/Overlay and FinanceReviewForm own panels, focusable dialogs, draft/review steps and confirmation; PlatformTable owns platform list behavior.

@@ -1,4 +1,5 @@
 import { ApiPartners } from "../platform/ApiPartners";
+import { CityCatalog } from "../platform/CityCatalog";
 import { OperationsConsole } from "../platform/OperationsConsole";
 import { useEffect, useState } from "react";
 import {
@@ -35,6 +36,7 @@ const navigation = [
     icon: LayoutDashboard,
     permission: "platform:overview:read",
   },
+  { id: "city-catalog", label: "City Master", title: "Central City Master", icon: Building2, permission: "platform:settings:read" },
   {
     id: "api-partners", label: "API Partners", title: "API partner management", icon: Network, permission: "platform:partners:read",
   },
@@ -164,6 +166,8 @@ export function PlatformScreen({ user }: { user: Identity }) {
             </p>
           ) : active.id === "overview" ? (
             <PlatformOverview />
+          ) : active.id === "city-catalog" ? (
+            <CityCatalog user={user} />
           ) : active.id === "api-partners" ? (
             <ApiPartners user={user} />
           ) : active.id === "finance" ? (

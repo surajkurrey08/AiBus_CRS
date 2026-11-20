@@ -2,6 +2,7 @@
 import { api } from "../../../api/client";
 import { Overlay } from "../../../components/ui/Overlay";
 import { areaFields, areaTabs } from "../areaConfig";
+import { CatalogCityPicker } from "./CatalogCityPicker";
 export function AreaForm({
   resource,
   record,
@@ -31,6 +32,7 @@ export function AreaForm({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [catalogId, setCatalogId] = useState<string | undefined>(record?.catalogId);
   return (
     <Overlay
       title={`${record ? "Edit" : "Create"} ${areaTabs.find((tab) => tab.id === resource)?.label.toLowerCase()}`}
@@ -59,7 +61,7 @@ export function AreaForm({
               `/operator/area-master/${resource}${record ? `/${record._id}` : ""}`,
               {
                 method: record ? "PATCH" : "POST",
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, ...(resource === "cities" && catalogId ? { catalogId } : {}) }),
               },
             );
             onSaved();
@@ -70,6 +72,11 @@ export function AreaForm({
           }
         }}
       >
+        {resource === "cities" && !record && <CatalogCityPicker onSelect={city => {
+          setCatalogId(city._id);
+          setValues(v => ({ ...v, name: city.name, state: city.state, country: city.country }));
+        }} />}
+        {resource === "cities" && catalogId && <p>Linked to the central City Master. City name, state and country come from the catalog.</p>}
         <div className="form-grid">
           {areaFields[resource].map((field) => {
             let options = field.options?.map((value) => ({
@@ -123,6 +130,7 @@ export function AreaForm({
                 ) : (
                   <input
                     aria-label={field.label}
+                    readOnly={resource === "cities" && !!catalogId && ["name", "state", "country"].includes(field.key)}
                     required={!field.optional}
                     type={field.type || "text"}
                     step={field.type === "number" ? "any" : undefined}

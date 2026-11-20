@@ -69,3 +69,4 @@ export { OperationalJob, OperationalJobRun, OperationalIssue, TripIncident } fro
 export * from "./public-api.model.js";
 
 export { PartnerSupport } from "./partner-portal.model.js";
+export { CatalogCity, CityCatalogImport } from "./city-catalog.model.js";

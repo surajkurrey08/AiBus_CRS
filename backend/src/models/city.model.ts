@@ -1,8 +1,9 @@
-import { model, tenantFields } from "./shared/schema.js";
+import { model, objectId, tenantFields } from "./shared/schema.js";
 export const City = model(
   "City",
   {
     ...tenantFields,
+    catalogId: { type: objectId, immutable: true },
     name: { type: String, required: true },
     state: { type: String, required: true },
     country: { type: String, default: "India" },

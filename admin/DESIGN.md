@@ -1,5 +1,7 @@
 # AIBUS platform administration workspace
 
+City Master reuses PlatformScreen navigation, Panel, PlatformTable and the platform-intent FinanceReviewForm. Keep the existing runtime theme as canonical; there are no new palette tokens. The source-file preview separates eligible, existing, duplicate, conflicting and invalid rows before a reviewed import. Page the source evidence inside the canonical table-wrap, show server progress and a resumable import ID, and keep operator inventory availability distinct from catalog membership.
+
 Extend the established operator directory shell, warm white surfaces, orange actions, bordered panels and native form controls. Finance is a separate permission-controlled navigation item. Tables show actual scoped API records with explicit loading, empty, error/retry and paging states. Read grants never imply review permission.
 
 Review actions require a reason followed by an explicit confirmation. An acknowledgement cannot resolve an exception or move money. Captured payment, approved cancellation and processed refund are separate states. Test execution never represents bank funding or live transfer. Preserve company approval flows and shared Panel/Overlay contracts. Browser verification is pending because the computer-use runtime failed to initialize; component tests do not replace browser QA.

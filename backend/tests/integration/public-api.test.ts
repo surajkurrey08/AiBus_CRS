@@ -337,6 +337,14 @@ describe("Phase 7 public API provider", () => {
     expect(claims.cid).toMatch(/^cred_/);
   });
   it("searches stable authorized cities and exact travel dates", async () => {
+    const response = await get("/cities");
+    expect(response.body.success).toBe(true);
+    for (const city of response.body.data) {
+      expect(city.CityId).toBe(city.id);
+      expect(city.City).toBe(city.name);
+      expect(city.State).toBeNull();
+      expect(city.CityKey).toBeNull();
+    }
     const cities = (await get("/cities")).body.data,
       from = cities.find((c: any) => c.name === "Pune").id,
       to = cities.find((c: any) => c.name === "Mumbai").id;

@@ -142,14 +142,14 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
         ...new Map(
           trips
             .flatMap((t) => [t.route.from, t.route.to])
-            .map((c) => [c.id, c]),
+            .map((c) => [c.id, { ...c, CityId: c.id, City: c.name }]),
         ).values(),
       ].sort((a, b) => a.name.localeCompare(b.name));
-      ok(res, cities.slice((q.page - 1) * q.limit, q.page * q.limit), {
+      res.json({ success: true, data: cities.slice((q.page - 1) * q.limit, q.page * q.limit), meta: {
         page: q.page,
         limit: q.limit,
         total: cities.length,
-      });
+      } });
     }),
   );
   router.get(

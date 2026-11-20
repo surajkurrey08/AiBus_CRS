@@ -3,6 +3,7 @@ import * as M from "../models/index.js";
 import * as P from "../models/public-api.model.js";
 import { publicId, type PartnerIdentity } from "./public-auth.service.js";
 import { resolveAreaRoutes } from "./area-master.service.js";
+import { cityKey } from "./city-catalog.service.js";
 import { fail, type Principal } from "../utils/core.js";
 
 export function partnerPrincipal(
@@ -121,6 +122,12 @@ export async function publicTrip(identity: PartnerIdentity, id: string) {
       .select("company")
       .lean();
   const now = new Date();
+  const cityDetails = async (recordId: unknown) => {
+    if (!recordId) return { CityKey: null, State: null, CatalogCityId: null };
+    const city: any = await M.City.findOne({ _id: recordId, operatorId: trip.operatorId }).lean();
+    const catalog: any = city?.catalogId ? await M.CatalogCity.findById(city.catalogId).select("cityId key").lean() : null;
+    return { CityKey: catalog?.key || (city ? cityKey(city.name, city.state, city.country) : null), State: city?.state || null, CatalogCityId: catalog?.cityId || null };
+  };
   return {
     id,
     operator: operator!.company,
@@ -135,6 +142,7 @@ export async function publicTrip(identity: PartnerIdentity, id: string) {
             : "legacy:" + route.source.trim().toLowerCase(),
         ),
         name: route.source,
+        ...(await cityDetails(route.sourceCityId)),
       },
       to: {
         id: await resourceId(
@@ -144,6 +152,7 @@ export async function publicTrip(identity: PartnerIdentity, id: string) {
             : "legacy:" + route.destination.trim().toLowerCase(),
         ),
         name: route.destination,
+        ...(await cityDetails(route.destinationCityId)),
       },
     },
     journeyDate: trip.journeyDate,

@@ -16,7 +16,8 @@
     "finance:preflight": "tsx src/scripts/finance-v2-preflight.ts",
     "platform:preflight": "tsx src/scripts/platform-preflight.ts",
     "operations:preflight": "tsx src/scripts/operations-readiness.ts",
-    "public:sandbox": "tsx src/scripts/public-sandbox.ts"
+    "public:sandbox": "tsx src/scripts/public-sandbox.ts",
+    "cities:indexes": "tsx src/scripts/city-catalog-indexes.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
