@@ -19,6 +19,8 @@ services:
     networks:
       data:
         aliases: [bookmybus-redis]
+      integration:
+        aliases: [bookmybus-redis]
     healthcheck:
       test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /etc/bookmybus-redis/redis.password)" redis-cli --tls --cacert /etc/bookmybus-redis/ca.crt -h bookmybus-redis ping | grep -qx PONG']
       interval: 10s
@@ -72,6 +74,7 @@ services:
     networks:
       edge:
         aliases: [bookmybus-crs-gateway]
+      integration: {}
     logging:
       driver: json-file
       options: {max-size: '10m', max-file: '3'}
@@ -83,4 +86,7 @@ networks:
     name: bookmybus-crs_edge
   data:
     name: bookmybus-crs_data
+    internal: true
+  integration:
+    name: bookmybus-crs_integration
     internal: true

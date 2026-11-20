@@ -8,7 +8,7 @@ import {
   scrypt as scryptCallback,
   timingSafeEqual,
 } from "node:crypto";
-import type { Config } from "../config/env.js";
+import { isProductionLike, type Config } from "../config/env.js";
 import { identityFor } from "./agent.service.js";
 import { Operator, Session, User } from "../models/index.js";
 import { fail, ok, type Principal } from "../utils/core.js";
@@ -113,7 +113,7 @@ export function setRefresh(
 ) {
   res.cookie(cookieName, value, {
     httpOnly: true,
-    secure: config.NODE_ENV === "production",
+    secure: isProductionLike(config.NODE_ENV),
     sameSite: "strict",
     path: "/api/v1/auth",
     maxAge: 7 * 86400000,
@@ -127,7 +127,7 @@ export function clearRefresh(
 ) {
   res.clearCookie(cookieName, {
     httpOnly: true,
-    secure: config.NODE_ENV === "production",
+    secure: isProductionLike(config.NODE_ENV),
     sameSite: "strict",
     path: "/api/v1/auth",
   });

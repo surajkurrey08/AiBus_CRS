@@ -59,10 +59,23 @@ on 8080 and binds **only `127.0.0.1:5020`**. Our API listens on 4000 with no hos
 port. Same-origin panel `/api` and Socket.IO requests are forwarded to the API.
 All runtime secrets stay on the VPS, never in Vite assets or Docker build args.
 
+The partner-host path `https://partner.bookmybus.pro/api/v1/public` is reserved
+for the isolated partner integration-test API. The gateway sends only that path
+on the Partner hostname to a separate `NODE_ENV=staging` API container. That
+container does not join the production API network and must use its own TLS
+MongoDB database (`aibus_public_sandbox_*`), a restricted Redis ACL user and
+the `aibus:public-test` key/channel namespace on the existing TLS Redis service,
+and Razorpay Test Mode credentials. Other Partner portal/API paths and
+`api.bookmybus.pro` continue to use production. This URL is unavailable until an
+operator provisions the test dependencies and starts the test API as described
+below; repository routing alone does not deploy or enable it.
+
 The shared Nginx container cannot reach host `127.0.0.1:5020` through its own
 loopback interface. The proposed solution is to connect it to our dedicated
 `bookmybus-crs_edge` network after explicit review and approval, then route to
-`bookmybus-crs-gateway:8080`. No existing app network is reused.
+`bookmybus-crs-gateway:8080`. The gateway and test API communicate on the
+separate internal `bookmybus-crs_integration` network; the production API is not
+connected to it. No existing app network is reused.
 
 ## 1. Read-only VPS verification first
 
@@ -276,9 +289,11 @@ the private gateway publicly or let arbitrary containers join its network.
 5. Review the image digests/commit in the run summary; approve the production
    environment deployment if enabled. Image publishing happens before approval;
    VPS access happens only afterward. CI is rechecked after that wait.
-6. The workflow securely transfers only the production Compose and three release
-   scripts, creates a fresh release directory, records both exact image digests,
-   then runs the scoped deploy script. No source checkout or build on the VPS.
+6. The workflow securely transfers the production/test Compose files, a
+   non-secret test Compose environment example and three release scripts,
+   creates a fresh release directory, records both exact image digests, then
+   runs the scoped deploy script. It does not start the test API. No source
+   checkout or build on the VPS.
 7. Read the final job summary and private server log. Never paste raw runtime logs
    or environment configuration publicly. Keep deployment logs/releases until
    retention is approved; there is no automatic prune/volume cleanup.
@@ -297,6 +312,8 @@ Release layout:
   releases/<sha>-<run>-<attempt>/
     images.env                     # immutable API/web digest + revision
     docker-compose.prod.yml
+    docker-compose.public-test.yml # manually started, isolated test API only
+    deploy/public-api-test-compose.env.example
     scripts/{deploy,rollback,release-common}.sh
   current -> releases/<last successful release>
   previous -> releases/<previous successful release>
@@ -307,6 +324,88 @@ Every Compose operation explicitly uses `-p bookmybus-crs`, that release's file,
 project directory and image environment. Only our services are recreated. This
 single-stack update can briefly interrupt **this application**; it is not a
 zero-downtime/blue-green claim and must never recreate another project.
+
+## Optional partner integration-test API
+
+This is a separate, owner-operated test deployment, not part of the production
+rollout. Do not start it until the production gateway change has been approved
+and deployed and these prerequisites are ready:
+
+- A dedicated transaction-capable MongoDB database whose name begins
+  `aibus_public_sandbox_`, with a restricted service user, TLS, backups and no
+  production data.
+- A dedicated Redis ACL user on the existing TLS Redis service. Persist the
+  user in Redis's protected ACL configuration, give it only the
+  `aibus:public-test:*` key pattern and `aibus:public-test:socket.io*` channel
+  pattern, and deny administrative/dangerous commands. Keep its password
+  separate from the production Redis password. Verify the ACL survives a Redis
+  restart. The test API joins only the internal integration network, not the
+  production API/data network, and uses the existing Redis CA certificate at
+  `/opt/bookmybus-crs/shared/redis-tls/ca.crt`.
+- A private application env file at
+  `/opt/bookmybus-crs/shared/public-api-test.env`, owned by the deploy user and
+  mode 0600. It must contain separate random `JWT_SECRET` and
+  `PUBLIC_API_JWT_SECRET` values, a MongoDB URI for a separate database named
+  `aibus_public_sandbox_*` with a user restricted to that database, and a
+  `rediss://` URL using the dedicated Redis ACL username and the internal
+  `bookmybus-redis` hostname. Set `WEB_ORIGIN` and `PARTNER_WEB_ORIGIN` to HTTPS
+  origins and provide `RAZORPAY_KEY_ID=rzp_test_...` plus its matching test
+  secret. Never copy production database, Redis, signing or Razorpay live
+  credentials. The service forces `PUBLIC_API_SANDBOX=true`,
+  `FINANCE_TEST_MODE=true` and `REDIS_PREFIX=aibus:public-test`; startup rejects
+  a non-sandbox DB, non-TLS data stores, default Redis users, live payment keys
+  or missing test settings. MongoDB database/index provisioning and partner
+  inventory grants are still explicit operator tasks.
+
+Copy the non-secret Compose interpolation example only after checking that the
+destination does not already exist. Edit its paths if the private files are
+stored elsewhere; keep it mode 0600:
+
+```bash
+test ! -e /opt/bookmybus-crs/shared/public-api-compose.env || {
+  echo 'Compose environment already exists: inspect first'; exit 1;
+}
+install -m 0600 /opt/bookmybus-crs/current/deploy/public-api-test-compose.env.example \
+  /opt/bookmybus-crs/shared/public-api-compose.env
+```
+
+Run the following as `bookmybus-deploy` only after a production release has
+created `bookmybus-crs_integration`. The test environment file contains secrets;
+never print it or include it in a release:
+
+```bash
+root=/opt/bookmybus-crs
+compose=(docker compose --project-directory "$root/current" \
+  --env-file "$root/current/images.env" \
+  --env-file "$root/shared/public-api-compose.env" \
+  -p bookmybus-crs-public-test -f "$root/current/docker-compose.public-test.yml")
+"${compose[@]}" config --quiet
+"${compose[@]}" run --rm --no-deps public-test-api node --input-type=module -e \
+  "import {readConfig} from './dist/config/env.js';readConfig();console.log('Staging configuration validated')"
+"${compose[@]}" up -d --wait --wait-timeout 180
+"${compose[@]}" run --rm --no-deps public-test-api node dist/scripts/public-sandbox.js --create-fixture
+```
+
+The fixture command creates additive indexes and prints a one-time credential
+only on the first successful creation; run it in a trusted terminal and store
+the credential server-side. If the fixture already exists, it will not print
+the old secret again. Before sharing access, verify from
+outside the VPS that the API host/path returns the sandbox capability response,
+that production database names/credentials are absent from this service, and
+that Razorpay shows Test Mode. Cancellation still requires operator approval;
+only test refunds are possible. Then give the team the URL, scopes, approved
+test inventory and individually issued expiring credential through a private
+channel. The Postman environment contains the intended URL but no credential.
+
+Stop only this service when it is not needed:
+
+```bash
+"${compose[@]}" stop public-test-api
+```
+
+Do not run `down -v`; retain its isolated uploads volume and test data per the
+approved retention policy. The public route will return 502 while the service is
+stopped. Never route it to the production API as a fallback.
 
 ## 7. Health, rollback and incident handling
 
@@ -355,12 +454,24 @@ retention plan. No monitoring service has been installed on the VPS by this task
 
 ## Release checklist
 
+### Recovery after shared proxy recreation
+
+Recreating `gymproplus-nginx-1` from its original project removes manually attached
+networks. A running BookMyBus application can therefore return 502 externally
+while its loopback health is 200. `scripts/ensure-bookmybus-edge.sh --check`
+detects this; `--repair` restores only the approved `bookmybus-crs_edge` connection
+after validating both resource owners. It never restarts/reloads a service or
+changes another application's files. The deploy user's once-per-minute cron
+runs the repair variant; recovery can take approximately one minute. The
+network must still be persisted in the proxy owner's Compose through its own
+approved change if recovery without this interval is required.
+
 - [ ] Resolve/assess the audit's dependency advisories before production approval.
 - [ ] All three required CI jobs pass for this exact main commit; branch protected.
 - [ ] VPS diagnostics, architecture, namespace, port, disk and RAM verified.
 - [ ] Dedicated deploy user/key, verified host key and private GHCR pull tested.
 - [ ] Production environment reviewers/limitations verified; secrets configured.
-- [ ] MongoDB transaction/index readiness, dedicated TLS Redis and backups verified.
+- [ ] MongoDB test database/index readiness, restricted TLS Redis ACL and backups verified.
 - [ ] Private api.env complete; test/sandbox flags false; no secrets in Git/images.
 - [ ] Backup/schema approval and rollback decision match this exact commit.
 - [ ] Edge config/certificate/network plan separately approved and verified.

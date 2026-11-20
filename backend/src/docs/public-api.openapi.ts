@@ -33,7 +33,7 @@ const response = (schema: any) => ({
   },
 });
 const errorResponses = Object.fromEntries(
-  [400, 401, 402, 403, 404, 409, 410, 413, 429, 501, 503].map((code) => [
+  [400, 401, 402, 403, 404, 409, 410, 413, 429, 501, 502, 503].map((code) => [
     String(code),
     {
       description:
@@ -81,7 +81,7 @@ function operation(
   return {
     operationId,
     summary: description,
-    description: `Required scope: ${scope || "Authenticated partner"}. Sandbox only. Production funding/ticket issuance disabled. ${options.unavailable ? "UNAVAILABLE: no approved business contract." : ""}`,
+    description: `Required scope: ${scope || "Authenticated partner"}. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ${options.unavailable ? "UNAVAILABLE: no approved business contract." : ""}`,
     security: [{ PartnerToken: [] }],
     parameters: options.parameters || [],
     ...(options.body
@@ -104,9 +104,9 @@ export const publicApiSpec = {
   openapi: "3.0.3",
   info: {
     title: "AIBUS Public Booking API",
-    version: "1.0.0-sandbox",
+    version: "1.0.0-test",
     description:
-      "Outward-facing AIBUS inventory API. No purchased third-party inventory. Available only with PUBLIC_API_SANDBOX in an isolated aibus_public_sandbox_* database and explicit sandbox inventory grants. No live onboarding. Rate limits: 20 credential exchanges/minute per IP and 120 requests/minute per partner, plus existing API limits. Holds last at most 5 minutes; quotes at most 2 minutes and never beyond the hold. Idempotency keys are partner-global, content-bound and must be reused on uncertain responses; changed content conflicts. Hold-bound recheck is required after holding seats. All 18 functionalities are listed; rescheduling and partner wallets return 501. Cancellation is a full-booking request, not an automatic refund.",
+      "Outward-facing AIBUS integration-test API. Uses CRS inventory, pricing, booking, cancellation and refund workflows in a dedicated non-production database. Payments and refunds use Razorpay Test Mode only; no real money or production tickets are issued. Partner access requires explicit inventory grants. Holds last at most 5 minutes; quotes at most 2 minutes and never beyond the hold. Idempotency keys are partner-global and content-bound. A cancellation request requires operator review; test refunds are handled by the existing refund worker. Rescheduling and partner wallets return 501.",
   },
   servers: [
     {
@@ -132,7 +132,23 @@ export const publicApiSpec = {
         "capabilities",
         "Inspect supported and unavailable capabilities",
         "",
-        { type: "object" },
+        object({
+          version: { enum: ["1"] },
+          environment: { enum: ["sandbox"] },
+          inventory: { type: "boolean" },
+          holds: { type: "boolean" },
+          funding: string,
+          paymentMode: { enum: ["razorpay_test", "unavailable"] },
+          livePayments: { enum: [false] },
+          liveRefunds: { enum: [false] },
+          testRefunds: { type: "boolean" },
+          liveTicketIssuance: { enum: [false] },
+          productionCredentials: { enum: [false] },
+          reschedule: { type: "boolean" },
+          partnerWallet: { type: "boolean" },
+          cancellation: string,
+          webhooks: string,
+        }),
       ),
     },
     "/cities": {
@@ -296,15 +312,61 @@ export const publicApiSpec = {
         },
       ),
     },
-    "/bookings/{id}/confirm": {
+    "/bookings/{id}/payment": {
       post: operation(
-        "confirmSandboxBooking",
-        "10b. Atomically authorize simulated allowance, existing ledger and ticket",
+        "startTestPayment",
+        "10b. Create or reuse an authoritative Razorpay Test Mode order",
+        "bookings:write",
+        object({
+          provider: { enum: ["razorpay"] },
+          mode: { enum: ["test"] },
+          keyId: string,
+          orderId: string,
+          amountPaise: money,
+          currency: { enum: ["INR"] },
+          reference: string,
+          expiresAt: timestamp,
+        }),
+        {
+          parameters: [pathId, idem],
+          body: object({}),
+        },
+      ),
+    },
+    "/bookings/{id}/payment/verify": {
+      post: operation(
+        "verifyTestPayment",
+        "10c. Verify Razorpay signature and provider payment before confirming",
         "bookings:write",
         ref("Booking"),
         {
           parameters: [pathId, idem],
-          body: object({ authorization: { enum: ["sandbox-allowance"] } }),
+          body: object({
+            razorpay_order_id: {
+              type: "string",
+              pattern: "^order_[A-Za-z0-9]+$",
+            },
+            razorpay_payment_id: {
+              type: "string",
+              pattern: "^pay_[A-Za-z0-9]+$",
+            },
+            razorpay_signature: {
+              type: "string",
+              pattern: "^[a-fA-F0-9]{64}$",
+            },
+          }),
+        },
+      ),
+    },
+    "/bookings/{id}/payment/reconcile": {
+      post: operation(
+        "reconcileTestPayment",
+        "10d. Recover authoritative payment state after a lost response",
+        "bookings:write",
+        ref("Booking"),
+        {
+          parameters: [pathId, idem],
+          body: object({}),
         },
       ),
     },
@@ -340,7 +402,6 @@ export const publicApiSpec = {
             ),
           },
           environment: { enum: ["sandbox"] },
-          simulated: { enum: [true] },
         }),
         { parameters: [pathId] },
       ),
@@ -379,7 +440,7 @@ export const publicApiSpec = {
     "/bookings/{id}/refund": {
       get: operation(
         "refundStatus",
-        "15. Existing refund lifecycle; no public refund execution",
+        "15. Existing operator-reviewed test refund lifecycle; status only",
         "refunds:read",
         {
           type: "object",
@@ -406,6 +467,11 @@ export const publicApiSpec = {
               }),
             },
             liveRefunds: { enum: [false] },
+            testRefunds: {
+              type: "boolean",
+              description:
+                "Test-provider refunds are processed only after operator review and only when isolated test finance mode is enabled.",
+            },
             partialSupported: { enum: [false] },
           },
         },
@@ -577,9 +643,13 @@ export const publicApiSpec = {
         seats: ref("Seats"),
         totalPaise: money,
         currency: { enum: ["INR"] },
+        paymentMode: {
+          type: "string",
+          enum: ["razorpay_test"],
+          nullable: true,
+        },
         cancellationStatus: string,
         environment: { enum: ["sandbox"] },
-        simulated: { enum: [true] },
       }),
       Webhook: object({
         id: identifier,

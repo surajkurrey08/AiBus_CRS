@@ -4,13 +4,13 @@ import mongoose from "mongoose";
 import http from "node:http";
 import { createClient } from "redis";
 import { createApp } from "./app.js";
-import { readConfig } from "./config/env.js";
+import { isProductionLike, readConfig } from "./config/env.js";
 import { attachRealtime } from "./realtime/socket.js";
 import { logger } from "./utils/core.js";
 const config = readConfig();
 mongoose.set("sanitizeFilter", false);
 await mongoose.connect(config.MONGODB_URI, {
-  autoIndex: config.NODE_ENV !== "production",
+  autoIndex: !isProductionLike(config.NODE_ENV),
   serverSelectionTimeoutMS: 10000,
 });
 const redis = createClient({ url: config.REDIS_URL });
@@ -23,7 +23,10 @@ const limiter = {
   async check(key: string, limit: number, seconds: number) {
     const value = await redis.eval(
       "local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end;return n",
-      { keys: [`aibus:limit:${key}`], arguments: [String(seconds)] },
+      {
+        keys: [`${config.REDIS_PREFIX}:limit:${key}`],
+        arguments: [String(seconds)],
+      },
     );
     return Number(value) <= limit;
   },
@@ -38,7 +41,16 @@ const app = createApp(config, limiter, async () => {
   }
 });
 const server = http.createServer(app);
-const io = attachRealtime(server, config, createAdapter(redis, subscriber));
+const io = attachRealtime(
+  server,
+  config,
+  createAdapter(redis, subscriber, {
+    key:
+      config.NODE_ENV === "staging"
+        ? `${config.REDIS_PREFIX}:socket.io`
+        : "socket.io",
+  }),
+);
 server.listen(config.PORT, "0.0.0.0", () =>
   logger.info({ port: config.PORT }, "Aibus operator API listening"),
 );

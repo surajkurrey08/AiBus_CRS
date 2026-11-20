@@ -71,3 +71,14 @@ SalesPartner Agent records are canonical; a booking staff user is internal until
 Source: ../backend/FINANCE-PHASES.md and finance API ownership checks. Finance is permission-gated and reuses Panel/DataTable/Overlay. FinanceActionForm owns financial review, integer-paise INR entry, stable operation identity across uncertain retries, retained errors/drafts and discard confirmation. Finance list search/status/paging is server-owned. Detail requests abort/ignore stale results and clear old financial summaries before loading. Test funding is visibly distinct from live funds. Commission is not added to spendable balances. Date-bound statements enforce server ownership and export limits. Missing indexes/policies/permissions remain explicit failures, never fixture fallbacks. No unrelated navigation or Master/Counter workflow is redesigned.
 
 Financial reporting uses server-filtered date/scope/status/search queries, pagination, explicit report generation and protected CSV export. Outstanding balances are as of the period end. Settlement cancellation after a payable claim fails closed until an approved compensating workflow exists. Financial labels must retain TEST markers, independent approval and original evidence links; a processed test payout never implies a bank transfer.
+
+## Operator authentication
+
+AuthScreen owns the authentication Form variant and existing login/register/forgot/reset endpoints; RecordForm remains canonical for business records. Shared PasswordField is masked by default and visibility never persists. Show/hide, sign-in, registration and recovery controls are keyboard accessible. Validate on submit, associate field errors, focus the first invalid field, retain failed requests and prevent duplicate submits. Registration/reset enforce the existing 12-character server minimum; login retains compatibility with existing credentials. Navigation clears passwords and masks visibility; successful reset removes the reset query parameter. Busy navigation is disabled. Runtime theme owns the shared palette/scrollbar. No extra providers, remember-me storage, fake stats or changes to authorization are introduced.
+
+### Authentication capability map
+
+| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
+| --- | --- | --- | --- | --- |
+| Form | AuthScreen for authentication; RecordForm for business records | Existing auth API and 12-character registration/reset policy | login, register, forgot, reset | src/tests/auth-screen.test.tsx; src/tests/auth.test.tsx |
+| Scrollbar | src/styles/theme.css | Shared workspace styling and natural document scrolling | auth documents grow with form content | Desktop/mobile/320px browser inspection |

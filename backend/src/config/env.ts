@@ -20,11 +20,15 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = z
     .object({
       NODE_ENV: z
-        .enum(["development", "test", "production"])
+        .enum(["development", "test", "staging", "production"])
         .default("development"),
       PORT: z.coerce.number().int().min(1).max(65535).default(4000),
       MONGODB_URI: z.string().startsWith("mongodb"),
       REDIS_URL: z.string().url().default("redis://127.0.0.1:6379"),
+      REDIS_PREFIX: z
+        .string()
+        .regex(/^[a-z0-9]+(?::[a-z0-9-]+)*$/i)
+        .default("aibus"),
       JWT_SECRET: z.string().min(48),
       WEB_ORIGIN: browserOrigin.default("http://127.0.0.1:5173"),
       ADMIN_WEB_ORIGIN: browserOrigin.optional(),
@@ -56,35 +60,74 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (parsed.PUBLIC_API_SANDBOX && parsed.NODE_ENV === "production") throw new Error("Public sandbox cannot run in production");
   if (parsed.PUBLIC_API_JWT_SECRET && parsed.PUBLIC_API_JWT_SECRET === parsed.JWT_SECRET) throw new Error("Public API and dashboard signing keys must differ");
   if (
-    parsed.NODE_ENV === "production" &&
+    isProductionLike(parsed.NODE_ENV) &&
     !parsed.WEB_ORIGIN.startsWith("https://")
-  )
-    throw new Error("Production WEB_ORIGIN must use HTTPS");
+  ) throw new Error("Production-like WEB_ORIGIN must use HTTPS");
   if (parsed.JWT_SECRET.startsWith("replace-"))
     throw new Error("Replace the example JWT_SECRET with a random secret");
-  if (parsed.NODE_ENV === "production") {
-    if (parsed.FINANCE_TEST_MODE)
+  if (isProductionLike(parsed.NODE_ENV)) {
+    if (parsed.NODE_ENV === "production" && parsed.FINANCE_TEST_MODE)
       throw new Error("Financial test operations cannot run in production");
     if (
       [parsed.ADMIN_WEB_ORIGIN, parsed.AGENT_WEB_ORIGIN, parsed.PARTNER_WEB_ORIGIN].some(
         (origin) => origin && !origin.startsWith("https://"),
       )
-    )
-      throw new Error("Production dashboard origins must use HTTPS");
+    ) throw new Error("Production-like dashboard origins must use HTTPS");
     if (!/^mongodb(?:\+srv)?:\/\/[^/]+@/.test(parsed.MONGODB_URI))
-      throw new Error("Production MongoDB credentials are required");
+      throw new Error("Production-like MongoDB credentials are required");
     const redis = new URL(parsed.REDIS_URL);
     if (!redis.password || redis.protocol !== "rediss:")
-      throw new Error("Production Redis requires authentication and TLS");
+      throw new Error("Production-like Redis requires authentication and TLS");
+  }
+  if (parsed.NODE_ENV === "staging") {
+    if (
+      env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ||
+      /(?:^|\s)--tls-reject-unauthorized(?:=|\s+)0(?:\s|$)/.test(
+        env.NODE_OPTIONS || "",
+      )
+    )
+      throw new Error("Staging cannot disable TLS certificate verification");
+    const databaseName = parsed.MONGODB_URI.match(
+      /^mongodb(?:\+srv)?:\/\/[^/]+\/([^/?]+)/,
+    )?.[1];
+    if (
+      !databaseName?.startsWith("aibus_public_sandbox_") ||
+      !/^mongodb(?:\+srv)?:\/\/[^/:@]+:[^@]+@/.test(parsed.MONGODB_URI) ||
+      (!parsed.MONGODB_URI.startsWith("mongodb+srv://") &&
+        !/[?&]tls=true(?:&|$)/i.test(parsed.MONGODB_URI)) ||
+      /[?&](?:tls|ssl)=false(?:&|$)/i.test(parsed.MONGODB_URI) ||
+      /[?&](?:tlsInsecure|sslInsecure|tlsAllowInvalidCertificates|sslAllowInvalidCertificates|tlsAllowInvalidHostnames|sslAllowInvalidHostnames)=true(?:&|$)/i.test(parsed.MONGODB_URI) ||
+      /[?&]sslValidate=false(?:&|$)/i.test(parsed.MONGODB_URI)
+    )
+      throw new Error("Staging requires a TLS-protected isolated public sandbox database");
+    const redis = new URL(parsed.REDIS_URL);
+    if (
+      redis.username !== "aibus-public-test" ||
+      parsed.REDIS_PREFIX !== "aibus:public-test"
+    )
+      throw new Error("Staging requires a restricted Redis ACL user and isolated key namespace");
+    if (
+      !parsed.PUBLIC_API_SANDBOX ||
+      !parsed.FINANCE_TEST_MODE ||
+      !parsed.PUBLIC_API_JWT_SECRET
+    )
+      throw new Error("Staging requires public sandbox and test finance mode with a separate public API key");
+    if (
+      !parsed.RAZORPAY_KEY_ID?.startsWith("rzp_test_") ||
+      !parsed.RAZORPAY_KEY_SECRET
+    )
+      throw new Error("Staging requires Razorpay Test Mode credentials");
   }
   return parsed;
 }
 export type Config = ReturnType<typeof readConfig>;
+export const isProductionLike = (nodeEnv: Config["NODE_ENV"]) =>
+  nodeEnv === "production" || nodeEnv === "staging";
 export const allowedWebOrigins = (config: Config) =>
   [
     config.WEB_ORIGIN,
     config.ADMIN_WEB_ORIGIN ??
-      (config.NODE_ENV !== "production" ? "http://127.0.0.1:5174" : ""),
+      (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5174" : ""),
     config.AGENT_WEB_ORIGIN,
-    config.PARTNER_WEB_ORIGIN ?? (config.NODE_ENV !== "production" ? "http://127.0.0.1:5176" : ""),
+    config.PARTNER_WEB_ORIGIN ?? (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5176" : ""),
   ].filter((origin): origin is string => !!origin);

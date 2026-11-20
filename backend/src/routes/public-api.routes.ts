@@ -24,7 +24,6 @@ import {
 import {
   publicHold,
   createPublicBooking,
-  authorizeSandboxBooking,
   ownedPublicBooking,
   bookingView,
 } from "../services/public-booking.service.js";
@@ -35,6 +34,12 @@ import {
   refundStatus,
 } from "../services/refund-workflow.service.js";
 import { requestCancellation } from "../services/cancellation.service.js";
+import {
+  startRazorpayPayment,
+  verifyRazorpayPayment,
+  reconcileRazorpayPayment,
+} from "../services/razorpay.service.js";
+import { razorpayEnabled } from "../integrations/razorpay.js";
 import { createHash } from "node:crypto";
 import { publicApiSpec } from "../docs/public-api.openapi.js";
 const pid = z.string().regex(/^[a-z]+_[A-Za-z0-9_-]{16,100}$/),
@@ -120,7 +125,16 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
         environment: "sandbox",
         inventory: true,
         holds: true,
-        funding: "Server-provisioned sandbox allowance only",
+        funding: razorpayEnabled(config)
+          ? "Razorpay Test Mode; no real money"
+          : "Razorpay Test Mode is not configured",
+        paymentMode: razorpayEnabled(config) ? "razorpay_test" : "unavailable",
+        livePayments: false,
+        liveRefunds: false,
+        testRefunds:
+          config.FINANCE_TEST_MODE &&
+          config.NODE_ENV !== "production" &&
+          razorpayEnabled(config),
         liveTicketIssuance: false,
         productionCredentials: false,
         reschedule: false,
@@ -342,20 +356,77 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
     }),
   );
   router.post(
-    "/bookings/:id/confirm",
+    "/bookings/:id/payment",
     asyncRoute(async (req, res) => {
-      z.object({ authorization: z.literal("sandbox-allowance") })
-        .strict()
-        .parse(req.body);
+      empty(req.body);
+      const identity = auth(req, "bookings:write"),
+        id = pid.parse(req.params.id),
+        key = requestKey.parse(req.get("Idempotency-Key")),
+        { auth: principal, booking } = await ownedPublicBooking(identity, id);
+      await partnerCommand(
+        identity,
+        key,
+        "payment-start",
+        createHash("sha256").update(JSON.stringify({ id })).digest("hex"),
+      );
       ok(
         res,
-        await authorizeSandboxBooking(
-          config,
-          auth(req, "bookings:write"),
-          pid.parse(req.params.id),
-          requestKey.parse(req.get("Idempotency-Key")),
-        ),
+        await startRazorpayPayment(config, principal, String(booking._id)),
       );
+    }),
+  );
+  router.post(
+    "/bookings/:id/payment/verify",
+    asyncRoute(async (req, res) => {
+      const input = z
+          .object({
+            razorpay_order_id: z.string().regex(/^order_[A-Za-z0-9]+$/),
+            razorpay_payment_id: z.string().regex(/^pay_[A-Za-z0-9]+$/),
+            razorpay_signature: z.string().regex(/^[a-fA-F0-9]{64}$/),
+          })
+          .strict()
+          .parse(req.body),
+        identity = auth(req, "bookings:write"),
+        id = pid.parse(req.params.id),
+        key = requestKey.parse(req.get("Idempotency-Key")),
+        { auth: principal, booking } = await ownedPublicBooking(identity, id);
+      await partnerCommand(
+        identity,
+        key,
+        "payment-verify",
+        createHash("sha256")
+          .update(JSON.stringify({ id, input }))
+          .digest("hex"),
+      );
+      await verifyRazorpayPayment(
+        config,
+        principal,
+        String(booking._id),
+        input,
+      );
+      ok(res, await bookingView(identity, id));
+    }),
+  );
+  router.post(
+    "/bookings/:id/payment/reconcile",
+    asyncRoute(async (req, res) => {
+      empty(req.body);
+      const identity = auth(req, "bookings:write"),
+        id = pid.parse(req.params.id),
+        key = requestKey.parse(req.get("Idempotency-Key")),
+        { auth: principal, booking } = await ownedPublicBooking(identity, id);
+      await partnerCommand(
+        identity,
+        key,
+        "payment-reconcile",
+        createHash("sha256").update(JSON.stringify({ id })).digest("hex"),
+      );
+      await reconcileRazorpayPayment(
+        config,
+        principal,
+        String(booking._id),
+      );
+      ok(res, await bookingView(identity, id));
     }),
   );
   router.get(
@@ -394,7 +465,6 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
           dropping: p.dropping,
         })),
         environment: "sandbox",
-        simulated: true,
       });
     }),
   );
@@ -500,6 +570,10 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
         })),
         partialSupported: false,
         liveRefunds: false,
+        testRefunds:
+          config.FINANCE_TEST_MODE &&
+          config.NODE_ENV !== "production" &&
+          razorpayEnabled(config),
       });
     }),
   );

@@ -531,7 +531,7 @@ export function platformPartnersRouter(config: Config) {
     asyncRoute(async (req, res) => {
       const id = oid.parse(req.params.id),
         p = await P.ApiPartner.findById(id)
-          .select("-submissionTokenHash -sandboxAllowancePaise")
+          .select("-submissionTokenHash")
           .lean();
       if (!p) fail(404, "NOT_FOUND", "Partner not found");
       ok(res, {

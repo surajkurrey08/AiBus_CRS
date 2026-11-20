@@ -1,0 +1,40 @@
+name: bookmybus-crs-public-test
+services:
+  public-test-api:
+    image: ${API_IMAGE:?Digest-pinned API_IMAGE is required}
+    env_file:
+      - path: ${PUBLIC_API_ENV_FILE:?Private staging API environment file required}
+        format: raw
+    environment:
+      NODE_ENV: staging
+      PORT: 4000
+      TRUST_PROXY: 2
+      PUBLIC_API_SANDBOX: "true"
+      FINANCE_TEST_MODE: "true"
+      REDIS_PREFIX: aibus:public-test
+      NODE_EXTRA_CA_CERTS: /etc/aibus-public-test/redis-ca.crt
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 25s
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: 1.5
+    pids_limit: 160
+    volumes:
+      - public-test-uploads:/app/backend/var/uploads
+      - ${REDIS_CA_FILE:?Existing Redis CA certificate required}:/etc/aibus-public-test/redis-ca.crt:ro
+    networks: [integration, egress]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  public-test-uploads:
+networks:
+  integration:
+    name: bookmybus-crs_integration
+    external: true
+  egress:
+    name: bookmybus-crs-public-test_egress

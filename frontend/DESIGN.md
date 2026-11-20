@@ -39,3 +39,7 @@ Finance preserves runtime token ownership in styles/theme.css. Panel, DataTable,
 Finance now also uses the canonical MasterSectionLayout secondary rail for earnings, commissions, wallets, settlements, refunds and reports. Reports are generated on explicit submit, with CSV for Excel and evidence labels separating gross ticket value, platform revenue, liabilities and bank receipt availability. Settlement detail shows original payable lines, approval history and simulated payout references.
 
 Operational reliability extension: Trip Master Tracker reuses MasterForm for incident recording, shows assigned crew/tablets and offers an explicit read-only reservation integrity check. Detailed operational reports preserve existing native filters, integer paise outputs, table scrolling and authenticated CSV handling. No GPS coordinates or financial revenue are invented.
+
+## Operator authentication variant
+
+Authentication uses src/features/auth/auth.css with theme.css as the canonical palette. Desktop pairs an ordered route/schedule/booking overview with a focused sign-in panel; below 850px the overview hides and the form leads. Arial remains the shared font. The auth-only panel has 16px corners (12px on phones), 48px controls and restrained elevation. No live statistics or fictional trip data appear before authentication. Shared PasswordField owns masked input and accessible visibility controls. No external images or new fonts are required.

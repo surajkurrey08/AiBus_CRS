@@ -10,16 +10,12 @@ import {
 } from "./public-inventory.service.js";
 import {
   type PartnerIdentity,
-  sandboxReady,
-  publicIndexesReady,
 } from "./public-auth.service.js";
 import {
   createHold,
   createBooking,
-  applyVerifiedPayment,
 } from "./inventory.service.js";
 import { fail } from "../utils/core.js";
-import type { Config } from "../config/env.js";
 const hash = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
 export async function publicHold(
@@ -111,6 +107,12 @@ export async function bookingView(identity: PartnerIdentity, id: string) {
       bookingId: booking._id,
     })
       .select("status")
+      .lean(),
+    payment = await M.Payment.findOne({
+      operatorId: ref.operatorId,
+      bookingId: booking._id,
+    })
+      .select("providerId")
       .lean();
   return {
     id: ref.publicId,
@@ -121,9 +123,10 @@ export async function bookingView(identity: PartnerIdentity, id: string) {
     seats: booking.passengers.map((p: any) => p.seat),
     totalPaise: booking.totalPaise,
     currency: "INR",
+    paymentMode:
+      payment?.providerId === "razorpay_test" ? "razorpay_test" : null,
     cancellationStatus: cancellation?.status || "None",
     environment: "sandbox",
-    simulated: true,
   };
 }
 export async function createPublicBooking(
@@ -198,85 +201,4 @@ export async function createPublicBooking(
     { $set: { bookingId: booking._id } },
   );
   return bookingView(identity, command.resourceId);
-}
-export async function authorizeSandboxBooking(
-  config: Config,
-  identity: PartnerIdentity,
-  id: string,
-  key: string,
-) {
-  sandboxReady(config);
-  await publicIndexesReady();
-  await partnerCommand(
-    identity,
-    key,
-    "confirm",
-    hash({ id, funding: "sandbox-allowance" }),
-  );
-  await mongoose.connection.transaction(async (session) => {
-    const { ref, booking } = await ownedPublicBooking(identity, id, session);
-    if (ref.funded) return;
-    if (booking.status !== "Pending payment")
-      fail(
-        409,
-        "BOOKING_STATE",
-        "Only a pending owned booking can receive sandbox authorization",
-      );
-    const partner = await P.ApiPartner.findOneAndUpdate(
-      {
-        _id: identity.partnerId,
-        status: "Active",
-        sandboxAllowancePaise: { $gte: booking.totalPaise },
-      },
-      { $inc: { sandboxAllowancePaise: -booking.totalPaise, revision: 1 } },
-      { new: true, session },
-    );
-    if (!partner)
-      fail(
-        402,
-        "SANDBOX_ALLOWANCE_REQUIRED",
-        "Server-provisioned sandbox allowance is insufficient; a payment claim does not authorize confirmation",
-      );
-    await applyVerifiedPayment(
-      {
-        verified: true,
-        providerId: "aibus-public-sandbox",
-        eventId: ref.publicId,
-        externalId: ref.publicId,
-        operatorId: String(ref.operatorId),
-        bookingId: String(booking._id),
-        amountPaise: booking.totalPaise,
-        currency: "INR",
-        status: "captured",
-      },
-      0,
-      {
-        session,
-        debitAccount: {
-          ownerType: "Platform",
-          ownerId: "aibus",
-          code: "simulated-bank-clearing",
-        },
-      },
-    );
-    await P.PartnerBookingReference.updateOne(
-      { _id: ref._id, funded: false },
-      { $set: { funded: true } },
-      { session },
-    );
-    await M.Audit.create(
-      [
-        {
-          operatorId: ref.operatorId,
-          actorId: identity.partnerId,
-          action: "public.sandbox.authorized",
-          resourceId: String(booking._id),
-          metadata: { simulated: true, reference: ref.publicId },
-          expiresAt: null,
-        },
-      ],
-      { session },
-    );
-  });
-  return bookingView(identity, id);
 }

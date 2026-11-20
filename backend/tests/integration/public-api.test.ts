@@ -3,7 +3,7 @@ import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import * as M from "../../src/models/index.js";
 import * as P from "../../src/models/public-api.model.js";
 import { createApp } from "../../src/app.js";
@@ -29,6 +29,10 @@ import {
 } from "../../src/services/public-webhook.service.js";
 import { reconcileExpiredHolds } from "../../src/jobs/booking.jobs.js";
 import { verifyLedger } from "../../src/services/ledger-integrity.service.js";
+import {
+  processRefundIntent,
+  reviewCancellation,
+} from "../../src/services/refund-workflow.service.js";
 let mongo: MongoMemoryReplSet,
   partner: any,
   other: any,
@@ -47,7 +51,18 @@ const config = readConfig({
   PUBLIC_WEBHOOK_SIGNING_KEY: "a".repeat(64),
   PUBLIC_WEBHOOK_ALLOWED_HOSTS: "partner.example.test",
 });
+const paymentConfig = readConfig({
+  NODE_ENV: "test",
+  MONGODB_URI: "mongodb://127.0.0.1/aibus_public_sandbox_fixture",
+  JWT_SECRET: "i".repeat(64),
+  PUBLIC_API_SANDBOX: "true",
+  PUBLIC_API_JWT_SECRET: "s".repeat(64),
+  RAZORPAY_KEY_ID: "rzp_test_fixture",
+  RAZORPAY_KEY_SECRET: "fixture-test-secret",
+  FINANCE_TEST_MODE: "true",
+});
 const app = createApp(config, { check: async () => true });
+const paymentApp = createApp(paymentConfig, { check: async () => true });
 beforeAll(async () => {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   await mongoose.connect(mongo.getUri("aibus_public_sandbox_phase7"));
@@ -128,13 +143,11 @@ beforeEach(async () => {
     publicId: publicId("partner"),
     name: "Partner A",
     scopes: [...publicScopes],
-    sandboxAllowancePaise: 1000000,
   });
   other = await P.ApiPartner.create({
     publicId: publicId("partner"),
     name: "Partner B",
     scopes: [...publicScopes],
-    sandboxAllowancePaise: 1000000,
   });
   for (const p of [partner, other])
     await P.PartnerInventoryGrant.create({
@@ -189,6 +202,90 @@ const post = (
     .set("Authorization", "Bearer " + auth)
     .set("Idempotency-Key", key)
     .send(body);
+const paymentPost = (
+  path: string,
+  body: unknown = {},
+  key = randomUUID(),
+) =>
+  request(paymentApp)
+    .post("/api/v1/public" + path)
+    .set("Authorization", "Bearer " + token)
+    .set("Idempotency-Key", key)
+    .send(body);
+async function withRazorpayMock<T>(
+  amountPaise: number,
+  run: (ids: {
+    orderId: string;
+    paymentId: string;
+    refundId: string;
+  }) => Promise<T>,
+) {
+  const previousFetch = globalThis.fetch,
+    ids = {
+      orderId: "order_" + randomUUID().replace(/-/g, ""),
+      paymentId: "pay_" + randomUUID().replace(/-/g, ""),
+      refundId: "rfnd_" + randomUUID().replace(/-/g, ""),
+    };
+  let refundAmount = 0,
+    refundReceipt = "";
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/v1/orders" && init?.method === "POST") {
+      const body = JSON.parse(String(init.body));
+      return Response.json({
+        id: ids.orderId,
+        amount: body.amount,
+        currency: body.currency,
+        receipt: body.receipt,
+        partial_payment: false,
+      });
+    }
+    if (
+      url.pathname === `/v1/payments/${ids.paymentId}` &&
+      init?.method === "GET"
+    )
+      return Response.json({
+        id: ids.paymentId,
+        order_id: ids.orderId,
+        amount: amountPaise,
+        currency: "INR",
+        amount_refunded: 0,
+        status: "captured",
+        captured: true,
+      });
+    if (
+      url.pathname === `/v1/payments/${ids.paymentId}/refund` &&
+      init?.method === "POST"
+    ) {
+      const body = JSON.parse(String(init.body));
+      refundAmount = body.amount;
+      refundReceipt = body.receipt;
+      return Response.json({
+        id: ids.refundId,
+        payment_id: ids.paymentId,
+        amount: refundAmount,
+        currency: "INR",
+        receipt: refundReceipt,
+        status: "processed",
+      });
+    }
+    if (url.pathname === `/v1/refunds/${ids.refundId}` && init?.method === "GET")
+      return Response.json({
+        id: ids.refundId,
+        payment_id: ids.paymentId,
+        amount: refundAmount,
+        currency: "INR",
+        receipt: refundReceipt,
+        status: "processed",
+      });
+    throw Error(`Unexpected Razorpay fixture request: ${init?.method} ${url}`);
+  };
+  try {
+    return await run(ids);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
 async function pending(seat = "L1", key = randomUUID()) {
   const held = await post(`/trips/${publicTripId}/holds`, { seats: [seat] });
   expect(held.status).toBe(201);
@@ -212,11 +309,31 @@ async function pending(seat = "L1", key = randomUUID()) {
 }
 async function confirmed() {
   const result = await pending();
-  const response = await post(`/bookings/${result.booking.id}/confirm`, {
-    authorization: "sandbox-allowance",
+  return withRazorpayMock(result.booking.totalPaise, async (ids) => {
+    const order = await paymentPost(
+      `/bookings/${result.booking.id}/payment`,
+      {},
+    );
+    expect(order.status).toBe(200);
+    expect(order.body.data).toMatchObject({
+      mode: "test",
+      orderId: ids.orderId,
+      amountPaise: result.booking.totalPaise,
+    });
+    const signature = createHmac("sha256", paymentConfig.RAZORPAY_KEY_SECRET!)
+      .update(`${ids.orderId}|${ids.paymentId}`)
+      .digest("hex");
+    const response = await paymentPost(
+      `/bookings/${result.booking.id}/payment/verify`,
+      {
+        razorpay_order_id: ids.orderId,
+        razorpay_payment_id: ids.paymentId,
+        razorpay_signature: signature,
+      },
+    );
+    expect(response.status).toBe(200);
+    return { ...result, booking: response.body.data };
   });
-  expect(response.status).toBe(200);
-  return { ...result, booking: response.body.data };
 }
 describe("Phase 7 public API provider", () => {
   it("rejects the ordinary database boundary even with valid sandbox credentials", async () => {
@@ -279,9 +396,16 @@ describe("Phase 7 public API provider", () => {
     expect(JSON.stringify(await P.ApiCredential.find().lean())).not.toContain(
       credential.split(".")[1],
     );
-    expect((await get("/capabilities")).body.data.liveTicketIssuance).toBe(
-      false,
-    );
+    expect((await get("/capabilities")).body.data).toMatchObject({
+      paymentMode: "unavailable",
+      livePayments: false,
+      liveRefunds: false,
+      liveTicketIssuance: false,
+    });
+    expect((await get("/capabilities", token, paymentApp)).body.data).toMatchObject({
+      paymentMode: "razorpay_test",
+      testRefunds: true,
+    });
   });
   it("rejects invalid, revoked, expired and rotated credentials", async () => {
     expect(
@@ -455,62 +579,128 @@ describe("Phase 7 public API provider", () => {
     ).toBe(409);
     expect(await M.Booking.countDocuments()).toBe(1);
   });
-  it("rejects client payment claims and insufficient server allowance", async () => {
+  it("requires a server-verified test payment instead of client payment claims", async () => {
     const { booking } = await pending();
     expect(
       (
-        await post(`/bookings/${booking.id}/confirm`, {
-          authorization: "paid",
+        await paymentPost(`/bookings/${booking.id}/payment`, {
+          paid: true,
           amountPaise: 1,
         })
       ).status,
     ).toBe(400);
-    await P.ApiPartner.updateOne(
-      { _id: partner._id },
-      { $set: { sandboxAllowancePaise: 0 } },
-    );
     expect(
       (
-        await post(`/bookings/${booking.id}/confirm`, {
-          authorization: "sandbox-allowance",
+        await paymentPost(`/bookings/${booking.id}/payment/verify`, {
+          paid: true,
+          amountPaise: booking.totalPaise,
         })
       ).status,
-    ).toBe(402);
+    ).toBe(400);
+    expect(
+      (await post(`/bookings/${booking.id}/confirm`, {
+        authorization: "sandbox-allowance",
+      })).status,
+    ).toBe(404);
     expect(await M.Ticket.countDocuments()).toBe(0);
     expect(await M.JournalEntry.countDocuments()).toBe(0);
   });
-  it("confirms once with atomic simulated funding, balanced ledger and one ticket", async () => {
-    const { booking } = await pending(),
-      body = { authorization: "sandbox-allowance" },
-      key = randomUUID(),
-      responses = await Promise.all([
-        post(`/bookings/${booking.id}/confirm`, body, key),
-        post(`/bookings/${booking.id}/confirm`, body, key),
-      ]);
-    expect(responses.map((r) => r.status)).toEqual([200, 200]);
-    expect(await M.Ticket.countDocuments()).toBe(1);
+  it("reports missing Razorpay Test Mode configuration without creating a payment order", async () => {
+    const { booking } = await pending();
     expect(
-      (await P.ApiPartner.findById(partner._id))?.sandboxAllowancePaise,
-    ).toBe(894900);
+      (
+        await post(`/bookings/${booking.id}/payment`, {})
+      ).status,
+    ).toBe(503);
+    expect(await M.PaymentOrder.countDocuments()).toBe(0);
+    expect(await M.Ticket.countDocuments()).toBe(0);
+  });
+  it("creates and verifies Razorpay Test Mode payments through the central CRS flow", async () => {
+    const { booking } = await pending();
+    await withRazorpayMock(booking.totalPaise, async (ids) => {
+      const key = randomUUID(),
+        started = await paymentPost(
+          `/bookings/${booking.id}/payment`,
+          {},
+          key,
+        ),
+        replay = await paymentPost(
+          `/bookings/${booking.id}/payment`,
+          {},
+          key,
+        );
+      expect(started.status).toBe(200);
+      expect(started.body.data).toMatchObject({
+        provider: "razorpay",
+        mode: "test",
+        orderId: ids.orderId,
+        amountPaise: booking.totalPaise,
+      });
+      expect(replay.body.data.orderId).toBe(ids.orderId);
+      const rejectedSignature = await paymentPost(
+        `/bookings/${booking.id}/payment/verify`,
+        {
+          razorpay_order_id: ids.orderId,
+          razorpay_payment_id: ids.paymentId,
+          razorpay_signature: "0".repeat(64),
+        },
+      );
+      expect(rejectedSignature.status).toBe(400);
+      expect(await M.Ticket.countDocuments()).toBe(0);
+      const signature = createHmac("sha256", paymentConfig.RAZORPAY_KEY_SECRET!)
+        .update(`${ids.orderId}|${ids.paymentId}`)
+        .digest("hex");
+      const verified = await paymentPost(
+        `/bookings/${booking.id}/payment/verify`,
+        {
+          razorpay_order_id: ids.orderId,
+          razorpay_payment_id: ids.paymentId,
+          razorpay_signature: signature,
+        },
+      );
+      expect(verified.status).toBe(200);
+      expect(verified.body.data).toMatchObject({
+        status: "Confirmed",
+        paymentStatus: "Paid",
+        paymentMode: "razorpay_test",
+      });
+    });
+    expect(await M.Ticket.countDocuments()).toBe(1);
+    expect(await M.Payment.countDocuments({ status: "captured" })).toBe(1);
     expect((await verifyLedger(String(owner._id))).consistent).toBe(true);
     expect(
       await inspectTripIntegrity(String(owner._id), String(trip._id)),
     ).toEqual([]);
   });
-  it("denies late authorization after expiry without consuming simulated allowance", async () => {
+  it("records late test-payment captures for reconciliation without issuing a ticket", async () => {
     const { booking, holdId } = await pending();
-    await M.Hold.updateOne({ holdId }, { $set: { expiresAt: new Date(0) } });
-    expect(
-      (
-        await post(`/bookings/${booking.id}/confirm`, {
-          authorization: "sandbox-allowance",
-        })
-      ).status,
-    ).toBe(409);
-    expect(
-      (await P.ApiPartner.findById(partner._id))?.sandboxAllowancePaise,
-    ).toBe(1000000);
-    expect(await M.Payment.countDocuments()).toBe(0);
+    await withRazorpayMock(booking.totalPaise, async (ids) => {
+      expect(
+        (
+          await paymentPost(`/bookings/${booking.id}/payment`, {})
+        ).status,
+      ).toBe(200);
+      await M.Hold.updateOne({ holdId }, { $set: { expiresAt: new Date(0) } });
+      await M.Trip.updateOne(
+        { _id: trip._id },
+        { $set: { "seats.0.holdUntil": new Date(0) } },
+      );
+      const signature = createHmac("sha256", paymentConfig.RAZORPAY_KEY_SECRET!)
+        .update(`${ids.orderId}|${ids.paymentId}`)
+        .digest("hex");
+      const response = await paymentPost(
+        `/bookings/${booking.id}/payment/verify`,
+        {
+          razorpay_order_id: ids.orderId,
+          razorpay_payment_id: ids.paymentId,
+          razorpay_signature: signature,
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe("Reconciliation required");
+    });
+    expect(await M.Ticket.countDocuments()).toBe(0);
+    expect(await M.Payment.countDocuments({ status: "captured" })).toBe(1);
   });
   it("returns own ticket and PNR but denies cross-partner booking and passenger access", async () => {
     const { booking } = await confirmed();
@@ -554,6 +744,75 @@ describe("Phase 7 public API provider", () => {
     const status = await get(`/bookings/${booking.id}/refund`);
     expect(status.body.data.refund.completed).toBe(false);
     expect(status.body.data.liveRefunds).toBe(false);
+  });
+  it("reports the existing operator-approved Razorpay Test refund lifecycle", async () => {
+    const { booking } = await pending();
+    await withRazorpayMock(booking.totalPaise, async (ids) => {
+      expect(
+        (
+          await paymentPost(`/bookings/${booking.id}/payment`, {})
+        ).status,
+      ).toBe(200);
+      const signature = createHmac("sha256", paymentConfig.RAZORPAY_KEY_SECRET!)
+        .update(`${ids.orderId}|${ids.paymentId}`)
+        .digest("hex");
+      expect(
+        (
+          await paymentPost(`/bookings/${booking.id}/payment/verify`, {
+            razorpay_order_id: ids.orderId,
+            razorpay_payment_id: ids.paymentId,
+            razorpay_signature: signature,
+          })
+        ).body.data.status,
+      ).toBe("Confirmed");
+      const quote = await post(
+          `/bookings/${booking.id}/cancellation-quotes`,
+        ),
+        cancellationRequest = await post(
+          `/bookings/${booking.id}/cancellations`,
+          {
+            quoteId: quote.body.data.id,
+            reason: "Test customer cancellation request",
+          },
+        ),
+        cancellation = await M.Cancellation.findOne({
+          bookingId: (await P.PartnerBookingReference.findOne({
+            publicId: booking.id,
+          }))?.bookingId,
+        }).lean(),
+        quoteMapping = await P.PublicResource.findOne({
+          publicId: quote.body.data.id,
+          kind: "cquote",
+        }).lean();
+      expect(cancellationRequest.status).toBe(200);
+      expect(cancellation?.status).toBe("Requested");
+      expect(quoteMapping).toBeTruthy();
+      await reviewCancellation(
+        paymentConfig,
+        {
+          operatorId: String(owner._id),
+          userId: String(owner._id),
+          role: "operator_staff",
+          permissions: ["finance:manage", "refunds:write"],
+        },
+        String(cancellation!._id),
+        "Accept",
+        quoteMapping!.internalKey,
+        "Approved test cancellation",
+      );
+      const intent = await M.RefundIntent.findOne({
+        bookingId: cancellation!.bookingId,
+      }).lean();
+      expect(intent).toBeTruthy();
+      await processRefundIntent(paymentConfig, String(intent!._id));
+      const status = await get(`/bookings/${booking.id}/refund`);
+      expect(status.body.data).toMatchObject({
+        bookingStatus: "Cancelled",
+        paymentStatus: "Refunded",
+        refund: { status: "Refunded", completed: true },
+      });
+      expect(status.body.data.intents[0].status).toBe("Processed");
+    });
   });
   it("does not treat an API partner as an operator agent or expose internal routes", async () => {
     expect(await M.SalesPartner.countDocuments()).toBe(0);

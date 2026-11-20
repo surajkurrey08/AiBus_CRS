@@ -92,7 +92,6 @@ try {
               publicId: "partner_aibus_sandbox_demo",
               name: "Sandbox partner",
               scopes: [...publicScopes],
-              sandboxAllowancePaise: 1000000,
             },
           ],
           { session },

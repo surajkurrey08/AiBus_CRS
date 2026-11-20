@@ -16,7 +16,7 @@ ssh-keygen -l -f "$tmp/known_hosts" >/dev/null
 options=(-i "$tmp/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$tmp/known_hosts" -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 release="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
 [[ ${GHCR_USER:-} =~ ^[a-zA-Z0-9_-]+$ && -n ${GHCR_TOKEN:-} ]]
-tar -czf "$tmp/release.tar.gz" docker-compose.prod.yml scripts/deploy.sh scripts/rollback.sh scripts/release-common.sh
+tar -czf "$tmp/release.tar.gz" docker-compose.prod.yml docker-compose.public-test.yml deploy/public-api-test-compose.env.example scripts/deploy.sh scripts/rollback.sh scripts/release-common.sh
 scp "${options[@]}" -P "$SSH_PORT" "$tmp/release.tar.gz" "$SSH_USER@$SSH_HOST:/opt/bookmybus-crs/incoming/$release.tar.gz"
 # Short-lived repository-scoped read token, encrypted SSH stdin, private config.
 # The token is never included in an argv, artifact, image, manifest or log.

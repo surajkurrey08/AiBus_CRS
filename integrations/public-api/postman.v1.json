@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "AIBUS Public API v1 ? sandbox only",
+    "name": "AIBUS Public API v1 - integration test only",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "No live endpoint or credentials included. Provision isolated sandbox first. Separate stable idempotency key per operation. Unsupported operations intentionally return 501."
+    "description": "No public test endpoint or credentials included. Provision an isolated test environment first. Razorpay Test Mode only; no real money. Separate stable idempotency key per operation."
   },
   "variable": [
     {
@@ -62,7 +62,27 @@
       "value": ""
     },
     {
-      "key": "confirmKey",
+      "key": "paymentKey",
+      "value": ""
+    },
+    {
+      "key": "verifyKey",
+      "value": ""
+    },
+    {
+      "key": "reconcileKey",
+      "value": ""
+    },
+    {
+      "key": "razorpayOrderId",
+      "value": ""
+    },
+    {
+      "key": "razorpayPaymentId",
+      "value": ""
+    },
+    {
+      "key": "razorpaySignature",
       "value": ""
     },
     {
@@ -314,7 +334,7 @@
       }
     },
     {
-      "name": "confirmSandboxBooking",
+      "name": "startTestPayment",
       "request": {
         "method": "POST",
         "header": [
@@ -328,14 +348,76 @@
           },
           {
             "key": "Idempotency-Key",
-            "value": "{{confirmKey}}"
+            "value": "{{paymentKey}}"
           }
         ],
-        "url": "{{baseUrl}}/bookings/{{bookingId}}/confirm",
-        "description": "Required scope: bookings:write. Sandbox only. Production funding/ticket issuance disabled. ",
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/payment",
+        "description": "Required scope: bookings:write. Starts/reuses a Razorpay Test Mode order. No real money is collected.",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"authorization\": \"sandbox-allowance\"\n}",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "verifyTestPayment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{verifyKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/payment/verify",
+        "description": "Required scope: bookings:write. Enter the order/payment/signature from your Razorpay Test Checkout response.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpay_order_id\": \"{{razorpayOrderId}}\",\n  \"razorpay_payment_id\": \"{{razorpayPaymentId}}\",\n  \"razorpay_signature\": \"{{razorpaySignature}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reconcileTestPayment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{reconcileKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/payment/reconcile",
+        "description": "Required scope: bookings:write. Reconcile only after an uncertain checkout response; do not retry payment blindly.",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
           "options": {
             "raw": {
               "language": "json"

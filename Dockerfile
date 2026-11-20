@@ -39,6 +39,7 @@ ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CRS" org.opencontainers.image.revision=$REVISION
 COPY deploy/nginx/gateway.conf /etc/nginx/conf.d/default.conf
 COPY deploy/nginx/proxy.inc /etc/nginx/bookmybus-proxy.inc
+COPY deploy/nginx/public-test-proxy.inc /etc/nginx/bookmybus-public-test-proxy.inc
 COPY --from=build /app/frontend/dist /usr/share/nginx/operator
 COPY --from=build /app/admin/dist /usr/share/nginx/admin
 COPY --from=build /app/partner/dist /usr/share/nginx/partner

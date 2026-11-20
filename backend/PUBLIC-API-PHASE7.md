@@ -141,3 +141,15 @@ Earlier attempts exposed fixture omissions, a wrong navigation locator, the CSV 
 ## Phase 8 extension
 
 The separate Partner web workspace and Super Admin API Partners controls now provide reviewed sandbox onboarding and one-time credential issuance. Earlier CLI-only provisioning descriptions above refer to Phase 7. Public machine authentication and booking contracts remain unchanged. See PARTNER-PLATFORM-PHASE8.md and integrations/partner-portal/README.md for the separate web-session contracts. Production access remains disabled.
+
+## 20 November integration-test payment extension
+
+The initial simulated-allowance confirmation was removed from the public booking contract. Public partners now create and reconcile Razorpay Test Mode orders through the existing CRS payment service:
+
+- POST `/bookings/{id}/payment`
+- POST `/bookings/{id}/payment/verify`
+- POST `/bookings/{id}/payment/reconcile`
+
+The backend validates the provider signature and authoritative payment before using the central booking, ledger and ticket flow. Cancellation quotes/requests continue to use existing CRS policies; operator approval is still required. When isolated `FINANCE_TEST_MODE` and Razorpay Test Mode are configured, the existing worker executes test refunds and partners can poll the read-only refund status. No real funds are charged/refunded.
+
+This remains a non-production integration-test environment requiring an isolated database and explicit trip grants. No public test hostname was supplied or deployed, and production public booking remains disabled. The updated OpenAPI and Postman artifacts are in `integrations/public-api/`; the focused public API suite now covers Razorpay test payment, late-capture reconciliation, and an operator-approved test refund lifecycle.

@@ -25,13 +25,6 @@ export const ApiPartner = model("ApiPartner", {
   environment: sandbox,
   status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
   scopes: [String],
-  sandboxAllowancePaise: {
-    type: Number,
-    default: 0,
-    min: 0,
-    validate: Number.isSafeInteger,
-  },
-  revision: { type: Number, default: 0 },
   bookingCutoffMinutes: {
     type: Number,
     min: 0,
@@ -102,7 +95,6 @@ export const PartnerBookingReference = model(
     reference: { type: String, required: true },
     operatorId: { type: objectId, required: true, immutable: true },
     bookingId: objectId,
-    funded: { type: Boolean, default: false },
   },
   [
     { keys: { partnerId: 1, reference: 1 }, options: { unique: true } },

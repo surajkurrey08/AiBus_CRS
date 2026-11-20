@@ -45,7 +45,7 @@ health() {
 wait_health() { for attempt in {1..30}; do health && return 0; sleep 2; done; return 1; }
 check_namespace() {
   local kind target owner
-  for resource in network:bookmybus-crs_edge network:bookmybus-crs_data volume:bookmybus-crs_uploads volume:bookmybus-crs_redis-data; do
+  for resource in network:bookmybus-crs_edge network:bookmybus-crs_data network:bookmybus-crs_integration volume:bookmybus-crs_uploads volume:bookmybus-crs_redis-data; do
     kind=${resource%%:*}; target=${resource#*:}
     if docker "$kind" inspect "$target" >/dev/null 2>&1; then
       owner=$(docker "$kind" inspect --format '{{index .Labels "com.docker.compose.project"}}' "$target")

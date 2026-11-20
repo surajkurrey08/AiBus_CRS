@@ -60,8 +60,10 @@ export PATH="/tmp/mockbin:$PATH"
 make_release() {
   local revision=$1 id="$1-1-1"
   mkdir -p "$root/releases/$id/scripts"
+  mkdir -p "$root/releases/$id/deploy"
   cp /src/scripts/{deploy,rollback,release-common}.sh "$root/releases/$id/scripts/"
-  cp /src/docker-compose.prod.yml "$root/releases/$id/"
+  cp /src/docker-compose.prod.yml /src/docker-compose.public-test.yml "$root/releases/$id/"
+  cp /src/deploy/public-api-test-compose.env.example "$root/releases/$id/deploy/"
   printf 'REVISION=%s\nAPI_IMAGE=ghcr.io/owner/repo-api@sha256:%064d\nWEB_IMAGE=ghcr.io/owner/repo-web@sha256:%064d\n' "$revision" 1 2 > "$root/releases/$id/images.env"
 }
 a=$(printf 'a%.0s' {1..40}); b=$(printf 'b%.0s' {1..40})
@@ -82,3 +84,4 @@ if bash "$script/rollback.sh" NO >/dev/null 2>&1; then echo 'Rollback confirmati
 bash "$script/rollback.sh" ROLLBACK
 [[ $(cat "$root/active-revision") == "$a" && $(realpath "$root/current") == "$root/releases/$a-1-1" ]]
 echo 'Release tests passed: ownership, confirmation, successful rollout, failed rollout, automatic recovery, explicit rollback.'
+bash /src/scripts/ci/test-edge-network.sh

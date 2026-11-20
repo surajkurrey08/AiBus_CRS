@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { z } from "zod";
-import type { Config } from "../config/env.js";
+import { isProductionLike, type Config } from "../config/env.js";
 import { identityFor } from "../services/agent.service.js";
 import {
   authenticate,
@@ -336,7 +336,7 @@ export function authRouter(config: Config, limiter: Limiter) {
           from: config.MAIL_FROM,
           to: email,
           subject: "Reset your Aibus password",
-          text: `Reset your password: ${authClient(req) === "partner" ? (config.PARTNER_WEB_ORIGIN || (config.NODE_ENV !== "production" ? "http://127.0.0.1:5176" : config.WEB_ORIGIN)) : config.WEB_ORIGIN}/?reset=${token}\nThis link expires in 30 minutes.`,
+          text: `Reset your password: ${authClient(req) === "partner" ? (config.PARTNER_WEB_ORIGIN || (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5176" : config.WEB_ORIGIN)) : config.WEB_ORIGIN}/?reset=${token}\nThis link expires in 30 minutes.`,
         });
       }
       ok(res, { message: "If the account exists, a reset link has been sent" });

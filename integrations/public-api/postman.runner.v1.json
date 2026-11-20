@@ -1,0 +1,1691 @@
+{
+  "info": {
+    "name": "AIBUS — guided public integration tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Use only an isolated non-production API, partner credential and authorized test inventory. The booking flow uses Razorpay Test Mode; no real money is collected. Run the test order step, complete Razorpay Checkout in your integration, then enter its payment ID/signature before verification. Cancellation requires operator review; test refunds use the existing worker."
+  },
+  "item": [
+    {
+      "name": "00 Live diagnostics — read only",
+      "item": [
+        {
+          "name": "Live backend readiness",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{liveOrigin}}/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Backend ready\", () => { pm.expect(pm.response.code).to.equal(200); pm.expect(pm.response.json().data.status).to.equal(\"ready\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Live OpenAPI document — contracts do not enable production sales",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{liveOrigin}}/api/v1/public/openapi.json"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"OpenAPI available\", () => { pm.expect(pm.response.code).to.equal(200); pm.expect(pm.response.json().openapi).to.equal(\"3.0.3\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Test booking flow — integrate Razorpay Checkout",
+      "item": [
+        {
+          "name": "01 Token exchange",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiCredential}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/token",
+            "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "",
+                  "ensure(data.accessToken && data.expiresIn > 0, \"Token exchange did not return an access token.\");",
+                  "pm.environment.set(\"accessToken\", data.accessToken);",
+                  "pm.environment.set(\"accessTokenExpiresAt\", Date.now() + data.expiresIn * 1000 - 5000);",
+                  "if (!pm.environment.get(\"testRunId\")) pm.environment.set(\"testRunId\", pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "const run = pm.environment.get(\"testRunId\");",
+                  "ensure(/^[A-Za-z0-9_.:-]{16,60}$/.test(run), \"testRunId must be 16–60 letters, digits or . _ : -\");",
+                  "if (pm.environment.get(\"contextRunId\") !== run) {",
+                  "  if (pm.environment.get(\"bookingId\")) pm.environment.set(\"previousBookingId\", pm.environment.get(\"bookingId\"));",
+                  "  for (const key of [\"tripId\", \"seatNumber\", \"holdId\", \"quoteId\", \"bookingId\", \"cancellationQuoteId\", \"pnr\", \"razorpayOrderId\", \"razorpayPaymentId\", \"razorpaySignature\", \"verifiedSandboxBase\"]) pm.environment.unset(key);",
+                  "  pm.environment.set(\"contextRunId\", run);",
+                  "}",
+                  "for (const [variable, suffix] of [[\"holdKey\",\"hold\"],[\"bookingKey\",\"booking\"],[\"paymentKey\",\"payment\"],[\"verifyKey\",\"verify\"],[\"reconcileKey\",\"reconcile\"],[\"cancelKey\",\"cancel\"],[\"partnerReference\",\"reference\"]]) pm.environment.set(variable, \"postman-\" + run + \"-\" + suffix);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/capabilities",
+            "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.environment === \"sandbox\" && data.liveTicketIssuance === false, \"Server is not the supported isolated sandbox.\"); pm.environment.set(\"verifiedSandboxBase\", String(pm.environment.get(\"baseUrl\")).replace(/\\/$/, \"\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Cities — capture source and destination IDs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cities?page=1&limit=100",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "",
+                  "ensure(Array.isArray(data), \"Expected a city list.\");",
+                  "for (const [idKey, nameKey] of [[\"fromCityId\",\"fromCityName\"],[\"toCityId\",\"toCityName\"]]) {",
+                  "  const supplied = pm.environment.get(idKey);",
+                  "  if (supplied) { ensure(/^city_[A-Za-z0-9_-]{16,100}$/.test(supplied), idKey + \" must be a returned public city ID.\"); continue; }",
+                  "  ensure(!payload.meta || payload.meta.total <= data.length, \"More city pages exist. Select the exact fromCityId and toCityId manually before running the collection.\");",
+                  "  const name = String(pm.environment.get(nameKey) || \"\").trim().toLowerCase();",
+                  "  const matches = data.filter(c => String(c.name || c.City).trim().toLowerCase() === name);",
+                  "  ensure(matches.length === 1, \"Choose an exact authorized \" + idKey + \" manually from the Cities response (name missing or ambiguous).\");",
+                  "  pm.environment.set(idKey, matches[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Search trips — capture a sellable trip ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips?from={{fromCityId}}&to={{toCityId}}&journeyDate={{journeyDate}}",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"fromCityId\",\"toCityId\",\"journeyDate\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "",
+                  "ensure(Array.isArray(data), \"Expected trips array.\");",
+                  "const trip = data.find(t => t.availableSeats > 0);",
+                  "ensure(trip, \"No available authorized trip for these exact city IDs and date. Update the environment and search again.\");",
+                  "pm.environment.set(\"tripId\", trip.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Trip details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Seats — choose one available seat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/seats",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "",
+                  "ensure(Array.isArray(data.seats), \"Expected seat layout.\");",
+                  "const seat = data.seats.find(s => s.state === \"available\");",
+                  "ensure(seat, \"No available seat. Booked, blocked, quota and held seats are not selected.\");",
+                  "pm.environment.set(\"seatNumber\", seat.number);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Boarding and dropping points",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/stops",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Cancellation policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/cancellation-policy",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Initial quote — before hold",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/quotes",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seats\": [\n    \"{{seatNumber}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\",\"seatNumber\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.id, \"Initial quote is missing.\"); pm.environment.set(\"initialQuoteId\", data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Hold selected seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{holdKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/holds",
+            "description": "Required scope: holds:write. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seats\": [\n    \"{{seatNumber}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\",\"seatNumber\",\"holdKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [201];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.id, \"Hold ID missing\"); pm.environment.set(\"holdId\", data.id); pm.environment.set(\"holdExpiresAt\", data.expiresAt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Hold-bound quote — required for booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/trips/{{tripId}}/quotes",
+            "description": "Required scope: inventory:read. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seats\": [\n    \"{{seatNumber}}\"\n  ],\n  \"holdId\": \"{{holdId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\",\"seatNumber\",\"holdId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.holdId === pm.environment.get(\"holdId\"), \"Quote is not bound to this hold.\");ensure(data.id, \"Quote ID missing\"); pm.environment.set(\"quoteId\", data.id); pm.environment.set(\"quoteExpiresAt\", data.expiresAt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Create pending booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{bookingKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings",
+            "description": "Required scope: bookings:write. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{tripId}}\",\n  \"holdId\": \"{{holdId}}\",\n  \"quoteId\": \"{{quoteId}}\",\n  \"partnerReference\": \"{{partnerReference}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Postman Sandbox Passenger\",\n      \"seat\": \"{{seatNumber}}\",\n      \"age\": 25,\n      \"gender\": \"male\"\n    }\n  ],\n  \"contact\": {\n    \"phone\": \"9999999999\",\n    \"email\": \"postman@example.invalid\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"tripId\",\"holdId\",\"quoteId\",\"partnerReference\",\"seatNumber\",\"bookingKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [201];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.id, \"Booking ID missing\"); pm.environment.set(\"bookingId\", data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Create Razorpay Test Mode order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{paymentKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/payment",
+            "description": "Required scope: bookings:write. Starts/reuses a Razorpay Test Mode order. No real money is collected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\",\"paymentKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.mode === \"test\" && data.orderId && data.amountPaise > 0, \"Test payment order missing.\"); pm.environment.set(\"razorpayOrderId\", data.orderId); pm.environment.set(\"razorpayKeyId\", data.keyId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Verify test checkout response — enter provider values first",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{verifyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/payment/verify",
+            "description": "Required scope: bookings:write. Enter the order/payment/signature from your Razorpay Test Checkout response.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_order_id\": \"{{razorpayOrderId}}\",\n  \"razorpay_payment_id\": \"{{razorpayPaymentId}}\",\n  \"razorpay_signature\": \"{{razorpaySignature}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\",\"razorpayOrderId\",\"razorpayPaymentId\",\"razorpaySignature\",\"verifyKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure([\"Confirmed\", \"Pending payment\", \"Reconciliation required\"].includes(data.status), \"Unexpected booking state.\"); if (data.pnr) pm.environment.set(\"pnr\", data.pnr);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Booking status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}",
+            "description": "Required scope: bookings:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Ticket and PNR",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/ticket",
+            "description": "Required scope: tickets:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.pnr && data.status === \"valid\", \"Confirmed test ticket/PNR missing\"); pm.environment.set(\"pnr\", data.pnr);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Cancellation quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/cancellation-quotes",
+            "description": "Required scope: cancellations:write. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }",
+                  "ensure(data.id, \"Cancellation quote ID missing\"); pm.environment.set(\"cancellationQuoteId\", data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Request cancellation — operator review required",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{cancelKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/cancellations",
+            "description": "Required scope: cancellations:write. Sandbox only. Production funding/ticket issuance disabled. ",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quoteId\": \"{{cancellationQuoteId}}\",\n  \"reason\": \"Sandbox cancellation request\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\",\"cancellationQuoteId\",\"cancelKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Test refund status — pending is not refunded",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/refund",
+            "description": "Required scope: refunds:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Webhook delivery history — may be empty",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/webhook-deliveries",
+            "description": "Required scope: webhooks:read. Sandbox only. Production funding/ticket issuance disabled. "
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Payment recovery — uncertain response only",
+      "item": [
+        {
+          "name": "Reconcile uncertain Razorpay Test payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{reconcileKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/payment/reconcile",
+            "description": "Required scope: bookings:write. Reconcile only after an uncertain checkout response; do not retry payment blindly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();",
+                  "",
+                  "for (const key of [\"bookingId\",\"reconcileKey\"]) {",
+                  "  if (!pm.environment.get(key)) { console.warn(\"Missing \" + key + \"; complete the preceding integration step first.\"); pm.execution.setNextRequest(null); pm.execution.skipRequest(); break; }",
+                  "}",
+                  "",
+                  "if (String(pm.environment.get(\"allowSandboxWrites\")) !== \"true\" || pm.environment.get(\"verifiedSandboxBase\") !== String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\")) {",
+                  "  console.warn(\"Enable sandbox writes explicitly and run 02 Capabilities first. No booking request was sent.\");",
+                  "  pm.execution.setNextRequest(null); pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accepted = [200];",
+                  "pm.test(\"Expected HTTP status\", () => pm.expect(accepted).to.include(pm.response.code));",
+                  "if (!accepted.includes(pm.response.code)) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "  throw new Error(\"Request failed; inspect error.code and requestId before retrying.\");",
+                  "}",
+                  "const payload = pm.response.json();",
+                  "const data = payload.data;",
+                  "pm.test(\"Response has data\", () => pm.expect(data).not.to.equal(undefined));",
+                  "function ensure(condition, message) { if (!condition) { pm.execution.setNextRequest(null); throw new Error(message); } }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Unsupported capabilities — expect 501",
+      "item": [
+        {
+          "name": "20 Reschedule — expected unavailable",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/reschedule",
+            "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 501 expected\", () => pm.expect(pm.response.code).to.equal(501)); const payload = pm.response.json(); pm.test(\"Documented unavailable capability\", () => pm.expect(payload.error.code).to.equal(\"CAPABILITY_UNAVAILABLE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Partner wallet — expected unavailable",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/wallet",
+            "description": "Required scope: Authenticated partner. Sandbox only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract."
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  function stop(message) { console.warn(message); pm.execution.setNextRequest(null); pm.execution.skipRequest(); }",
+                  "  const base = String(pm.environment.get(\"baseUrl\") || \"\").replace(/\\/$/, \"\");",
+                  "  if (!base || String(pm.environment.get(\"sandboxMode\")) !== \"true\") { stop(\"Select the isolated sandbox environment; do not run booking tests against production.\"); return; }",
+                  "  if (/^https?:\\/\\/api\\.bookmybus\\.pro(?:[:/]|$)/i.test(base)) { stop(\"Production public bookings are disabled. Use a separately provisioned sandbox URL.\"); return; }",
+                  "  if (!pm.environment.get(\"apiCredential\")) { stop(\"Set your complete sandbox API credential locally, not an Admin login token.\"); return; }",
+                  "  if (pm.info.requestName.startsWith(\"01 \")) return;",
+                  "  const expires = Number(pm.environment.get(\"accessTokenExpiresAt\"));",
+                  "  if (!pm.environment.get(\"accessToken\") || !Number.isFinite(expires) || expires <= Date.now()) { stop(\"Run 01 Token exchange again; preserve existing request keys and booking IDs when retrying.\"); return; }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 501 expected\", () => pm.expect(pm.response.code).to.equal(501)); const payload = pm.response.json(); pm.test(\"Documented unavailable capability\", () => pm.expect(payload.error.code).to.equal(\"CAPABILITY_UNAVAILABLE\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

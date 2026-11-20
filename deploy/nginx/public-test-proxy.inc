@@ -1,0 +1,10 @@
+resolver 127.0.0.11 valid=10s ipv6=off;
+set $public_test_api public-test-api:4000;
+proxy_pass http://$public_test_api$request_uri;
+proxy_http_version 1.1;
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto https;
+proxy_read_timeout 75s;
+proxy_no_cache 1;
+proxy_cache_bypass 1;

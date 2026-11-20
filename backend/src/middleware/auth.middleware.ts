@@ -1,5 +1,9 @@
 import { type RequestHandler } from "express";
-import { allowedWebOrigins, type Config } from "../config/env.js";
+import {
+  allowedWebOrigins,
+  isProductionLike,
+  type Config,
+} from "../config/env.js";
 import { hashToken, principal } from "../services/auth.service.js";
 import { AppError, asyncRoute, fail } from "../utils/core.js";
 
@@ -41,12 +45,12 @@ export function originGuard(config: Config): RequestHandler {
     const portalOrigin =
       client === "partner"
         ? config.PARTNER_WEB_ORIGIN ||
-          (config.NODE_ENV !== "production"
+          (!isProductionLike(config.NODE_ENV)
             ? "http://127.0.0.1:5176"
             : config.WEB_ORIGIN)
         : client === "admin"
           ? config.ADMIN_WEB_ORIGIN ||
-            (config.NODE_ENV !== "production"
+            (!isProductionLike(config.NODE_ENV)
               ? "http://127.0.0.1:5174"
               : config.WEB_ORIGIN)
           : client === "agent"
