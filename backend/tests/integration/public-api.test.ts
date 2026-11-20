@@ -64,7 +64,10 @@ const paymentConfig = readConfig({
 const app = createApp(config, { check: async () => true });
 const paymentApp = createApp(paymentConfig, { check: async () => true });
 beforeAll(async () => {
-  mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  mongo = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
+    binary: { version: "7.0.14" },
+  });
   await mongoose.connect(mongo.getUri("aibus_public_sandbox_phase7"));
   await Promise.all(Object.values(mongoose.models).map((m) => m.init()));
 });

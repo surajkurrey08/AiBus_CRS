@@ -58,7 +58,10 @@ try {
   });
   redis.on("error", () => {});
   await redis.connect();
-  mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  mongo = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
+    binary: { version: "7.0.14" },
+  });
   await mongoose.connect(mongo.getUri("aibus_public_sandbox_browser_disposable"));
   await Promise.all(Object.values(mongoose.models).map((m) => m.init()));
   const config = readConfig({
