@@ -1,0 +1,5195 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AIBUS Public Booking API",
+    "version": "1.0.0-test",
+    "description": "Outward-facing AIBUS integration-test API. Uses CRS inventory, pricing, booking, cancellation and refund workflows in a dedicated non-production database. Payments and refunds use Razorpay Test Mode only; no real money or production tickets are issued. Partner access requires explicit inventory grants. Holds last at most 5 minutes; quotes at most 2 minutes and never beyond the hold. Idempotency keys are partner-global and content-bound. A cancellation request requires operator review; test refunds are handled by the existing refund worker. Rescheduling and partner wallets return 501."
+  },
+  "servers": [
+    {
+      "url": "https://sandbox.example.invalid/api/v1/public",
+      "description": "Deployment placeholder; no public environment provisioned"
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "operationId": "authenticate",
+        "summary": "1. Exchange sandbox credential for a short-lived scoped token",
+        "description": "Required scope: Authenticated partner. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerCredential": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Token"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "summary": "Inspect supported and unavailable capabilities",
+        "description": "Required scope: Authenticated partner. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "version": {
+                          "enum": [
+                            "1"
+                          ]
+                        },
+                        "environment": {
+                          "enum": [
+                            "sandbox"
+                          ]
+                        },
+                        "inventory": {
+                          "type": "boolean"
+                        },
+                        "holds": {
+                          "type": "boolean"
+                        },
+                        "funding": {
+                          "type": "string"
+                        },
+                        "paymentMode": {
+                          "enum": [
+                            "razorpay_test",
+                            "unavailable"
+                          ]
+                        },
+                        "livePayments": {
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "liveRefunds": {
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "testRefunds": {
+                          "type": "boolean"
+                        },
+                        "liveTicketIssuance": {
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "productionCredentials": {
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "reschedule": {
+                          "type": "boolean"
+                        },
+                        "partnerWallet": {
+                          "type": "boolean"
+                        },
+                        "cancellation": {
+                          "type": "string"
+                        },
+                        "webhooks": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "environment",
+                        "inventory",
+                        "holds",
+                        "funding",
+                        "paymentMode",
+                        "livePayments",
+                        "liveRefunds",
+                        "testRefunds",
+                        "liveTicketIssuance",
+                        "productionCredentials",
+                        "reschedule",
+                        "partnerWallet",
+                        "cancellation",
+                        "webhooks"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cities": {
+      "get": {
+        "operationId": "cities",
+        "summary": "2. Authorized source and destination cities",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/City"
+                      }
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips": {
+      "get": {
+        "operationId": "trips",
+        "summary": "3. Authorized dated trip search",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "journeyDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Trip"
+                      }
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}": {
+      "get": {
+        "operationId": "tripDetails",
+        "summary": "4. Bus, operator, timing and route details",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Trip"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}/seats": {
+      "get": {
+        "operationId": "seatLayout",
+        "summary": "5. Current seat layout and base fares",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "tripId": {
+                          "type": "string",
+                          "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                        },
+                        "seats": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Seat"
+                          }
+                        },
+                        "currency": {
+                          "enum": [
+                            "INR"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "tripId",
+                        "seats",
+                        "currency"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}/stops": {
+      "get": {
+        "operationId": "stops",
+        "summary": "6. Configured boarding and dropping points",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "boarding": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Stop"
+                          }
+                        },
+                        "dropping": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Stop"
+                          }
+                        },
+                        "timeZone": {
+                          "enum": [
+                            "Asia/Kolkata"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "boarding",
+                        "dropping",
+                        "timeZone"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}/quotes": {
+      "post": {
+        "operationId": "fareRecheck",
+        "summary": "7. Server-authoritative quote; repeat with holdId before booking",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "seats": {
+                    "$ref": "#/components/schemas/Seats"
+                  },
+                  "holdId": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                  }
+                },
+                "required": [
+                  "seats"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Quote"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}/cancellation-policy": {
+      "get": {
+        "operationId": "cancellationPolicy",
+        "summary": "8. Operator policy and conditional eligibility",
+        "description": "Required scope: inventory:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "rules": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "hoursBefore": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "refundPercent": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              }
+                            },
+                            "required": [
+                              "hoursBefore",
+                              "refundPercent"
+                            ]
+                          }
+                        },
+                        "partialSupported": {
+                          "enum": [
+                            false
+                          ]
+                        }
+                      }
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}/holds": {
+      "post": {
+        "operationId": "seatHold",
+        "summary": "9. Idempotent central inventory hold",
+        "description": "Required scope: holds:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "seats": {
+                    "$ref": "#/components/schemas/Seats"
+                  }
+                },
+                "required": [
+                  "seats"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                        },
+                        "tripId": {
+                          "type": "string",
+                          "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                        },
+                        "seats": {
+                          "$ref": "#/components/schemas/Seats"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "baseFarePaise": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Integer INR paise, never floating-point rupees"
+                        },
+                        "currency": {
+                          "enum": [
+                            "INR"
+                          ]
+                        },
+                        "environment": {
+                          "enum": [
+                            "sandbox"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tripId",
+                        "seats",
+                        "expiresAt",
+                        "baseFarePaise",
+                        "currency",
+                        "environment"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "operationId": "pendingBooking",
+        "summary": "10a. Create an idempotent pending booking, without claiming payment",
+        "description": "Required scope: bookings:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tripId": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                  },
+                  "holdId": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                  },
+                  "quoteId": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                  },
+                  "partnerReference": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "pattern": "^[A-Za-z0-9_.:-]+$"
+                  },
+                  "passengers": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 6,
+                    "items": {
+                      "$ref": "#/components/schemas/Passenger"
+                    }
+                  },
+                  "contact": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "phone": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      }
+                    },
+                    "required": []
+                  }
+                },
+                "required": [
+                  "tripId",
+                  "holdId",
+                  "quoteId",
+                  "partnerReference",
+                  "passengers"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/payment": {
+      "post": {
+        "operationId": "startTestPayment",
+        "summary": "10b. Create or reuse an authoritative Razorpay Test Mode order",
+        "description": "Required scope: bookings:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "provider": {
+                          "enum": [
+                            "razorpay"
+                          ]
+                        },
+                        "mode": {
+                          "enum": [
+                            "test"
+                          ]
+                        },
+                        "keyId": {
+                          "type": "string"
+                        },
+                        "orderId": {
+                          "type": "string"
+                        },
+                        "amountPaise": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Integer INR paise, never floating-point rupees"
+                        },
+                        "currency": {
+                          "enum": [
+                            "INR"
+                          ]
+                        },
+                        "reference": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "mode",
+                        "keyId",
+                        "orderId",
+                        "amountPaise",
+                        "currency",
+                        "reference",
+                        "expiresAt"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/payment/verify": {
+      "post": {
+        "operationId": "verifyTestPayment",
+        "summary": "10c. Verify Razorpay signature and provider payment before confirming",
+        "description": "Required scope: bookings:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "razorpay_order_id": {
+                    "type": "string",
+                    "pattern": "^order_[A-Za-z0-9]+$"
+                  },
+                  "razorpay_payment_id": {
+                    "type": "string",
+                    "pattern": "^pay_[A-Za-z0-9]+$"
+                  },
+                  "razorpay_signature": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "razorpay_order_id",
+                  "razorpay_payment_id",
+                  "razorpay_signature"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/payment/reconcile": {
+      "post": {
+        "operationId": "reconcileTestPayment",
+        "summary": "10d. Recover authoritative payment state after a lost response",
+        "description": "Required scope: bookings:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "operationId": "bookingStatus",
+        "summary": "11. Own partner booking status",
+        "description": "Required scope: bookings:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/ticket": {
+      "get": {
+        "operationId": "ticket",
+        "summary": "12. Own ticket and PNR; names and seats only",
+        "description": "Required scope: tickets:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "bookingId": {
+                          "type": "string",
+                          "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                        },
+                        "pnr": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "valid",
+                            "cancelled"
+                          ]
+                        },
+                        "issuedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "passengers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "seat": {
+                                "type": "string"
+                              },
+                              "boarding": {
+                                "type": "string"
+                              },
+                              "dropping": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "seat"
+                            ]
+                          }
+                        },
+                        "environment": {
+                          "enum": [
+                            "sandbox"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "pnr",
+                        "status",
+                        "issuedAt",
+                        "passengers",
+                        "environment"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/cancellations": {
+      "post": {
+        "operationId": "requestCancellation",
+        "summary": "13. Request policy-validated full-booking cancellation",
+        "description": "Required scope: cancellations:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "quoteId": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "quoteId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/cancellation-quotes": {
+      "post": {
+        "operationId": "cancellationCharges",
+        "summary": "14. Accounting-policy-dependent cancellation quote",
+        "description": "Required scope: cancellations:write. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "refundPaise": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Integer INR paise, never floating-point rupees"
+                        },
+                        "retainedPaise": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Integer INR paise, never floating-point rupees"
+                        },
+                        "currency": {
+                          "enum": [
+                            "INR"
+                          ]
+                        },
+                        "partialSupported": {
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "expiresAt",
+                        "refundPaise",
+                        "retainedPaise",
+                        "currency",
+                        "partialSupported"
+                      ]
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/refund": {
+      "get": {
+        "operationId": "refundStatus",
+        "summary": "15. Existing operator-reviewed test refund lifecycle; status only",
+        "description": "Required scope: refunds:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingStatus": {
+                          "$ref": "#/components/schemas/BookingStatus"
+                        },
+                        "paymentStatus": {
+                          "$ref": "#/components/schemas/PaymentStatus"
+                        },
+                        "refund": {
+                          "type": "object",
+                          "nullable": true
+                        },
+                        "intents": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "status": {
+                                "enum": [
+                                  "Ready",
+                                  "Submitting",
+                                  "Pending",
+                                  "Processed",
+                                  "Failed",
+                                  "Uncertain",
+                                  "Manual review"
+                                ]
+                              },
+                              "amountPaise": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Integer INR paise, never floating-point rupees"
+                              },
+                              "processedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "status",
+                              "amountPaise",
+                              "processedAt"
+                            ]
+                          }
+                        },
+                        "liveRefunds": {
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "testRefunds": {
+                          "type": "boolean",
+                          "description": "Test-provider refunds are processed only after operator review and only when isolated test finance mode is enabled."
+                        },
+                        "partialSupported": {
+                          "enum": [
+                            false
+                          ]
+                        }
+                      }
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reschedule": {
+      "post": {
+        "operationId": "rescheduleUnavailable",
+        "summary": "16. Rescheduling unavailable",
+        "description": "Required scope: Authenticated partner. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract.",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet": {
+      "get": {
+        "operationId": "walletUnavailable",
+        "summary": "17. Partner wallet unavailable; never an agency wallet",
+        "description": "Required scope: Authenticated partner. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. UNAVAILABLE: no approved business contract.",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-deliveries": {
+      "get": {
+        "operationId": "webhookDeliveries",
+        "summary": "18. Signed sandbox notification delivery history",
+        "description": "Required scope: webhooks:read. Isolated non-production integration-test environment only. Production funding/ticket issuance disabled. ",
+        "security": [
+          {
+            "PartnerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative response; X-Request-ID correlates sanitized logs",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "status": {
+                            "enum": [
+                              "Pending",
+                              "Delivering",
+                              "Delivered",
+                              "Manual review"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "lastCode": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "attempts"
+                        ]
+                      }
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "description": "City list compatibility flag; present on GET /cities."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "List paging: page, limit, total"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See error.code; never infer payment or booking success after a timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "PartnerCredential": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Bearer ap_sandbox_cred_<opaque-id>.<secret>. Backend server only; exchange at /auth/token. Secret hashes stored, raw secret returned only through trusted CLI provisioning."
+      },
+      "PartnerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "5-minute token. Credential revocation, expiry, rotation and current partner scopes checked on every request."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expiresIn": {
+            "enum": [
+              300
+            ]
+          },
+          "environment": {
+            "enum": [
+              "sandbox"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn",
+          "environment",
+          "scopes"
+        ]
+      },
+      "City": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "CityId": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "City": {
+            "type": "string"
+          },
+          "CityKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "State": {
+            "type": "string",
+            "nullable": true
+          },
+          "CatalogCityId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "Seats": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12
+        }
+      },
+      "Seat": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "type": "string"
+          },
+          "deck": {
+            "enum": [
+              "lower",
+              "upper"
+            ]
+          },
+          "row": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "category": {
+            "enum": [
+              "seater",
+              "sleeper"
+            ]
+          },
+          "baseFarePaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "state": {
+            "enum": [
+              "available",
+              "held",
+              "booked",
+              "blocked",
+              "quota"
+            ]
+          },
+          "ownedHold": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "number",
+          "deck",
+          "row",
+          "column",
+          "category",
+          "baseFarePaise",
+          "state",
+          "ownedHold"
+        ]
+      },
+      "Stop": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "time",
+          "address"
+        ]
+      },
+      "Passenger": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "seat": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 120
+          },
+          "gender": {
+            "enum": [
+              "female",
+              "male",
+              "other",
+              "unspecified"
+            ]
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "boarding": {
+            "type": "string"
+          },
+          "dropping": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "seat"
+        ]
+      },
+      "Trip": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "operator": {
+            "type": "string"
+          },
+          "bus": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "amenities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "type",
+              "amenities"
+            ]
+          },
+          "route": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+              },
+              "from": {
+                "$ref": "#/components/schemas/City"
+              },
+              "to": {
+                "$ref": "#/components/schemas/City"
+              }
+            },
+            "required": [
+              "id",
+              "from",
+              "to"
+            ]
+          },
+          "journeyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "departureAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "arrivalAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "availableSeats": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seatCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currency": {
+            "enum": [
+              "INR"
+            ]
+          },
+          "environment": {
+            "enum": [
+              "sandbox"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "operator",
+          "bus",
+          "route",
+          "journeyDate",
+          "departureAt",
+          "arrivalAt",
+          "availableSeats",
+          "seatCount",
+          "currency",
+          "environment"
+        ]
+      },
+      "Quote": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "holdId": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "seatFares": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "number": {
+                  "type": "string"
+                },
+                "basePaise": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Integer INR paise, never floating-point rupees"
+                }
+              },
+              "required": [
+                "number",
+                "basePaise"
+              ]
+            }
+          },
+          "grossPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "discountPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "taxPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "chargePaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "totalPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "currency": {
+            "enum": [
+              "INR"
+            ]
+          },
+          "requirements": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "age": {
+                "type": "boolean"
+              },
+              "gender": {
+                "type": "boolean"
+              },
+              "mobile": {
+                "type": "boolean"
+              },
+              "gstEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "age",
+              "gender",
+              "mobile",
+              "gstEnabled"
+            ]
+          },
+          "binding": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "holdId",
+          "expiresAt",
+          "seatFares",
+          "grossPaise",
+          "discountPaise",
+          "taxPaise",
+          "chargePaise",
+          "totalPaise",
+          "currency",
+          "requirements",
+          "binding"
+        ]
+      },
+      "BookingStatus": {
+        "enum": [
+          "Pending payment",
+          "Confirmed",
+          "Failed",
+          "Cancelled",
+          "Reconciliation required"
+        ]
+      },
+      "PaymentStatus": {
+        "enum": [
+          "Pending",
+          "Paid",
+          "Failed",
+          "Refund pending",
+          "Refunded"
+        ]
+      },
+      "Booking": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "partnerReference": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "paymentStatus": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          },
+          "pnr": {
+            "type": "string",
+            "nullable": true
+          },
+          "seats": {
+            "$ref": "#/components/schemas/Seats"
+          },
+          "totalPaise": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Integer INR paise, never floating-point rupees"
+          },
+          "currency": {
+            "enum": [
+              "INR"
+            ]
+          },
+          "paymentMode": {
+            "type": "string",
+            "enum": [
+              "razorpay_test"
+            ],
+            "nullable": true
+          },
+          "cancellationStatus": {
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "sandbox"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "partnerReference",
+          "status",
+          "paymentStatus",
+          "pnr",
+          "seats",
+          "totalPaise",
+          "currency",
+          "paymentMode",
+          "cancellationStatus",
+          "environment"
+        ]
+      },
+      "Webhook": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "type": {
+            "enum": [
+              "booking.status"
+            ]
+          },
+          "environment": {
+            "enum": [
+              "sandbox"
+            ]
+          },
+          "bookingId": {
+            "type": "string",
+            "pattern": "^[a-z]+_[A-Za-z0-9_-]{16,100}$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "paymentStatus": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          },
+          "cancellationStatus": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "environment",
+          "bookingId",
+          "status",
+          "paymentStatus",
+          "cancellationStatus",
+          "occurredAt"
+        ]
+      }
+    }
+  }
+}

@@ -20,6 +20,10 @@ import {
 } from "../services/partner-playground.service.js";
 import { platformPermit } from "../services/platform-read.service.js";
 import { checkPassword } from "../services/auth.service.js";
+import {
+  forwardSandboxPortal,
+  sandboxPortalOperation,
+} from "../services/sandbox-portal.service.js";
 const oid = z.string().regex(/^[a-f\d]{24}$/i),
   pid = z.string().regex(/^[a-z]+_[\w-]{16,100}$/);
 const review = z.object(V.secretReview).strict();
@@ -78,6 +82,28 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
     }),
   );
   r.use(authenticate(config));
+  r.use(
+    asyncRoute(async (req, res, next) => {
+      if (
+        !config.SANDBOX_PORTAL_URL ||
+        !sandboxPortalOperation(req.method, req.path)
+      )
+        return next();
+      const result = await forwardSandboxPortal(config, req);
+      if (result.csv !== undefined) {
+        res
+          .type("text/csv")
+          .attachment("sandbox-api-usage.csv")
+          .send(result.csv);
+        return;
+      }
+      res
+        .status(
+          req.method === "POST" && req.path === "/credentials" ? 201 : 200,
+        )
+        .json(result);
+    }),
+  );
   const member = async (req: any, permission: string) =>
     (await S.portalMember(req.auth, permission)).partner;
   r.get(

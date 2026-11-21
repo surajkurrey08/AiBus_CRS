@@ -56,6 +56,20 @@ export async function executePlayground(
 ) {
   sandboxReady(config);
   const { partner } = await portalMember(req.auth, "partner:playground");
+  if (input.operationId === "ticket")
+    await portalMember(req.auth, "partner:passengers");
+  return executePartnerPlayground(config, limiter, req, input, partner);
+}
+
+// Private server callers must resolve and authorize the organization first.
+export async function executePartnerPlayground(
+  config: Config,
+  limiter: Limiter,
+  req: Request,
+  input: z.infer<typeof playgroundInput>,
+  partner: any,
+) {
+  sandboxReady(config);
   const op = playgroundOperations.find(
     (o) => o.operationId === input.operationId,
   );
@@ -65,8 +79,6 @@ export async function executePlayground(
       "PLAYGROUND_OPERATION",
       "Select an allowlisted sandbox operation",
     );
-  if (op!.operationId === "ticket")
-    await portalMember(req.auth, "partner:passengers");
   if (op!.path.includes("{id}") && !input.params.id)
     fail(400, "RESOURCE_REQUIRED", "This operation requires a resource ID");
   // Short-lived backend-only credentials never cross the portal boundary. Revoked after each request.
@@ -133,14 +145,12 @@ export async function executePlayground(
       router(clone, response, (error: any) => {
         if (error) errorHandler(error, clone, response, () => {});
         else
-          response
-            .status(404)
-            .json({
-              error: {
-                code: "NOT_FOUND",
-                message: "Sandbox operation not found",
-              },
-            });
+          response.status(404).json({
+            error: {
+              code: "NOT_FOUND",
+              message: "Sandbox operation not found",
+            },
+          });
       });
     });
   } finally {

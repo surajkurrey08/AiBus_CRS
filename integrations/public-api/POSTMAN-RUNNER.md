@@ -4,6 +4,8 @@ Verified 20 November 2026: `https://api.bookmybus.pro/health/ready` is HTTP 200.
 
 ## Import once
 
+The remote isolated test deployment is now verified at `https://partner.bookmybus.pro/api/v1/public` (20 November 2026, contract `1.0.0-test`). Use `postman.external-sandbox.environment.json` with a dedicated credential and the current assigned test trip date. Token exchange and inventory reads passed for both app identities. Actual payment checkout remains a separate test step; do not treat inventory verification as ticket confirmation.
+
 In Postman Desktop, choose **Import** and select:
 
 - `postman.runner.v1.json` — ordered requests, response assertions and automatic ID capture.

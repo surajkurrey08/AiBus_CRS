@@ -2,7 +2,7 @@
 
 ## Current availability
 
-The production dashboards/backend are live, but public production booking calls are disabled. The selected test API URL is `https://partner.bookmybus.pro/api/v1/public`. This change adds repository routing support, but the test backend/database and route have not been deployed; this URL is not yet available for integration. Do not start tests until the AIBUS owner confirms the test API is ready.
+Verified 20 November 2026: the isolated Test API is active at `https://partner.bookmybus.pro/api/v1/public`, serving contract `1.0.0-test` from release `d73ffc9`. Both test app credentials returned HTTP 200 for token exchange, capabilities, cities, search, seats and stops over external HTTPS. Actual Razorpay checkout and ticket issuance were not executed in this deployment verification. Production public booking calls remain disabled on `api.bookmybus.pro`.
 
 The supplied external environment has the intended `baseUrl` prefilled and the credential empty. Do not substitute the production API host. `127.0.0.1` refers to the tester's own computer and is not a remote testing URL.
 
@@ -15,13 +15,13 @@ The supplied external environment has the intended `baseUrl` prefilled and the c
 - Razorpay Test Mode credentials configured privately on the test backend, `FINANCE_TEST_MODE=true` only in that non-production environment, and test cancellation/accounting policies.
 - Test window, contact and the expected unsupported features.
 
-The host has been selected but is not yet provisioned. The owner must confirm deployment before sharing access. Keep the test database, credentials and inventory isolated from production.
+The current synthetic inventory is Pune to Mumbai on `2026-11-27`, with seats L1, L2, L3 and U1. Give each tester their own authorized credential privately. Keep the test database, credentials and inventory isolated from production.
 
 ## Tester steps
 
 1. Install/open Postman Desktop and sign in if Collections/Runner are unavailable.
 2. Import `postman.runner.v1.json` and `postman.external-sandbox.environment.json`.
-3. Select **AIBUS isolated sandbox**. The intended `baseUrl` is prefilled as `https://partner.bookmybus.pro/api/v1/public`; use it only after the owner confirms deployment. Enter the full `apiCredential`, exact `journeyDate`, and `fromCityId`/`toCityId` or unique city names. Keep the credential local to your Postman instance. Do not publish the populated environment.
+3. Select **AIBUS external tester sandbox** (or the individually provisioned private app environment). The `baseUrl` is `https://partner.bookmybus.pro/api/v1/public`. Enter the full `apiCredential`, exact `journeyDate`, and `fromCityId`/`toCityId` or unique city names. Keep the credential local to your Postman instance. Do not publish the populated environment.
 4. Run **01 Token exchange**, **02 Capabilities** and **03 Cities** individually first. Confirm sandbox capability and inventory access. Token exchange uses Bearer API credential and raw JSON `{}`; later requests use the returned access token automatically.
 5. When ready, set `allowSandboxWrites=true`. Run folder **01 Test booking flow — integrate Razorpay Checkout** with one iteration, 300 ms delay, Local/Functional execution, no stored cookies and no Origin header. Create the test order, then complete Razorpay Checkout through your integration before entering the returned payment ID and signature for verification.
 6. Inspect each request's response body, HTTP status and assertions in the Runner. The collection captures token, trip/seat/hold/quote/booking IDs and PNR automatically, with separate stable idempotency headers for each write.

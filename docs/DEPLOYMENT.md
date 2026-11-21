@@ -337,7 +337,10 @@ and deployed and these prerequisites are ready:
 - A dedicated Redis ACL user on the existing TLS Redis service. Persist the
   user in Redis's protected ACL configuration, give it only the
   `aibus:public-test:*` key pattern and `aibus:public-test:socket.io*` channel
-  pattern, and deny administrative/dangerous commands. Keep its password
+  pattern, plus the exact `aibus:public-test:socket.io#/#*` PSUBSCRIBE pattern
+  used by the default Socket.IO namespace. Redis checks PSUBSCRIBE patterns
+  literally; a broader channel glob alone does not authorize this subscription.
+  Deny administrative/dangerous commands. Keep its password
   separate from the production Redis password. Verify the ACL survives a Redis
   restart. The test API joins only the internal integration network, not the
   production API/data network, and uses the existing Redis CA certificate at

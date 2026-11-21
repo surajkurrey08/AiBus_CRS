@@ -1,17 +1,17 @@
 # Own app and external app: public booking API rollout
 
-## Current status (20 November 2026)
+## Current status (21 November 2026)
 
 - Existing public API: authentication, authorized inventory, holds, quotes, bookings, Razorpay Test Mode payment/verification/recovery, tickets and cancellation requests.
 - The portal regression now exercises actual payment endpoints with mocked provider responses, replacing its removed allowance-confirmation operation.
 - New read-only `public:preflight` checks two independent app partners.
-- VPS inspection: healthy production release `b1dc22e`; dedicated test environment file and public-test API container absent. Current source is not deployed.
-- The current MongoDB connection uses an Atlas administrative account. Do not copy that account into the test service; create a restricted test database user.
+- Deployed baseline `d73ffc9`: healthy production services and a separate staging Test API with restricted MongoDB/Redis access. External token, cities, trips, seats and stops requests were verified on 20 November.
+- The production Partner Portal originally could not generate isolated sandbox credentials or run its Playground. The new [private bridge](SANDBOX-PORTAL-BRIDGE.md) is implemented locally; it requires a reviewed coordinated release and private configuration before hosted acceptance testing.
 - Available project metadata and accessible GitHub repository names did not identify the actual AIBUS customer app. The Operator/Admin/Partner frontends are not a replacement customer app. Other projects were not changed.
 
 Verification: 400 workspace tests (64 Operator, 302 backend, 20 Admin, 14 Partner), 12 isolated browser tests, and 10 Postman/deployment tooling tests passed. All workspace/client TypeScript checks and changed TypeScript formatting checks passed. The full run used the cached MongoDB 7.0.14 disposable test binary. New API coverage verifies separate own-app/external-app bookings, cross-partner ticket/payment-recovery denial, occupied-seat rejection and read-only readiness behavior. Actual external checkout and hosted app integration remain unverified.
 
-## One-time Atlas prerequisite
+## Atlas isolation prerequisite (already provisioned for the deployed test service)
 
 An Atlas database credential does not provide Atlas account/API authentication. Atlas does not support the MongoDB `createUser` command; use its UI or authenticated administration API.
 

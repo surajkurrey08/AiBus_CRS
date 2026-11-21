@@ -3,6 +3,7 @@ import {
   platformPartnersRouter,
 } from "./routes/partner-portal.routes.js";
 import { publicApiRouter } from "./routes/public-api.routes.js";
+import { sandboxPortalBridgeRouter } from "./routes/sandbox-portal.routes.js";
 import { operationsRouter } from "./routes/operations.routes.js";
 import { observeRequests } from "./services/observability.service.js";
 import { settlementRouter } from "./routes/settlement.routes.js";
@@ -162,6 +163,10 @@ export function createApp(
   );
   app.use("/api", rateLimit(limiter, "api", 300, 60));
   app.use("/api/v1/auth", authRouter(config, limiter));
+  app.use(
+    "/internal/sandbox-portal",
+    sandboxPortalBridgeRouter(config, limiter),
+  );
   app.use("/api/v1/partner", partnerPortalRouter(config, limiter));
   app.use("/api/v1/platform/api-partners", platformPartnersRouter(config));
   app.use("/api/v1/public", publicApiRouter(config, limiter));

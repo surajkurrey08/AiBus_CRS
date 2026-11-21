@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import * as P from "../models/public-api.model.js";
 import type { Config } from "../config/env.js";
 import { fail } from "../utils/core.js";
+import { sourceEntitlement } from "./sandbox-bridge.transport.js";
 export const publicScopes = [
   "inventory:read",
   "holds:write",
@@ -64,14 +65,22 @@ export async function generateCredential(
   partnerId: string,
   scopes: string[],
   expiresAt: Date,
-  options: { session?: mongoose.ClientSession; actorId?: string; label?: string; portalManaged?: boolean } = {},
+  options: {
+    session?: mongoose.ClientSession;
+    actorId?: string;
+    label?: string;
+    portalManaged?: boolean;
+  } = {},
 ) {
   sandboxReady(config);
   await publicIndexesReady();
   const partner = await P.ApiPartner.findOne({
     _id: partnerId,
     status: "Active",
-    $or: [{ onboardingStatus: "Approved" }, { onboardingStatus: { $exists: false } }],
+    $or: [
+      { onboardingStatus: "Approved" },
+      { onboardingStatus: { $exists: false } },
+    ],
     environment: "sandbox",
   });
   if (
@@ -86,21 +95,34 @@ export async function generateCredential(
     fail(400, "CREDENTIAL_POLICY", "Invalid partner credential policy");
   const id = publicId("cred"),
     secret = randomBytes(32).toString("hex");
-  const [credential] = await P.ApiCredential.create([{
-    publicId: id,
-    partnerId,
-    environment: "sandbox",
-    scopes,
-    secretHash: createHash("sha256").update(secret).digest("hex"),
-    expiresAt, label: options.label, createdBy: options.actorId, portalManaged: options.portalManaged || false,
-  }], { session: options.session });
-  await Audit.create([{
-    actorId: options.actorId || partnerId,
-    action: "public.credential.issued",
-    resourceId: String(credential._id),
-    metadata: { partnerId, scopes, environment: "sandbox" },
-    expiresAt: null,
-  }], { session: options.session });
+  const [credential] = await P.ApiCredential.create(
+    [
+      {
+        publicId: id,
+        partnerId,
+        environment: "sandbox",
+        scopes,
+        secretHash: createHash("sha256").update(secret).digest("hex"),
+        expiresAt,
+        label: options.label,
+        createdBy: options.actorId,
+        portalManaged: options.portalManaged || false,
+      },
+    ],
+    { session: options.session },
+  );
+  await Audit.create(
+    [
+      {
+        actorId: options.actorId || partnerId,
+        action: "public.credential.issued",
+        resourceId: String(credential._id),
+        metadata: { partnerId, scopes, environment: "sandbox" },
+        expiresAt: null,
+      },
+    ],
+    { session: options.session },
+  );
   // Returned once to reviewed provisioning callers; never persisted in raw form.
   return { credential: `ap_sandbox_${id}.${secret}`, id };
 }
@@ -120,7 +142,10 @@ async function current(
     (await P.ApiPartner.findOne({
       _id: credential.partnerId,
       status: "Active",
-    $or: [{ onboardingStatus: "Approved" }, { onboardingStatus: { $exists: false } }],
+      $or: [
+        { onboardingStatus: "Approved" },
+        { onboardingStatus: { $exists: false } },
+      ],
       environment: "sandbox",
     }).lean());
   if (!credential || !partner)
@@ -129,13 +154,29 @@ async function current(
       "PARTNER_UNAUTHORIZED",
       "Partner credential is invalid, expired or revoked",
     );
+  const source = await sourceEntitlement(
+    config,
+    partner!,
+    String(credential!.createdBy || ""),
+  );
+  if (
+    partner!.portalSourcePublicId &&
+    (!source.permissions?.includes("partner:credentials:write") ||
+      (credential!.scopes.includes("tickets:read") &&
+        !source.permissions?.includes("partner:passengers")))
+  )
+    fail(
+      401,
+      "PARTNER_UNAUTHORIZED",
+      "Credential issuer no longer has the required organization permissions",
+    );
   return {
     partnerId: String(partner!._id),
     credentialId: String(credential!._id),
     publicId: partner!.publicId,
     environment: "sandbox",
-    scopes: credential!.scopes.filter((s: string) =>
-      partner!.scopes.includes(s),
+    scopes: credential!.scopes.filter(
+      (s: string) => partner!.scopes.includes(s) && source.scopes.includes(s),
     ),
   };
 }
@@ -205,7 +246,10 @@ export async function partnerFromToken(config: Config, token: string) {
   const identity = await current(config, String(credential!._id));
   if (payload.sub !== identity.publicId || payload.cv !== credential?.version)
     fail(401, "PARTNER_UNAUTHORIZED", "Credential was rotated");
-  await P.ApiCredential.updateOne({ _id: credential!._id }, { $set: { lastUsedAt: new Date() } });
+  await P.ApiCredential.updateOne(
+    { _id: credential!._id },
+    { $set: { lastUsedAt: new Date() } },
+  );
   return identity;
 }
 export function requirePublicScope(identity: PartnerIdentity, scope: string) {

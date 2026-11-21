@@ -16,11 +16,32 @@ const sandbox = {
 };
 export const ApiPartner = model("ApiPartner", {
   publicId: { type: String, required: true, unique: true },
+  // Set only by the authenticated control plane in the isolated sandbox.
+  portalSourcePublicId: { type: String, immutable: true },
   name: { type: String, required: true },
-  onboardingStatus: { type: String, enum: applicationStates, default: "Approved" },
-  contactPerson: String, businessEmail: String, phone: String, address: String, registrationDetails: String, technicalEmail: String, intendedUsage: String, requestedEnvironment: { type: String, enum: ["Sandbox", "Production"], default: "Sandbox" },
+  onboardingStatus: {
+    type: String,
+    enum: applicationStates,
+    default: "Approved",
+  },
+  contactPerson: String,
+  businessEmail: String,
+  phone: String,
+  address: String,
+  registrationDetails: String,
+  technicalEmail: String,
+  intendedUsage: String,
+  requestedEnvironment: {
+    type: String,
+    enum: ["Sandbox", "Production"],
+    default: "Sandbox",
+  },
   portalActivatedAt: Date,
-  submissionTokenHash: { type: String, select: false }, submissionExpiresAt: Date, reviewedBy: objectId, reviewReason: String, reviewedAt: Date,
+  submissionTokenHash: { type: String, select: false },
+  submissionExpiresAt: Date,
+  reviewedBy: objectId,
+  reviewReason: String,
+  reviewedAt: Date,
   requestsPerMinute: { type: Number, min: 1, max: 120, default: 120 },
   environment: sandbox,
   status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
@@ -40,19 +61,22 @@ export const ApiPartner = model("ApiPartner", {
     validate: Number.isInteger,
   },
 });
-ApiPartner.schema.index({onboardingStatus:1,createdAt:-1});
+ApiPartner.schema.index({ onboardingStatus: 1, createdAt: -1 });
 export const ApiCredential = model("ApiCredential", {
   publicId: { type: String, required: true, unique: true },
   partnerId: { type: objectId, required: true, immutable: true, index: true },
   environment: sandbox,
   secretHash: { type: String, required: true, select: false },
-  label: String, lastUsedAt: Date, createdBy: objectId, portalManaged: { type: Boolean, default: false },
+  label: String,
+  lastUsedAt: Date,
+  createdBy: objectId,
+  portalManaged: { type: Boolean, default: false },
   scopes: [String],
   expiresAt: { type: Date, required: true },
   revokedAt: Date,
   version: { type: Number, default: 1 },
 });
-ApiCredential.schema.index({partnerId:1,portalManaged:1,createdAt:-1});
+ApiCredential.schema.index({ partnerId: 1, portalManaged: 1, createdAt: -1 });
 export const PartnerInventoryGrant = model(
   "PartnerInventoryGrant",
   {
@@ -138,14 +162,18 @@ export const PartnerWebhookSubscription = model(
   },
   [{ keys: { partnerId: 1, url: 1 }, options: { unique: true } }],
 );
-PartnerWebhookSubscription.schema.index({partnerId:1,createdAt:-1});
+PartnerWebhookSubscription.schema.index({ partnerId: 1, createdAt: -1 });
 export const PartnerWebhookEvent = model(
   "PartnerWebhookEvent",
   {
     partnerId: { type: objectId, required: true, immutable: true },
     publicId: { type: String, required: true, unique: true },
     key: { type: String, required: true },
-    type: { type: String, enum: ["booking.status", "integration.test"], default: "booking.status" },
+    type: {
+      type: String,
+      enum: ["booking.status", "integration.test"],
+      default: "booking.status",
+    },
     booking: String,
     status: String,
     paymentStatus: String,
@@ -187,4 +215,4 @@ export const PartnerWebhookAttempt = model(
   [{ keys: { deliveryId: 1, attempt: 1 }, options: { unique: true } }],
 );
 
-PartnerWebhookDelivery.schema.index({partnerId:1,status:1,createdAt:-1});
+PartnerWebhookDelivery.schema.index({ partnerId: 1, status: 1, createdAt: -1 });

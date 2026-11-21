@@ -1,6 +1,6 @@
 # AIBUS Public Booking API v1 — external integration testing
 
-20 November 2026. This is AIBUS's outward-facing inventory API, not a third-party inventory purchase integration. Namespace: `/api/v1/public`. OpenAPI: `openapi.v1.json` and the running API's `/api/v1/public/openapi.json`. The selected test URL is `https://partner.bookmybus.pro/api/v1/public`; it remains unavailable until the separate staging API/database and proxy route are provisioned and deployed.
+20 November 2026. This is AIBUS's outward-facing inventory API, not a third-party inventory purchase integration. Namespace: `/api/v1/public`. OpenAPI: `openapi.v1.json` and the running API's `/api/v1/public/openapi.json`. The selected test URL is `https://partner.bookmybus.pro/api/v1/public`; it was verified over external HTTPS on 20 November 2026 after isolated staging deployment (contract 1.0.0-test, release d73ffc9). Token and inventory reads passed for both app identities; actual payment checkout remains unverified.
 
 ## Availability of the 18 functionalities
 
