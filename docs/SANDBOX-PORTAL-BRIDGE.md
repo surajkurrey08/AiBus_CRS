@@ -8,7 +8,7 @@ Partner browsers continue signing in to the existing production Partner Portal. 
 
 The isolated staging backend creates one empty sandbox identity for each approved source partner public ID. It never copies production inventory, bookings, passengers, money or credentials. A separately reviewed sandbox inventory grant is still required. Existing standalone demo credentials remain compatible.
 
-Every linked credential exchange and authenticated public request checks current source organization status, member status and permissions through the control plane. Revocation is effective for existing access tokens. Source suspension, member deactivation and bridge timeouts fail closed. A secret is returned once; metadata reads cannot recover it. Retrying an uncertain credential command with the same key cannot issue another secret.
+Every linked credential exchange and authenticated public request checks current source organization status, member status, scopes and request limit through the control plane. Effective requests per minute use the stricter current source/sandbox limit, including for existing access tokens. Revocation is effective for existing access tokens. Source suspension, member deactivation and bridge timeouts fail closed. A secret is returned once; metadata reads cannot recover it. Retrying an uncertain credential command with the same key cannot issue another secret.
 
 ## Operations covered
 

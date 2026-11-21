@@ -102,9 +102,18 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
           /* Operational logs already retain request IDs; never log credentials or bodies. */
         });
       });
-      const policy = await P.ApiPartner.findById(identity.partnerId).select("requestsPerMinute").lean();
+      const policy = await P.ApiPartner.findById(identity.partnerId)
+        .select("requestsPerMinute")
+        .lean();
       if (
-        !(await limiter.check("public-partner:" + identity.partnerId, policy?.requestsPerMinute || 120, 60))
+        !(await limiter.check(
+          "public-partner:" + identity.partnerId,
+          Math.min(
+            policy?.requestsPerMinute || 120,
+            identity.requestsPerMinute || 120,
+          ),
+          60,
+        ))
       )
         fail(429, "PARTNER_RATE_LIMIT", "Partner rate limit exceeded");
       next();
@@ -159,11 +168,15 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
             .map((c) => [c.id, { ...c, CityId: c.id, City: c.name }]),
         ).values(),
       ].sort((a, b) => a.name.localeCompare(b.name));
-      res.json({ success: true, data: cities.slice((q.page - 1) * q.limit, q.page * q.limit), meta: {
-        page: q.page,
-        limit: q.limit,
-        total: cities.length,
-      } });
+      res.json({
+        success: true,
+        data: cities.slice((q.page - 1) * q.limit, q.page * q.limit),
+        meta: {
+          page: q.page,
+          limit: q.limit,
+          total: cities.length,
+        },
+      });
     }),
   );
   router.get(
@@ -421,11 +434,7 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
         "payment-reconcile",
         createHash("sha256").update(JSON.stringify({ id })).digest("hex"),
       );
-      await reconcileRazorpayPayment(
-        config,
-        principal,
-        String(booking._id),
-      );
+      await reconcileRazorpayPayment(config, principal, String(booking._id));
       ok(res, await bookingView(identity, id));
     }),
   );

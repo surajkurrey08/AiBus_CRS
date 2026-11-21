@@ -18,6 +18,8 @@
 - Postman/deployment tooling: 10 passed.
 - All workspace TypeScript checks, changed-file ESLint/Prettier checks and backend build passed.
 - The first GitHub CI run exposed a focus-transition race in an existing Operator registration test. The test now waits for the scheduled heading focus before typing; its six authentication cases pass locally. Product authentication behavior was not changed, and a fresh exact-revision CI gate is required before deployment.
+- Final policy review added immediate enforcement of reduced control-plane request limits for existing tokens. The 15 bridge tests and 33 public API integration tests pass together; fresh exact-revision CI is required for this correction.
+- A genuine hosted sandbox payment attempt reached pending booking creation, but the gateway rejected the configured key pair with RAZORPAY_AUTH_FAILED. No gateway order, payment evidence or PNR was created. The expired booking was marked Failed and its L1 seat returned to available. Existing production partner records were not changed. Actual checkout completion needs a valid matching test key pair.
 - External Test API reverified at https://partner.bookmybus.pro/api/v1/public: both existing app partners returned 200 for token, capabilities, cities, trip search, seats and stops; tokens expire in 300 seconds.
 - Production/public guard reverified: OpenAPI 200 with version 1.0.0-test; token exchange 503 PUBLIC_API_DISABLED. This is intentional.
 - Existing deployed baseline remains d73ffc9. All four sites/readiness checks returned 200. No live configuration or database was changed during this implementation.

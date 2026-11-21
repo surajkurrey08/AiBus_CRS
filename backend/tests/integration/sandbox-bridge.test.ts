@@ -120,6 +120,19 @@ afterAll(async () => {
 });
 
 describe("Private production portal to isolated sandbox bridge", () => {
+  it("applies a reduced source request limit to already-issued access tokens", async () => {
+    const key = await issue();
+    const auth = await tokenFor(key.credential);
+    const check = vi.fn(async () => true);
+    const limited = createApp(config, { check });
+    source.requestsPerMinute = 7;
+    const response = await request(limited)
+      .get("/api/v1/public/capabilities")
+      .set("Authorization", "Bearer " + auth.body.data.accessToken);
+    expect(response.status).toBe(200);
+    const partner = await P.ApiPartner.findOne({ publicId: sourceId }).lean();
+    expect(check).toHaveBeenCalledWith("public-partner:" + partner!._id, 7, 60);
+  });
   it("rejects unsafe bridge transport and reused signing secrets", () => {
     const base = {
       NODE_ENV: "test",

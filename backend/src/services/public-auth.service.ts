@@ -22,6 +22,7 @@ export type PartnerIdentity = {
   publicId: string;
   scopes: string[];
   environment: "sandbox";
+  requestsPerMinute?: number;
 };
 export const publicId = (kind: string) =>
   `${kind}_${randomBytes(18).toString("base64url")}`;
@@ -175,6 +176,10 @@ async function current(
     credentialId: String(credential!._id),
     publicId: partner!.publicId,
     environment: "sandbox",
+    requestsPerMinute: Math.min(
+      partner!.requestsPerMinute || 120,
+      source.requestsPerMinute,
+    ),
     scopes: credential!.scopes.filter(
       (s: string) => partner!.scopes.includes(s) && source.scopes.includes(s),
     ),
