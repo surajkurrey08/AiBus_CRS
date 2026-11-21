@@ -120,6 +120,13 @@ describe("Operator authentication", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Register your operator company" }),
     );
+    // Mode navigation intentionally focuses the new heading on the next frame.
+    // Wait for that transition before typing so it cannot steal input focus.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Register your company" }),
+      ),
+    );
     for (const [label, value] of [
       ["Full name", "Operator Owner"],
       ["Company name", "Test Travels"],

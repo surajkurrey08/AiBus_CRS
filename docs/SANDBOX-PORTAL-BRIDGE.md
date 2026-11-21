@@ -56,4 +56,4 @@ Actual hosted checkout and app integration require separate evidence; automated 
 
 ## Rollback
 
-Disable the bridge variables and redeploy the previous reviewed release if validation fails. Linked sandbox credentials fail closed when the source connection is absent. Do not drop test collections, remove audit history, disable production guards or restore a database snapshot over newer business data.
+For a production/control-plane rollback, disable its bridge forwarding and redeploy the previous reviewed production release while retaining the new staging image. Linked sandbox credentials then fail closed when source entitlement is unavailable. Do not downgrade staging to an older image that does not understand partner provenance while linked credentials remain active: first revoke those linked sandbox credentials through reviewed, audited operations. Do not drop test collections, remove audit history, disable production guards or restore a database snapshot over newer business data.
