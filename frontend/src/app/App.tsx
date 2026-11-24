@@ -79,6 +79,11 @@ import { AreaMaster } from "../features/area/AreaMaster";
 import "../styles/base.css";
 import "../styles/theme.css";
 import { normalize } from "../utils/normalize.ts";
+import {
+  canOpenWorkspacePage,
+  isAgentWorkspace,
+  workspaceRoleLabel,
+} from "../utils/workspace-access.ts";
 const nav = [
   ["Overview", LayoutDashboard],
   ["Bus & fleet", BusFront],
@@ -145,10 +150,11 @@ export function App({ demo = false }: { demo?: boolean }) {
 }
 function Dashboard() {
   const ws = useWorkspace();
+  const agentWorkspace = isAgentWorkspace(ws.user.role);
   const counterGuard = useRef<((proceed: () => void) => void) | null>(null);
   const permitted = (p: string) => ws.user.permissions.includes(p);
   const routeNames = ws.records.routes.map((r) => r.route);
-  const [page, setPage] = useState(0),
+  const [page, setPage] = useState(agentWorkspace ? 4 : 0),
     [collapsed, setCollapsed] = useState(false),
     [tripMasterTab, setTripMasterTab] = useState("services");
   const { bookings, buses: fleet, routes, fares, offers, refunds } = ws.records;
@@ -185,7 +191,7 @@ function Dashboard() {
   const setProfile = ws.setProfile;
   const [report, setReport] = useState<Record<string, any>>({});
   useEffect(() => {
-    if (!ws.demo && permitted("finance:read"))
+    if (!ws.demo && !agentWorkspace && permitted("finance:read"))
       api("/operator/reports/revenue?from=" + reportFrom + "&to=" + date)
         .then((r) => setReport(r.data))
         .catch((e) => ws.notify(e.message));
@@ -209,6 +215,11 @@ function Dashboard() {
   const navigate = (i: number) => {
     const proceed = () => {
       const target = i === 1 ? 12 : i === 2 ? 14 : i;
+      if (
+        !canOpenWorkspacePage(ws.user.role, i) ||
+        !canOpenWorkspacePage(ws.user.role, target)
+      )
+        return;
       if (i === 2) setTripMasterTab("trips");
       else if (i === 14) setTripMasterTab("services");
       setPage(target);
@@ -326,14 +337,15 @@ function Dashboard() {
               i,
             }))
             .map(({ entry: [label, Icon], i }) =>
-              [5, 7, 9, 16].includes(i) &&
-              !permitted(
-                i === 5
-                  ? "manifest:read"
-                  : i === 7
-                    ? "refunds:write"
-                    : "finance:read",
-              ) ? null : (
+              !canOpenWorkspacePage(ws.user.role, i) ||
+              ([5, 7, 9, 16].includes(i) &&
+                !permitted(
+                  i === 5
+                    ? "manifest:read"
+                    : i === 7
+                      ? "refunds:write"
+                      : "finance:read",
+                )) ? null : (
                 <React.Fragment key={label}>
                   {i === 6 && (
                     <div className="nav-label">
@@ -455,7 +467,7 @@ function Dashboard() {
               </span>
               <span>
                 <strong>{ws.user.name}</strong>
-                <small>{ws.user.role.replaceAll("_", " ")}</small>
+                <small>{workspaceRoleLabel(ws.user.role)}</small>
               </span>
               <ChevronDown size={14} />
             </button>
@@ -504,16 +516,18 @@ function Dashboard() {
             <div className="header-popover account-pop">
               <strong>{profile.company}</strong>
               <p>Operator ID · {ws.user.operatorId}</p>
-              <button
-                className="text-btn"
-                onClick={() => {
-                  navigate(10);
-                  setAccount(false);
-                }}
-              >
-                Manage account
-                <Settings size={15} />
-              </button>
+              {!agentWorkspace && (
+                <button
+                  className="text-btn"
+                  onClick={() => {
+                    navigate(10);
+                    setAccount(false);
+                  }}
+                >
+                  Manage account
+                  <Settings size={15} />
+                </button>
+              )}
               <button className="text-btn" onClick={ws.logout}>
                 Sign out
               </button>
@@ -573,7 +587,11 @@ function Dashboard() {
           </div>
           <div className="demo-strip">
             <span className="demo-dot" />
-            {ws.demo ? "Demo workspace" : "Operator workspace"}
+            {ws.demo
+              ? "Demo workspace"
+              : agentWorkspace
+                ? "Agent workspace"
+                : "Operator workspace"}
             <span className="demo-caption">
               {ws.demo
                 ? "Sample operational data"
@@ -834,16 +852,18 @@ function Dashboard() {
                         { Icon: Tag, label: "Create offer", target: 8 },
                         { Icon: Download, label: "Download report", target: 9 },
                       ]
-                        .filter(({ target }) =>
-                          permitted(
-                            target === 1
-                              ? "fleet:write"
-                              : target === 8
-                                ? "offers:write"
-                                : target === 9
-                                  ? "finance:read"
-                                  : "read",
-                          ),
+                        .filter(
+                          ({ target }) =>
+                            canOpenWorkspacePage(ws.user.role, target) &&
+                            permitted(
+                              target === 1
+                                ? "fleet:write"
+                                : target === 8
+                                  ? "offers:write"
+                                  : target === 9
+                                    ? "finance:read"
+                                    : "read",
+                            ),
                         )
                         .map(({ Icon, label, target }) => (
                           <button

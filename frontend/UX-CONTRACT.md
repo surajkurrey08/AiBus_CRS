@@ -82,3 +82,7 @@ AuthScreen owns the authentication Form variant and existing login/register/forg
 | --- | --- | --- | --- | --- |
 | Form | AuthScreen for authentication; RecordForm for business records | Existing auth API and 12-character registration/reset policy | login, register, forgot, reset | src/tests/auth-screen.test.tsx; src/tests/auth.test.tsx |
 | Scrollbar | src/styles/theme.css | Shared workspace styling and natural document scrolling | auth documents grow with form content | Desktop/mobile/320px browser inspection |
+
+## Agent workspace
+
+Agent and legacy booking_staff logins display as Agent. Their sidebar is restricted to Bookings & tickets, Booking counter and Passenger manifest (subject to manifest permission). They start on booking history. Operator setup, inventory management, finance, reports, company settings and account management shortcuts are unavailable. Sign out and existing booking details remain available. Stored roles and server authorization are unchanged.
