@@ -10,6 +10,7 @@ import {
 import { useWorkspace } from "../../context/WorkspaceContext.tsx";
 import type { Row } from "../../data/demo-data.ts";
 import { AgentForm } from "./components/AgentForm.tsx";
+import { workspaceRoleLabel } from "../../utils/workspace-access.ts";
 const money = (v = 0) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
     v / 100,
@@ -197,12 +198,13 @@ export function LiveStaff() {
                 name: u.name,
                 email: u.email,
                 role: u.role,
+                roleLabel: workspaceRoleLabel(u.role),
                 status: u.active === false ? "Inactive" : "Active",
               }))}
             columns={[
               ["name", "Name"],
               ["email", "Email"],
-              ["role", "Role"],
+              ["roleLabel", "Role"],
               ["status", "Status"],
             ]}
             onEdit={(r) => {

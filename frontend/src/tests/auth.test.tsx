@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authState, logout } from "../api/client.ts";
@@ -92,6 +98,74 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 describe("live API workspace", () => {
+  it.each(["agent", "booking_staff"])(
+    "keeps only booking tasks for %s",
+    async (role) => {
+      const user = userEvent.setup();
+      const defaultFetch = vi.mocked(fetch).getMockImplementation()!;
+      vi.mocked(fetch).mockImplementation(
+        async (path: any, options?: RequestInit) =>
+          String(path).includes("/auth/login")
+            ? reply({
+                accessToken: "test-memory-token",
+                user: {
+                  ...identity,
+                  role,
+                  permissions: [
+                    "read",
+                    "bookings:write",
+                    "manifest:read",
+                    "finance:read",
+                    "staff:write",
+                  ],
+                },
+              })
+            : defaultFetch(path, options!),
+      );
+      render(<App />);
+      await screen.findByRole("button", { name: "Sign in" });
+      await user.type(screen.getByLabelText("Email"), "agent@example.test");
+      await user.type(
+        screen.getByLabelText("Password"),
+        "private-test-password",
+      );
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      const navigation = await screen.findByRole("navigation", {
+        name: "Workspace navigation",
+      });
+      expect(
+        within(navigation)
+          .getAllByRole("button")
+          .map((button) => button.getAttribute("aria-label")),
+      ).toEqual([
+        "Booking counter",
+        "Bookings & tickets",
+        "Passenger manifest",
+      ]);
+      expect(
+        within(navigation)
+          .getByRole("button", { name: "Bookings & tickets" })
+          .getAttribute("aria-current"),
+      ).toBe("page");
+      expect(screen.queryByText("Your operations, at a glance.")).toBeNull();
+      expect(screen.getByText("Agent", { selector: "small" })).toBeTruthy();
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([url]) =>
+            String(url).includes("/operator/reports/revenue"),
+          ),
+      ).toBe(false);
+      await user.click(
+        screen.getByRole("button", { name: /Actual Operator.*Agent/ }),
+      );
+      expect(
+        screen.queryByRole("button", { name: /Manage account/ }),
+      ).toBeNull();
+      expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+      expect(authState().user?.role).toBe(role);
+    },
+  );
   it("saves double and single weekday/weekend prices from the Fares tab as integer paise", async () => {
     const user = userEvent.setup();
     const defaultFetch = vi.mocked(fetch).getMockImplementation()!;

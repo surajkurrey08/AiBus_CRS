@@ -12,7 +12,17 @@ export function normalize(
     id: String(r._id || r.id || ""),
     status: String(r.status || "Active"),
   };
-  if (resource === "finance/refund-intents") return { ...base, bookingId: String(r.bookingId), purpose: r.purpose, fundingMethod: r.fundingMethod, amountDisplay: new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(r.amountPaise / 100) };
+  if (resource === "finance/refund-intents")
+    return {
+      ...base,
+      bookingId: String(r.bookingId),
+      purpose: r.purpose,
+      fundingMethod: r.fundingMethod,
+      amountDisplay: new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }).format(r.amountPaise / 100),
+    };
   if (resource === "finance/wallets") {
     const inr = (value: number) =>
       new Intl.NumberFormat("en-IN", {
@@ -157,7 +167,16 @@ export function normalize(
       date: r.createdAt?.slice(0, 10) || "",
       bookingId: r.bookingId,
     };
-  if (resource === "finance/settlements") return { ...base, ...r, id: r._id, netDisplay: new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format((r.netPaise || 0) / 100) };
+  if (resource === "finance/settlements")
+    return {
+      ...base,
+      ...r,
+      id: r._id,
+      netDisplay: new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }).format((r.netPaise || 0) / 100),
+    };
   if (resource === "settlements")
     return {
       ...base,
@@ -174,7 +193,7 @@ export function normalize(
       phone: r.phone || "",
       role: r.role,
       roleDisplay:
-        r.role === "booking_staff"
+        r.role === "booking_staff" || r.role === "agent"
           ? "Agent"
           : r.role === "manager"
             ? "Manager"
