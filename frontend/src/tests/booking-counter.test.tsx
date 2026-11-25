@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import {
   cleanup,
   fireEvent,
@@ -487,7 +487,7 @@ describe("Booking Counter", () => {
     );
     await user.type(
       screen.getByLabelText("Booking contact mobile"),
-      "+919876543210",
+      "9876543210",
     );
     await user.type(name, "Actual Passenger");
     await waitFor(() =>
@@ -516,7 +516,7 @@ describe("Booking Counter", () => {
       quoteId: "quote-1",
       tripId: trip.id,
       holdId: "hold-1",
-      contact: { phone: "+919876543210" },
+      contact: { phone: "9876543210" },
     });
     expect(body).not.toHaveProperty("totalPaise");
     expect(body).not.toHaveProperty("source");
@@ -621,7 +621,7 @@ describe("Booking Counter", () => {
     );
     await user.type(
       screen.getByLabelText("Booking contact mobile"),
-      "+919876543210",
+      "9876543210",
     );
     await waitFor(() =>
       expect(

@@ -535,7 +535,12 @@ export function BookingCounter({
       setError("Hold the selected seats and wait for a current server quote.");
       return false;
     }
-    if (!/^\+?[\d\s-]{10,16}$/.test(phone)) {
+    if (
+      (phone && !/^[0-9]{10}$/.test(phone)) ||
+      (quote.pricing.requirements.mobile &&
+        !phone &&
+        !selected.some((seat) => passengers[seat]?.phone))
+    ) {
       setError("Enter a 10-digit booking contact mobile number.");
       document.getElementById("counter-contact-phone")?.focus();
       return false;
