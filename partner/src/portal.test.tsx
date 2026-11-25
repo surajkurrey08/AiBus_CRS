@@ -210,7 +210,7 @@ it("keeps application input and focuses a visible server error after failed regi
     ["Business address", "Pune test office"],
     ["Technical contact email", "tech@fixture.test"],
     ["Intended API usage", "Bus booking sandbox integration"],
-    ["Owner password (12+ characters)", "Fixture-password-123!"],
+    ["Owner password (8+ characters)", "Fixture-password-123!"],
   ])
     await userEvent.type(screen.getByLabelText(name, { exact: true }), value);
   await userEvent.click(

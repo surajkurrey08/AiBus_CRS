@@ -77,7 +77,7 @@ export function PlatformUsers({ user }: { user: Identity }) {
           ? [
               {
                 name: "initialPassword",
-                label: "Initial staff password (12+ characters)",
+                label: "Initial staff password (8+ characters)",
                 type: "password" as const,
               },
             ]
@@ -141,8 +141,8 @@ export function PlatformUsers({ user }: { user: Identity }) {
         password,
       ],
       save: async (v, key) => {
-        if (!target && v.initialPassword.length < 12)
-          throw Error("Initial staff password needs at least 12 characters.");
+        if (!target && v.initialPassword.length < 8)
+          throw Error("Initial staff password needs at least 8 characters.");
         const body = {
           name: v.name,
           email: v.email,

@@ -1,3 +1,4 @@
+import { phoneNumber } from "../validators/account-input.schemas.js";
 import { postDuplicateCapture } from "./payment-exception.service.js";
 import { partnerCommission } from "./commission.service.js";
 import { postCapturedBooking, type AccountSpec } from "./ledger.service.js";
@@ -306,9 +307,7 @@ export const passengerInput = z
       .min(1)
       .max(100)
       .refine((v) => !/[<>\x00]/.test(v)),
-    phone: z
-      .string()
-      .regex(/^\+?[\d\s-]{10,16}$/)
+    phone: phoneNumber
       .optional(),
     seat: z.string().min(1).max(12),
     boarding: z.string().max(200).optional(),

@@ -63,6 +63,7 @@ export function PricingDialog({
     [chargeTax, setChargeTax] = useState(policy?.chargesTaxable || false),
     [age, setAge] = useState(policy?.requireAge || false),
     [gender, setGender] = useState(policy?.requireGender || false),
+    [mobile, setMobile] = useState(policy?.requireMobile ?? false),
     [gst, setGst] = useState(policy?.gstEnabled || false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -96,7 +97,7 @@ export function PricingDialog({
                 operatorDiscountMaxPaise: Math.round(Number(maxDiscount) * 100),
                 requireAge: age,
                 requireGender: gender,
-                requireMobile: true,
+                requireMobile: mobile,
                 gstEnabled: gst,
                 expectedVersion: policy?.version || 0,
               }),
@@ -160,6 +161,7 @@ export function PricingDialog({
             ],
             [age, setAge, "Require passenger age"],
             [gender, setGender, "Require passenger gender"],
+            [mobile, setMobile, "Require a booking mobile number"],
             [gst, setGst, "Accept passenger GST details"],
           ].map(([checked, setter, label]) => (
             <label className="counter-check" key={String(label)}>
@@ -233,6 +235,7 @@ export function PassengerFields({
                 Mobile · optional
                 <input
                   type="tel"
+                  maxLength={10}
                   aria-label={`Passenger mobile ${seat}`}
                   value={p.phone || ""}
                   onChange={(e) => set("phone", e.target.value || undefined)}

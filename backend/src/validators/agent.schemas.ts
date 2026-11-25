@@ -1,3 +1,4 @@
+import { strongPassword, phoneNumber } from "./account-input.schemas.js";
 import { z } from "zod";
 import { amount, id, text } from "./common.schemas.js";
 import { agentCapabilities } from "../types/agent.js";
@@ -20,7 +21,7 @@ export const agentInput = z
       .max(254)
       .transform((v) => v.toLowerCase())
       .optional(),
-    phone: z.string().trim().max(20).optional(),
+    phone: phoneNumber.optional(),
     status: z.enum(["Active", "Inactive"]).default("Active"),
     permissions: z
       .array(z.enum(agentCapabilities))
@@ -43,7 +44,7 @@ export const agentUserInput = z.union([
         .email()
         .max(254)
         .transform((v) => v.toLowerCase()),
-      password: z.string().min(12).max(128),
+      password: strongPassword,
     })
     .strict(),
 ]);

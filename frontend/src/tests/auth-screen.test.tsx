@@ -133,7 +133,7 @@ describe("Operator authentication", () => {
       ["Phone number", "9000000000"],
       ["Company address", "Pune"],
       ["Email", "operator@example.test"],
-      ["Password", "private-test-password"],
+      ["Password", "Private-test-password"],
     ])
       await userEvent.type(screen.getByLabelText(label), value);
     await userEvent.click(
@@ -147,7 +147,7 @@ describe("Operator authentication", () => {
       phone: "9000000000",
       address: "Pune",
       email: "operator@example.test",
-      password: "private-test-password",
+      password: "Private-test-password",
     });
     expect(
       await screen.findByText(
@@ -161,7 +161,7 @@ describe("Operator authentication", () => {
     render(<AuthScreen />);
     await userEvent.type(
       screen.getByLabelText("Password"),
-      "private-test-password",
+      "Private-test-password",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Save password" }),
@@ -171,7 +171,7 @@ describe("Operator authentication", () => {
       expect.objectContaining({
         body: JSON.stringify({
           token: "isolated-reset-token",
-          password: "private-test-password",
+          password: "Private-test-password",
         }),
       }),
     );

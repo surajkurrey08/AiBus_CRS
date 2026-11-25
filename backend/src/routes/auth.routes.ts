@@ -1,3 +1,4 @@
+import { strongPassword, phoneNumber } from "../validators/account-input.schemas.js";
 import { Router, type Request } from "express";
 import mongoose from "mongoose";
 import { randomBytes } from "node:crypto";
@@ -61,7 +62,7 @@ export const credentials = z
   })
   .strict();
 
-export const strongPassword = z.string().min(12).max(128);
+export { strongPassword };
 
 export function authRouter(config: Config, limiter: Limiter) {
   const router = Router();
@@ -81,7 +82,7 @@ export function authRouter(config: Config, limiter: Limiter) {
           password: strongPassword,
           name: text,
           company: text,
-          phone: text,
+          phone: phoneNumber,
           address: text,
         })
         .parse(req.body);

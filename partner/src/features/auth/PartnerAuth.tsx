@@ -39,7 +39,7 @@ const registrationFields = [
   ],
   [
     "password",
-    "Owner password (12+ characters)",
+    "Owner password (8+ characters)",
     "password",
     "Create a strong password",
   ],
@@ -62,7 +62,7 @@ export function Auth() {
     if (error && !invalid) errorSummary.current?.focus();
   }, [error, invalid]);
   const fields = reset
-    ? [["password", "New password", "password", "At least 12 characters"]]
+    ? [["password", "New password", "password", "At least 8 characters"]]
     : registering
       ? registrationFields
       : mode === "reset"
@@ -149,7 +149,7 @@ export function Auth() {
       </span>
       {name === "password" && registering && (
         <small id="partner-password-hint">
-          Use at least 12 characters. This is your portal password, not an API
+          Use 8?128 characters with at least 1 uppercase letter, 4 lowercase letters and 1 special character. This is your portal password, not an API
           key.
         </small>
       )}
@@ -314,7 +314,7 @@ export function Auth() {
                       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[name])) ||
                     ((reset || registering) &&
                       name === "password" &&
-                      values[name].length < 12)
+                      values[name].length < 8)
                   ) {
                     setInvalid(name);
                     setError("Enter a valid " + label.toLowerCase() + ".");

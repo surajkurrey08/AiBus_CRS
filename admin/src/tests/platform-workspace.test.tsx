@@ -208,7 +208,7 @@ it("creates staff only after review, with explicit limited grants and masked pas
   );
   await userEvent.type(screen.getByLabelText("Staff email"), "ops@aibus.test");
   await userEvent.type(
-    screen.getByLabelText("Initial staff password (12+ characters)"),
+    screen.getByLabelText("Initial staff password (8+ characters)"),
     "Initial-safe-password!",
   );
   await userEvent.type(

@@ -1,3 +1,4 @@
+import { strongPassword, phoneNumber } from "./account-input.schemas.js";
 import { z } from "zod";
 import { publicScopes } from "../services/public-auth.service.js";
 import { partnerRoles, applicationStates } from "../types/partner-portal.js";
@@ -16,7 +17,7 @@ export const applicationInput = z
       .email()
       .max(254)
       .transform((v) => v.toLowerCase()),
-    phone: text.max(30),
+    phone: phoneNumber,
     address: text,
     registrationDetails: z.preprocess(
       (value) =>
@@ -26,7 +27,7 @@ export const applicationInput = z
     technicalEmail: z.string().email().max(254),
     intendedUsage: text,
     requestedEnvironment: z.enum(["Sandbox", "Production"]),
-    password: z.string().min(12).max(128),
+    password: strongPassword,
     submit: z.boolean().default(true),
   })
   .strict();
@@ -57,7 +58,7 @@ export const teamInput = z
       .email()
       .max(254)
       .transform((v) => v.toLowerCase()),
-    initialPassword: z.string().min(12).max(128),
+    initialPassword: strongPassword,
     role: z.enum(partnerRoles),
   })
   .strict();

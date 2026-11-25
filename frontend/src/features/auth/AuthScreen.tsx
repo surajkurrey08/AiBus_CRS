@@ -97,12 +97,14 @@ export function AuthScreen() {
         if (!String(fields[field.name] ?? "").trim())
           invalid[field.name] = `Enter your ${field.label.toLowerCase()}.`;
       }
+    if (mode === "register" && !/^[0-9]{10}$/.test(String(fields.phone ?? "").trim()))
+      invalid.phone = "Enter exactly 10 digits.";
     if (mode !== "reset" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       invalid.email = "Enter a valid email address.";
     if (mode !== "forgot" && !password)
       invalid.password = "Enter your password.";
-    else if ((mode === "register" || mode === "reset") && password.length < 12)
-      invalid.password = "Use at least 12 characters.";
+    else if ((mode === "register" || mode === "reset") && (password.length < 8 || password.length > 128 || !/[A-Z]/.test(password) || (password.match(/[a-z]/g) ?? []).length < 4 || !/[\x21-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E]/.test(password)))
+      invalid.password = "Use 8?128 characters with at least 1 uppercase letter, 4 lowercase letters and 1 special character.";
     setFieldErrors(invalid);
     setError("");
     setMessage("");
@@ -258,7 +260,7 @@ export function AuthScreen() {
                       autoComplete={field.autoComplete}
                       required
                       disabled={busy}
-                      maxLength={200}
+                      maxLength={field.name === "phone" ? 10 : 200}
                       aria-invalid={!!fieldErrors[field.name]}
                       aria-describedby={
                         fieldErrors[field.name]
@@ -370,7 +372,7 @@ export function AuthScreen() {
                       className="operator-auth-hint"
                       id="operator-password-help"
                     >
-                      Use at least 12 characters.
+                      Use 8?128 characters with at least 1 uppercase letter, 4 lowercase letters and 1 special character.
                     </span>
                   )
                 )}

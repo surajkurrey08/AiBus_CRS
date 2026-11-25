@@ -1,3 +1,4 @@
+import { phoneNumber } from "../validators/account-input.schemas.js";
 import { resolveAreaRoutes } from "./area-master.service.js";
 import mongoose from "mongoose";
 import { createHash } from "node:crypto";
@@ -26,7 +27,7 @@ export type PricingOptions = {
 };
 export const contactInput = z
   .object({
-    phone: z.string().regex(/^\+?[\d\s-]{10,16}$/),
+    phone: phoneNumber.optional(),
     email: z.string().email().max(254).optional(),
   })
   .strict();

@@ -1,3 +1,4 @@
+import { phoneNumber } from "../validators/account-input.schemas.js";
 import { Router } from "express";
 import { z } from "zod";
 import * as M from "../models/index.js";
@@ -502,7 +503,7 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
             ...V.secretReview,
             name: z.string().trim().min(2).max(150),
             contactPerson: z.string().trim().min(2).max(150),
-            phone: z.string().trim().min(2).max(30),
+            phone: phoneNumber,
             address: z.string().trim().min(2).max(500),
             technicalEmail: z.string().email().max(254),
           })

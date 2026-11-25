@@ -85,7 +85,10 @@ export function BookingCounter({
   navigationGuard?: RefObject<((proceed: () => void) => void) | null>;
 }) {
   const ws = useWorkspace(),
-    allowed = (p: string) => ws.user.permissions.includes(p);
+    allowed = (p: string) =>
+      ws.user.permissions.includes(p) &&
+      (p !== "pricing:write" ||
+        (!ws.user.agentId && ["operator_admin", "manager"].includes(ws.user.role)));
   const [from, setFrom] = useState(""),
     [to, setTo] = useState(""),
     [date, setDate] = useState(today),
@@ -272,6 +275,7 @@ export function BookingCounter({
     setTrip(value);
     setManageInventory(false);
     setSeats([]);
+    setFareOverrides({});
     setSelected([]);
     setQuote(null);
     setError("");
@@ -318,9 +322,10 @@ export function BookingCounter({
 
   async function saveCustomSeatFare(seatNum: string) {
     if (!trip) return;
-    const val = Number(fareOverrides[seatNum]);
-    if (isNaN(val) || val < 0) {
-      setError("Please enter a valid non-negative fare amount");
+    const amount = fareOverrides[seatNum]?.trim() ?? "";
+    const val = Number(amount);
+    if (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(Math.round(val * 100))) {
+      setError("Enter a valid seat fare in rupees with up to two decimal places.");
       return;
     }
     setFareSaving(seatNum);
@@ -531,7 +536,7 @@ export function BookingCounter({
       return false;
     }
     if (!/^\+?[\d\s-]{10,16}$/.test(phone)) {
-      setError("Enter a valid booking contact mobile number.");
+      setError("Enter a 10-digit booking contact mobile number.");
       document.getElementById("counter-contact-phone")?.focus();
       return false;
     }
@@ -540,6 +545,10 @@ export function BookingCounter({
       if (!p?.name?.trim()) {
         setError(`Enter the full passenger name for seat ${seat}.`);
         document.getElementById(`counter-passenger-name-${seat}`)?.focus();
+        return false;
+      }
+      if (p.phone && !/^[0-9]{10}$/.test(p.phone)) {
+        setError(`Enter a 10-digit mobile number for seat ${seat}.`);
         return false;
       }
       if (!p.boarding || !p.dropping) {
@@ -577,9 +586,9 @@ export function BookingCounter({
           quoteId: quote!.quoteId,
           passengers: selected.map((seat) => ({
             ...passengers[seat],
-            phone: passengers[seat].phone || phone,
+            phone: passengers[seat].phone || phone || undefined,
           })),
-          contact: { phone, email: email || undefined },
+          contact: phone || email ? { phone: phone || undefined, email: email || undefined } : undefined,
           ...(gstEnabled ? { gst } : {}),
           ...(promo.trim() ? { promoCode: promo.trim().toUpperCase() } : {}),
           operatorDiscountPaise: Math.round(Number(discount || 0) * 100),
@@ -1267,9 +1276,9 @@ export function BookingCounter({
                 </p>
               )}
               {trip &&
-                selected.length > 0 &&
+                seats.some((seat) => seat.state === "available" && seat.isBookable !== false && !seat.isDriver && seat.number !== "D" && seat.category !== "driver") &&
                 !hold &&
-                allowed("bookings:write") && (
+                allowed("pricing:write") && (
                   <div
                     className="counter-fare-override-card"
                     style={{
@@ -1299,7 +1308,7 @@ export function BookingCounter({
                         }}
                       >
                         <Tag size={13} color="#2563eb" />
-                        Operator Seat Price Control (Exclusive)
+                        Seat fares
                       </span>
                       <span style={{ fontSize: "10px", color: "#64748b" }}>
                         Edit seat fare directly
@@ -1308,8 +1317,8 @@ export function BookingCounter({
                     <div
                       style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
                     >
-                      {selected.map((seatNum) => {
-                        const curSeat = seats.find((s) => s.number === seatNum);
+                      {seats.filter((seat) => seat.state === "available" && seat.isBookable !== false && !seat.isDriver && seat.number !== "D" && seat.category !== "driver").map((curSeat) => {
+                        const seatNum = curSeat.number;
                         const currentVal =
                           fareOverrides[seatNum] ??
                           (curSeat ? String(curSeat.farePaise / 100) : "");
@@ -1339,7 +1348,8 @@ export function BookingCounter({
                             <input
                               type="number"
                               min="0"
-                              step="10"
+                              step="0.01"
+                              aria-label={`Fare in rupees for seat ${seatNum}`}
                               style={{
                                 width: "60px",
                                 padding: "2px 4px",
@@ -1367,7 +1377,7 @@ export function BookingCounter({
                                 minHeight: "22px",
                                 cursor: "pointer",
                               }}
-                              disabled={busy || fareSaving === seatNum}
+                              disabled={busy || uncertain || fareSaving !== null || fareOverrides[seatNum] === undefined}
                               onClick={() => void saveCustomSeatFare(seatNum)}
                             >
                               {fareSaving === seatNum ? "…" : "Set"}
@@ -1550,9 +1560,10 @@ export function BookingCounter({
                         onChange={setSalesPartnerId}
                       />
                       <label>
-                        Booking contact mobile
+                        Booking contact mobile{!quote?.pricing.requirements.mobile && " ? optional"}
                         <input
                           id="counter-contact-phone"
+                          maxLength={10}
                           aria-label="Booking contact mobile"
                           type="tel"
                           value={phone}

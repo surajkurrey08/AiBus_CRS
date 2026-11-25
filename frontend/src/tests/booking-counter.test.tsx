@@ -38,7 +38,7 @@ const state = vi.hoisted(() => ({
 vi.mock("../context/WorkspaceContext.tsx", () => ({
   useWorkspace: () => ({
     revision: 0,
-    user: { permissions: state.permissions },
+    user: { role: "operator_admin", permissions: state.permissions },
     refresh: state.refresh,
     notify: state.notify,
   }),

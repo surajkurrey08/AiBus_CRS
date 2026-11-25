@@ -259,7 +259,7 @@ export function Page({ page, user }: { page: string; user: Identity }) {
               },
               {
                 name: "initialPassword",
-                label: "Initial password (12+ characters)",
+                label: "Initial password (8+ characters)",
                 type: "password",
               },
             ]),

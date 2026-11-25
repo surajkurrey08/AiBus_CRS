@@ -1,3 +1,4 @@
+import { phoneNumber } from "./account-input.schemas.js";
 import { z } from "zod";
 import { amount, dateOnly, id, text } from "../utils/core.js";
 export const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -201,7 +202,7 @@ export const profileInput = z
   .object({
     company: text,
     email: z.string().email().max(254),
-    phone: text,
+    phone: phoneNumber,
     address: text,
   })
   .strict();

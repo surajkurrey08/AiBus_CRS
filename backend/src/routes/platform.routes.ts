@@ -1,3 +1,4 @@
+import { strongPassword } from "../validators/account-input.schemas.js";
 import { Router } from "express";
 import { cityCatalogRouter } from "./city-catalog.routes.js";
 import { z } from "zod";
@@ -404,7 +405,7 @@ export function platformRouter(config: Config, limiter?: Limiter) {
     "/admin-users",
     asyncRoute(async (req, res) => {
       const input = staffInput
-        .extend({ initialPassword: z.string().min(12).max(128) })
+        .extend({ initialPassword: strongPassword })
         .strict()
         .parse(req.body);
       ok(

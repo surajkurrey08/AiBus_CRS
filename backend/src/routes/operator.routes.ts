@@ -1,3 +1,4 @@
+import { strongPassword, phoneNumber } from "../validators/account-input.schemas.js";
 import { requestCancellation } from "../services/cancellation.service.js";
 import { Router, type Request, type Response } from "express";
 
@@ -1392,9 +1393,9 @@ export function operatorRouter(config: Config) {
         .email()
         .max(254)
         .transform((v) => v.toLowerCase()),
-      password: z.string().min(12).max(128),
+      password: strongPassword,
       role: z.enum(["manager", "booking_staff", "read_only"]),
-      phone: z.string().max(20).optional(),
+      phone: phoneNumber.optional(),
       commissionType: z
         .enum(["Percent", "Fixed"])
         .optional()
@@ -1457,7 +1458,7 @@ export function operatorRouter(config: Config) {
           .object({
             name: text.optional(),
             role: z.enum(["manager", "booking_staff", "read_only"]).optional(),
-            phone: z.string().max(20).optional(),
+            phone: phoneNumber.optional(),
             commissionType: z.enum(["Percent", "Fixed"]).optional(),
             commissionRate: amount.optional(),
             active: z.boolean().optional(),

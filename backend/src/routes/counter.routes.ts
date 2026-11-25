@@ -296,6 +296,10 @@ export function counterRouter(config: Config) {
     "/pricing-policy",
     permit("pricing:write"),
     asyncRoute(async (req, res) => {
+      if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
+        return fail(403, "FORBIDDEN", "Only authorized operator staff can edit pricing rules");
+      if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
+        return fail(403, "FORBIDDEN", "Only authorized operator staff can edit pricing rules");
       const { expectedVersion, ...values } = policyInput.parse(req.body);
       let result: any;
       await mongoose.connection.transaction(async (session) => {
@@ -364,30 +368,37 @@ export function counterRouter(config: Config) {
     "/trips/:id/seat-fares",
     permit("pricing:write"),
     asyncRoute(async (req, res) => {
+      if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
+        return fail(403, "FORBIDDEN", "Only authorized operator staff can edit seat fares");
+      if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
+        return fail(403, "FORBIDDEN", "Only authorized operator staff can edit seat fares");
       const tripId = id.parse(req.params.id);
       const { seatFares } = z
         .object({
-          seatFares: z.record(z.string(), z.number().int().min(0)),
+          seatFares: z.record(z.string(), z.number().int().min(0).max(Number.MAX_SAFE_INTEGER))
+            .refine((fares) => Object.keys(fares).length > 0, "Provide at least one seat fare"),
         })
         .strict()
         .parse(req.body);
 
-      const trip = await M.Trip.findOne({ _id: tripId, ...tenant(req) });
-      if (!trip) {
-        fail(404, "NOT_FOUND", "Trip not found");
-        throw new Error("Trip not found");
-      }
-
-      for (const [seatNum, fare] of Object.entries(seatFares)) {
-        const s = (trip.seats as any[]).find((s) => s.number === seatNum);
-        if (s) {
-          s.farePaise = fare;
+      const seats = await mongoose.connection.transaction(async (session) => {
+        const trip = await M.Trip.findOne({ _id: tripId, ...tenant(req) }).session(session);
+        if (!trip) return fail(404, "NOT_FOUND", "Trip not found");
+        internalTrip(trip.toObject(), false);
+        for (const [seatNum, fare] of Object.entries(seatFares)) {
+          const seat = (trip.seats as { number: string; isDriver?: boolean; isBookable?: boolean; category?: string; state: string; farePaise: number }[]).find((item) => item.number === seatNum);
+          if (!seat || seat.isDriver || seat.isBookable === false || seat.number === "D" || seat.category === "driver")
+            return fail(400, "INVALID_SEAT", `Choose a passenger seat for ${seatNum}`);
+          if (seat.state !== "available")
+            return fail(409, "SEAT_UNAVAILABLE", `Seat ${seatNum} is no longer available for repricing`);
+          seat.farePaise = fare;
         }
-      }
-      await trip.save();
+        await trip.save({ session });
+        return trip.seats;
+      });
       ok(res, {
         message: "Seat fares updated successfully",
-        seats: trip.seats,
+        seats,
       });
     }),
   );
