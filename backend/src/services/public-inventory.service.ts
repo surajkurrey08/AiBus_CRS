@@ -96,7 +96,7 @@ export async function authorizedTrip(identity: PartnerIdentity, id: string) {
     _id: internal,
   }).lean();
   if (!trip) fail(404, "RESOURCE_NOT_FOUND", "Authorized trip not found");
-  const bus = await M.Bus.findOne({
+  const storedBus = await M.Bus.findOne({
       _id: trip.busId,
       operatorId: trip.operatorId,
       status: "Active",
@@ -106,6 +106,8 @@ export async function authorizedTrip(identity: PartnerIdentity, id: string) {
       operatorId: trip.operatorId,
       status: "Active",
     }).lean();
+  const car:any = trip.carId ? await M.Car.findOne({_id:trip.carId,operatorId:trip.operatorId,status:"Active"}).lean() : null;
+  const bus:any = car ? {...car,name:[car.make,car.model].filter(Boolean).join(" "),type:car.vehicleCategory,capacity:car.bookablePassengerCapacity} : storedBus;
   if (!bus || !stored)
     fail(404, "RESOURCE_NOT_FOUND", "Authorized trip not found");
   const [route] = await resolveAreaRoutes(String(trip.operatorId), [stored]);
@@ -163,7 +165,7 @@ export async function publicTrip(identity: PartnerIdentity, id: string) {
         s.state === "available" ||
         (s.state === "held" && new Date(s.holdUntil) <= now),
     ).length,
-    seatCount: trip.seats.length,
+    seatCount: trip.seats.filter((s:any)=>!s.isDriver&&s.isBookable!==false).length,
     currency: "INR",
     environment: "sandbox",
   };

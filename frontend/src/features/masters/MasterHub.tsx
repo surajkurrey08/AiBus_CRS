@@ -1,13 +1,13 @@
-﻿import { ArrowUpRight, CalendarClock, MapPin, Warehouse } from "lucide-react";
+import { ArrowUpRight, CalendarClock, MapPin, Car } from "lucide-react";
 import "./masters.css";
 const modules = [
   {
     id: 12,
-    name: "Bus Master",
-    icon: Warehouse,
+    name: "Car Master",
+    icon: Car,
     description:
-      "Manage buses, seat layouts, crew, owners and vehicle records.",
-    items: "Vehicles · Seat charts · Crew · GPS configuration",
+      "Manage 4-seater and 7-seater cars, categories, and fleet records.",
+    items: "Vehicles · 4/7-Passenger Capacities · Maintenance · Status",
   },
   {
     id: 13,
@@ -19,11 +19,11 @@ const modules = [
   },
   {
     id: 14,
-    name: "Trip Master",
+    name: "Car Trip Master",
     icon: CalendarClock,
     description:
-      "Manage routes, services, trip schedules and journey operations.",
-    items: "Routes · Scheduled trips · Availability · Operations",
+      "Manage One-Way and Round-Trip car trip schedules and journey operations.",
+    items: "One Way · Round Trip · Seat inventory · Fares in paise",
   },
 ] as const;
 export function MasterHub({

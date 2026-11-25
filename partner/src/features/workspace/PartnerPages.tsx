@@ -16,6 +16,7 @@ import {
   InventoryAccess,
   credentialRequest,
 } from "./ApiAccess";
+import { PartnerSettlements } from "../settlements/PartnerSettlements";
 export function Page({ page, user }: { page: string; user: Identity }) {
   const [revision, setRevision] = useState(0),
     [form, setForm] = useState<{
@@ -183,6 +184,7 @@ export function Page({ page, user }: { page: string; user: Identity }) {
         onView={(r) => setDetail({ bookingId: r.id })}
       />
     );
+  else if (page === "settlements") content = <PartnerSettlements />;
   else if (page === "webhooks")
     content = (
       <>

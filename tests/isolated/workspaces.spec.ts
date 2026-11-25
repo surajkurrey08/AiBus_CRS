@@ -22,7 +22,7 @@ test("admin login, operational health and explicit finance denial", async ({
     page.getByRole("button", { name: "Finance", exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Buses & Trips", exact: true })
+    .getByRole("button", { name: "Cars & Trips", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Operations health", exact: true }),
@@ -44,7 +44,7 @@ test("least-privilege admin sees only assigned audit module", async ({
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Buses & Trips", exact: true }),
+    page.getByRole("button", { name: "Cars & Trips", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Admin Users & Roles", exact: true }),
@@ -57,18 +57,14 @@ test("operator login, fleet and master navigation use real isolated records", as
   await expect(
     page.getByText("Browser Operator", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Master", exact: true }).click();
-  await expect(
-    page.getByText("Bus Master", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Area Master", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Trip Master", { exact: true }).first(),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Bus Master", exact: true }).click();
-  await expect(page.getByText("MH12BR1234", { exact: true })).toBeVisible();
+  await page.getByRole("button", {name:"Car Master",exact:true}).click();
+  await expect(page.getByText("MH12CR4321",{exact:true})).toBeVisible();
+  await expect(page.getByText("Browser Car",{exact:false}).first()).toBeVisible();
+  await page.getByRole("button",{name:"Route Master",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Create route",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Trip Master",exact:true}).click();
+  await expect(page.getByRole("button",{name:/schedule.*trip|create.*trip/i}).first()).toBeVisible();
+
 });
 test("anonymous browser cannot access authenticated administration", async ({
   page,

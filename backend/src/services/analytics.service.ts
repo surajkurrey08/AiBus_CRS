@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import {
   Booking,
   Bus,
+  Car,
   Refund,
   Route,
   Settlement,
@@ -74,7 +75,10 @@ export async function analytics(operatorId: string, from: string, to: string) {
         },
         { $group: { _id: null, netPaise: { $sum: "$netPaise" } } },
       ]),
-      Bus.countDocuments({ operatorId, status: "Active" }),
+      Promise.all([
+        Bus.countDocuments({ operatorId, status: "Active" }),
+        Car.countDocuments({ operatorId, status: "Active" }),
+      ]).then(([b, c]) => c || b),
       Trip.find({
         operatorId,
         journeyDate: { $gte: from, $lte: to },
@@ -118,7 +122,7 @@ export async function analytics(operatorId: string, from: string, to: string) {
     availableSeats = 0;
   for (const trip of trips) {
     if (trip.inventoryOwner !== "internal") continue;
-    const seats = trip.seats as { state: string; holdUntil?: Date }[];
+    const seats = (trip.seats as { state: string; holdUntil?: Date; isDriver?:boolean; isBookable?:boolean }[]).filter(s=>!s.isDriver&&s.isBookable!==false);
     totalSeats += seats.length;
     bookedSeats += seats.filter((s) => s.state === "booked").length;
     availableSeats += seats.filter(

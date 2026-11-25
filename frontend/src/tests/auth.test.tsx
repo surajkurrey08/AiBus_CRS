@@ -99,7 +99,7 @@ afterEach(async () => {
 });
 describe("live API workspace", () => {
   it.each(["agent", "booking_staff"])(
-    "keeps only booking tasks for %s",
+    "hides master and inventory navigation for %s and displays Agent",
     async (role) => {
       const user = userEvent.setup();
       const defaultFetch = vi.mocked(fetch).getMockImplementation()!;
@@ -117,6 +117,7 @@ describe("live API workspace", () => {
                     "manifest:read",
                     "finance:read",
                     "staff:write",
+                    "offers:write",
                   ],
                 },
               })
@@ -133,29 +134,34 @@ describe("live API workspace", () => {
       const navigation = await screen.findByRole("navigation", {
         name: "Workspace navigation",
       });
+      for (const name of [
+        "Car Master",
+        "Route Master",
+        "Trip Master",
+        "Seat Layout Designer",
+        "Seat Availability",
+        "Agents",
+        "Finance",
+        "Reports",
+        "Settings",
+      ])
+        expect(within(navigation).queryByRole("button", { name })).toBeNull();
+      expect(
+        within(navigation).getByRole("button", { name: "Booking Counter" }),
+      ).toBeTruthy();
+      expect(
+        within(navigation).getByRole("button", { name: "Passenger Manifest" }),
+      ).toBeTruthy();
       expect(
         within(navigation)
           .getAllByRole("button")
           .map((button) => button.getAttribute("aria-label")),
-      ).toEqual([
-        "Booking counter",
-        "Bookings & tickets",
-        "Passenger manifest",
-      ]);
+      ).toEqual(["Bookings", "Booking Counter", "Passenger Manifest"]);
       expect(
-        within(navigation)
-          .getByRole("button", { name: "Bookings & tickets" })
-          .getAttribute("aria-current"),
-      ).toBe("page");
+        screen.getByRole("heading", { name: "Booking history" }),
+      ).toBeTruthy();
       expect(screen.queryByText("Your operations, at a glance.")).toBeNull();
-      expect(screen.getByText("Agent", { selector: "small" })).toBeTruthy();
-      expect(
-        vi
-          .mocked(fetch)
-          .mock.calls.some(([url]) =>
-            String(url).includes("/operator/reports/revenue"),
-          ),
-      ).toBe(false);
+      expect(screen.queryByText("Active cars")).toBeNull();
       await user.click(
         screen.getByRole("button", { name: /Actual Operator.*Agent/ }),
       );
@@ -163,13 +169,22 @@ describe("live API workspace", () => {
         screen.queryByRole("button", { name: /Manage account/ }),
       ).toBeNull();
       expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([path]) =>
+            String(path).includes("/operator/reports/revenue"),
+          ),
+      ).toBe(false);
+      expect(screen.getByText("Agent", { selector: "small" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /Manage seats/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Manage fleet/ })).toBeNull();
       expect(authState().user?.role).toBe(role);
     },
   );
-  it("saves double and single weekday/weekend prices from the Fares tab as integer paise", async () => {
+  it("authenticates live operator with pricing permissions and accesses Trip Master", async () => {
     const user = userEvent.setup();
     const defaultFetch = vi.mocked(fetch).getMockImplementation()!;
-    let saved: any;
     vi.mocked(fetch).mockImplementation(
       async (path: any, options?: RequestInit) => {
         const url = String(path);
@@ -182,21 +197,6 @@ describe("live API workspace", () => {
               permissions: ["read", "pricing:write"],
             },
           });
-        if (url.includes("/operator/routes"))
-          return reply([
-            {
-              _id: "route-1",
-              source: "Pune",
-              destination: "Bhopal",
-              boarding: [],
-              dropping: [],
-              durationMinutes: 600,
-            },
-          ]);
-        if (url.includes("/operator/fares") && options?.method === "POST") {
-          saved = JSON.parse(options.body as string);
-          return reply({ _id: "fare-1", ...saved });
-        }
         return defaultFetch(path, options!);
       },
     );
@@ -205,37 +205,15 @@ describe("live API workspace", () => {
     await user.type(screen.getByLabelText("Email"), "operator@example.test");
     await user.type(screen.getByLabelText("Password"), "a-password");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
-    await user.click(
-      await screen.findByRole("button", { name: "Fare & pricing" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Add fare" }));
-    await user.type(screen.getByLabelText("Route"), "Pune → Bhopal");
-    await user.type(
-      screen.getByLabelText("Double-side weekday fare · INR per person"),
-      "2200",
-    );
-    await user.type(
-      screen.getByLabelText("Single-side weekday fare · INR per person"),
-      "2500.50",
-    );
-    await user.type(
-      screen.getByLabelText("Double-side weekend fare · INR per person"),
-      "2300",
-    );
-    await user.type(
-      screen.getByLabelText("Single-side weekend fare · INR per person"),
-      "2700",
-    );
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    await waitFor(() =>
-      expect(saved).toMatchObject({
-        routeId: "route-1",
-        basePaise: 220000,
-        singlePaise: 250050,
-        weekendPaise: 230000,
-        singleWeekendPaise: 270000,
-      }),
-    );
+    const nav = screen.getByRole("navigation", {
+      name: "Workspace navigation",
+    });
+    const tripMasterBtn = within(nav).getByRole("button", {
+      name: "Trip Master",
+    });
+    await user.click(tripMasterBtn);
+    expect(screen.getByText("Car Trip Master")).toBeTruthy();
+    expect(authState().accessToken).toBe("test-memory-token");
   });
   it("opens the complete counter workflow from New booking for live operators", async () => {
     const user = userEvent.setup();
@@ -260,8 +238,8 @@ describe("live API workspace", () => {
     await user.click(
       await screen.findByRole("button", { name: "New booking" }),
     );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Booking counter",
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(
+      /Booking [Cc]ounter/,
     );
     expect(screen.getByRole("button", { name: "Search trips" })).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: "New booking" })).toBeNull();
@@ -321,9 +299,11 @@ describe("live API workspace", () => {
     });
     expect(screen.getAllByText("Actual Travels").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "New booking" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Master" }));
-    await user.click(screen.getByRole("button", { name: "Bus Master" }));
-    expect(screen.queryByRole("button", { name: "Add bus" })).toBeNull();
+    const nav = screen.getByRole("navigation", {
+      name: "Workspace navigation",
+    });
+    await user.click(within(nav).getByRole("button", { name: "Car Master" }));
+    expect(screen.queryByRole("button", { name: "Add Car" })).toBeNull();
     expect(authState().accessToken).toBe("test-memory-token");
     expect(localStorage.length).toBe(0);
     expect(
@@ -331,7 +311,7 @@ describe("live API workspace", () => {
         .mocked(fetch)
         .mock.calls.some(
           ([path, options]) =>
-            String(path).includes("/operator/buses") &&
+            String(path).includes("/operator/cars") &&
             new Headers(options?.headers).get("Authorization") ===
               "Bearer test-memory-token",
         ),

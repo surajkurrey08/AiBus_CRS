@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../../api/client.ts";
 import { Badge, Overlay } from "../../../components/index.ts";
 import { money } from "../../../data/demo-data.ts";
-import { RazorpayPaymentActions } from "../../payments/components/RazorpayPaymentActions";
 import {
   ticketHtml,
   type CounterBooking,
@@ -485,18 +484,26 @@ export function PaymentDialog({
             No captured payment recorded for this booking yet.
           </div>
         )}
-        {canPay &&
-          booking.status === "Pending payment" &&
+        {booking.status === "Pending payment" &&
           paymentStatus !== "Paid" && (
-            <RazorpayPaymentActions
-              bookingId={booking.id}
-              onUpdated={(result) => {
-                if (result.paymentStatus)
-                  setPaymentStatus(result.paymentStatus);
-                setRevision((v) => v + 1);
-                onUpdated?.();
-              }}
-            />
+            <div style={{ marginTop: "12px" }}>
+              <button
+                type="button"
+                className="btn primary full"
+                onClick={async () => {
+                  try {
+                    await api(`/operator/bookings/${booking.id}/confirm-direct`, { method: "POST" });
+                    setPaymentStatus("Paid");
+                    setRevision((v) => v + 1);
+                    onUpdated?.();
+                  } catch (e: any) {
+                    setError(e.message || "Confirmation failed");
+                  }
+                }}
+              >
+                Confirm Booking & Mark Paid (Counter Cash)
+              </button>
+            </div>
           )}
       </div>
       <div className="dialog-foot">

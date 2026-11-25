@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import * as M from "../models/index.js";
 import { fail, type Principal } from "../utils/core.js";
 import { tripInput } from "../validators/operator.schemas.js";
@@ -28,13 +28,354 @@ export async function createScheduledTrip(
     fail(403, "FORBIDDEN", "You do not have permission to set trip fares");
   const create = async (session: mongoose.ClientSession) => {
     const owner = { operatorId: auth.operatorId };
-    const bus = await ownedTripResource(M.Bus, auth, input.busId, session);
-    const route = await ownedTripResource(
-      M.Route,
-      auth,
-      input.routeId,
-      session,
-    );
+    const carId = input.carId || input.busId;
+    let car: any = null;
+    if (carId && /^[a-fA-F0-9]{24}$/.test(carId)) {
+      car = await M.Car.findOne({ _id: carId, ...owner })
+        .session(session)
+        .lean();
+    }
+    if (!car && (carId || input.carRegistration)) {
+      const reg = (input.carRegistration || carId || "")
+        .toUpperCase()
+        .replace(/[\s-]/g, "");
+      if (reg) {
+        car = await M.Car.findOne({
+          ...owner,
+          $or: [{ registration: reg }, { registrationNumber: reg }],
+        })
+          .session(session)
+          .lean();
+      }
+    }
+
+    if (car) {
+      // Car CRS Scheduling Engine
+      if (car.status !== "Active") {
+        fail(409, "INACTIVE_RESOURCE", "Car must be active to schedule a trip");
+      }
+
+      // A vehicle write serializes overlapping schedule requests in the transaction.
+      await M.Car.updateOne(
+        { _id: car._id, ...owner },
+        { $inc: { schedulingRevision: 1 } },
+        { session },
+      );
+      const route = await ownedTripResource(
+        M.Route,
+        auth,
+        input.routeId || "000000000000000000000000",
+        session,
+      );
+      if (route.status !== "Active") {
+        fail(409, "INACTIVE_RESOURCE", "Route must be active");
+      }
+      const departure = new Date(input.departureAt);
+      if (departure <= new Date()) {
+        fail(400, "PAST_DEPARTURE", "Departure must be in the future");
+      }
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(departure);
+      if (localDate !== input.journeyDate) {
+        fail(
+          400,
+          "JOURNEY_DATE_MISMATCH",
+          "Journey date must match departure in Asia/Kolkata",
+        );
+      }
+      const arrivalAt = input.estimatedArrivalAt
+        ? new Date(input.estimatedArrivalAt)
+        : input.arrivalAt
+          ? new Date(input.arrivalAt)
+          : new Date(+departure + (route.durationMinutes || 240) * 60000);
+      if (arrivalAt <= departure) {
+        fail(400, "INVALID_ARRIVAL", "Arrival must follow departure");
+      }
+
+      // Check for vehicle scheduling conflicts / overlap
+      if (
+        await M.Trip.exists({
+          ...owner,
+          status: { $ne: "Cancelled" },
+          departureAt: { $lt: arrivalAt },
+          $and: [
+            { $or: [{ carId: car._id }, { busId: car._id }] },
+            {
+              $or: [
+                { arrivalAt: { $gt: departure } },
+                { arrivalAt: null, departureAt: { $gte: departure } },
+              ],
+            },
+          ],
+        }).session(session)
+      ) {
+        fail(
+          409,
+          "CAR_SCHEDULE_CONFLICT",
+          "This vehicle is already assigned to an overlapping trip",
+        );
+      }
+
+      const isMuv =
+        (car.vehicleCategory || car.category || input.vehicleCategory) ===
+        "7-Passenger MUV";
+      if (!["4-Passenger Sedan","4-Passenger Hatchback","7-Passenger MUV"].includes(car.vehicleCategory||car.category)) fail(400,"UNSUPPORTED_VEHICLE","Only configured 4-passenger and 7-passenger vehicles can be scheduled");
+      const bookableCapacity = isMuv ? 7 : 4;
+      const totalPhysicalSeats = isMuv ? 8 : 5;
+      const baseFarePaise =
+        input.baseFarePaise ||
+        (input.baseFareRupees ? Math.round(input.baseFareRupees * 100) : 50000);
+
+      const seats = isMuv
+        ? [
+            {
+              number: "FP",
+              seatId: "FP",
+              label: "Front Passenger",
+              deck: "lower",
+              row: 1,
+              column: 1,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: Math.round(baseFarePaise * 1.1),
+            },
+            {
+              number: "D",
+              seatId: "D",
+              label: "Driver",
+              deck: "lower",
+              row: 1,
+              column: 3,
+              category: "seater",
+              isDriver: true,
+              isBookable: false,
+              state: "blocked",
+              farePaise: 0,
+            },
+            {
+              number: "2L",
+              seatId: "2L",
+              label: "Middle Left Window",
+              deck: "lower",
+              row: 2,
+              column: 1,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+            {
+              number: "2M",
+              seatId: "2M",
+              label: "Middle Center",
+              deck: "lower",
+              row: 2,
+              column: 2,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: Math.round(baseFarePaise * 0.9),
+            },
+            {
+              number: "2R",
+              seatId: "2R",
+              label: "Middle Right Window",
+              deck: "lower",
+              row: 2,
+              column: 3,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+            {
+              number: "3L",
+              seatId: "3L",
+              label: "Rear Left Window",
+              deck: "lower",
+              row: 3,
+              column: 1,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+            {
+              number: "3M",
+              seatId: "3M",
+              label: "Rear Center",
+              deck: "lower",
+              row: 3,
+              column: 2,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: Math.round(baseFarePaise * 0.9),
+            },
+            {
+              number: "3R",
+              seatId: "3R",
+              label: "Rear Right Window",
+              deck: "lower",
+              row: 3,
+              column: 3,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+          ]
+        : [
+            {
+              number: "FP",
+              seatId: "FP",
+              label: "Front Passenger",
+              deck: "lower",
+              row: 1,
+              column: 1,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: Math.round(baseFarePaise * 1.1),
+            },
+            {
+              number: "D",
+              seatId: "D",
+              label: "Driver",
+              deck: "lower",
+              row: 1,
+              column: 2,
+              category: "seater",
+              isDriver: true,
+              isBookable: false,
+              state: "blocked",
+              farePaise: 0,
+            },
+            {
+              number: "2L",
+              seatId: "2L",
+              label: "Rear Left Window",
+              deck: "lower",
+              row: 2,
+              column: 1,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+            {
+              number: "2M",
+              seatId: "2M",
+              label: "Rear Center",
+              deck: "lower",
+              row: 2,
+              column: 2,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: Math.round(baseFarePaise * 0.9),
+            },
+            {
+              number: "2R",
+              seatId: "2R",
+              label: "Rear Right Window",
+              deck: "lower",
+              row: 2,
+              column: 3,
+              category: "seater",
+              isDriver: false,
+              isBookable: true,
+              state: "available",
+              farePaise: baseFarePaise,
+            },
+          ];
+
+      const cleanReg = (car.registrationNumber || car.registration || "CAR")
+        .toUpperCase()
+        .replace(/[^A-Z\d]/g, "");
+      const tripNumber =
+        input.tripNumber ||
+        `CAR-TRIP-${input.journeyDate.replace(/-/g, "")}-${cleanReg.slice(-4)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const [trip] = await M.Trip.create(
+        [
+          {
+            ...owner,
+            carId: car._id,
+            busId: car._id,
+            routeId: route._id,
+            tripNumber,
+            tripType: input.tripType || "ONE_WAY",
+            vehicleCategory: isMuv ? "7-Passenger MUV" : "4-Passenger Sedan",
+            carRegistration: car.registrationNumber || car.registration,
+            routeName: `${route.source} → ${route.destination}`,
+            bookableCapacity,
+            totalPhysicalSeats,
+            journeyDate: input.journeyDate,
+            departureAt: departure,
+            arrivalAt,
+            estimatedArrivalAt: arrivalAt,
+            baseFarePaise,
+            availableSeatsCount: bookableCapacity,
+            bookingOpen:
+              input.status !== "Draft" && input.bookingOpen !== false,
+            status: input.status || "Scheduled",
+            inventoryOwner: "internal",
+            seats,
+          },
+        ],
+        { session },
+      );
+
+      await M.Audit.create(
+        [
+          {
+            ...owner,
+            actorId: auth.userId,
+            action: "trip.create",
+            resourceId: String(trip._id),
+            requestId: options.requestId,
+          },
+        ],
+        { session },
+      );
+
+      await M.Outbox.create(
+        [
+          {
+            ...owner,
+            event: "trip.status.updated",
+            resourceId: String(trip._id),
+          },
+        ],
+        { session },
+      );
+
+      return trip.toObject();
+    }
+
+    if (!input.busId || !input.routeId) {
+      fail(400, "VEHICLE_REQUIRED", "Vehicle ID and Route ID are required");
+    }
+    const busId = input.busId!;
+    const routeId = input.routeId!;
+    const bus = await ownedTripResource(M.Bus, auth, busId, session);
+    const route = await ownedTripResource(M.Route, auth, routeId, session);
     if (bus.status !== "Active" || route.status !== "Active")
       fail(409, "INACTIVE_RESOURCE", "Bus and route must be active");
     if (bus.providerId || route.providerId)
@@ -63,7 +404,7 @@ export async function createScheduledTrip(
       : new Date(+departure + route.durationMinutes * 60000);
     if (arrivalAt <= departure)
       fail(400, "INVALID_ARRIVAL", "Arrival must follow departure");
-    const layout = await M.Layout.findOne({ ...owner, busId: input.busId })
+    const layout = await M.Layout.findOne({ ...owner, busId })
       .session(session)
       .lean();
     if (!layout)
@@ -183,7 +524,7 @@ export async function createScheduledTrip(
         "Set route fares or trip prices before scheduling",
       );
     const guarded = await M.Bus.updateOne(
-      { _id: input.busId, ...owner, status: "Active" },
+      { _id: busId, ...owner, status: "Active" },
       { $inc: { __v: 1 } },
       { session },
     );
@@ -192,7 +533,7 @@ export async function createScheduledTrip(
     if (
       await M.Trip.exists({
         ...owner,
-        busId: input.busId,
+        busId,
         status: { $ne: "Cancelled" },
         departureAt: { $lt: arrivalAt },
         $or: [

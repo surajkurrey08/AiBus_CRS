@@ -21,6 +21,7 @@ import { hashPassword } from "../../src/modules/auth/index.js";
 import {
   createHold,
   createBooking,
+  confirmDirectBooking,
   applyVerifiedPayment,
 } from "../../src/services/inventory.service.js";
 import {
@@ -220,6 +221,92 @@ const post = (path: string, data: unknown, token = tokenA) =>
     .post(`/api/v1${path}`)
     .set("Authorization", `Bearer ${token}`)
     .send(data);
+describe("counter cash confirmation safety", () => {
+  it("reads agency reports without writes and audits an idempotent report review", async () => {
+    const agent=await M.SalesPartner.create({operatorId:a.operatorId,name:"Report agency",kind:"Agent"});
+    const path="/operator/agents/settlements/daily?date=2030-11-13";
+    const report=await get(path);
+    expect(report.status).toBe(200);
+    expect(report.body.data.settlements[0].reportOnly).toBe(true);
+    expect(await M.DailyAgentSettlement.countDocuments()).toBe(0);
+    const identifier=String(agent._id)+":2030-11-13";
+    expect((await post(`/operator/agents/settlements/${identifier}/clear`,{},tokenB)).status).toBe(404);
+    const reviewed=await post(`/operator/agents/settlements/${identifier}/clear`,{notes:"Reviewed sales report"});
+    expect(reviewed.status).toBe(200);
+    expect((await post(`/operator/agents/settlements/${identifier}/clear`,{})).status).toBe(200);
+    expect(await M.Audit.countDocuments({action:"agent.daily_report.reviewed"})).toBe(1);
+    expect(await M.JournalEntry.countDocuments()).toBe(0);
+  });
+  async function pending() {
+    const hold: any = await createHold(a, tripId, ["L1"]);
+    const booking: any = await createBooking(
+      a,
+      {
+        tripId,
+        holdId: hold.holdId,
+        passengers: [{ name: "Cash passenger", seat: "L1" }],
+      },
+      randomUUID(),
+      "operator",
+    );
+    expect(booking.status).toBe("Pending payment");
+    expect(booking.paymentStatus).toBe("Pending");
+    return { hold, booking };
+  }
+  it("records counter cash and one balanced ledger journal exactly once", async () => {
+    const { booking } = await pending();
+    const first = await confirmDirectBooking(a, String(booking._id));
+    const second = await confirmDirectBooking(a, String(booking._id));
+    expect(first.status).toBe("Confirmed");
+    expect(second.pnr).toBe(first.pnr);
+    expect(await M.Ticket.countDocuments({ bookingId: booking._id })).toBe(1);
+    expect(
+      await M.Payment.countDocuments({
+        bookingId: booking._id,
+        providerId: "counter_cash",
+      }),
+    ).toBe(1);
+    expect(
+      await M.JournalEntry.countDocuments({ bookingId: booking._id }),
+    ).toBe(1);
+    const trip: any = await M.Trip.findById(tripId).lean();
+    expect(trip.seats.find((s: any) => s.number === "L1").state).toBe("booked");
+  });
+  it("cannot steal an expired booking's replacement hold or record cash", async () => {
+    const { hold, booking } = await pending();
+    await M.Hold.updateOne(
+      { holdId: hold.holdId },
+      { $set: { expiresAt: new Date(Date.now() - 1000) } },
+    );
+    await M.Trip.updateOne(
+      { _id: tripId },
+      { $set: { "seats.$[s].holdUntil": new Date(Date.now() - 1000) } },
+      { arrayFilters: [{ "s.number": "L1" }] },
+    );
+    const replacement: any = await createHold(a, tripId, ["L1"]);
+    await expect(
+      confirmDirectBooking(a, String(booking._id)),
+    ).rejects.toMatchObject({ code: "HOLD_EXPIRED" });
+    const trip: any = await M.Trip.findById(tripId).lean();
+    expect(trip.seats[0].holdId).toBe(replacement.holdId);
+    expect(trip.seats[0].state).toBe("held");
+    expect(await M.Payment.countDocuments({ bookingId: booking._id })).toBe(0);
+    expect(await M.Ticket.countDocuments({ bookingId: booking._id })).toBe(0);
+  });
+  it("denies another operator and agent cash confirmation", async () => {
+    const { booking } = await pending();
+    await expect(
+      confirmDirectBooking(b, String(booking._id)),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      confirmDirectBooking(
+        { ...a, role: "agent", agentId: String(new mongoose.Types.ObjectId()) },
+        String(booking._id),
+      ),
+    ).rejects.toMatchObject({ code: "OPERATOR_REQUIRED" });
+  });
+});
+
 describe("cancellation refund and recovery", () => {
   async function accounting() {
     await M.Policy.create({ operatorId: a.operatorId, rules: [{ hoursBefore: 24, refundPercent: 80 }, { hoursBefore: 0, refundPercent: 20 }] });

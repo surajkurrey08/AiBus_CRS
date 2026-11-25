@@ -133,6 +133,7 @@ export function platformRouter(config: Config, limiter?: Limiter) {
         operators: Object.fromEntries(counts.map((c) => [c._id, c.count])),
         totalOperators: report.metrics.totalOperators,
         buses: report.metrics.buses,
+        cars: report.metrics.cars,
         routes: await M.Route.countDocuments(
           q.operatorId ? { operatorId: q.operatorId } : {},
         ),
@@ -297,6 +298,7 @@ export function platformRouter(config: Config, limiter?: Limiter) {
   );
   for (const resource of [
     "buses",
+    "cars",
     "trips",
     "routes",
     "agencies",

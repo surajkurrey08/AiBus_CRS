@@ -93,7 +93,7 @@ async function signIn() {
 }
 it("opens the separate admin app, reviews company details and confirms status changes", async () => {
   const user = await signIn();
-  await user.click(screen.getByRole("button", { name: "Bus Operators" }));
+  await user.click(screen.getByRole("button", { name: "Car Fleet Operators" }));
   await user.click(await screen.findByRole("button", { name: "View details" }));
   const details = within(
     screen.getByRole("dialog", { name: "Operator details" }),
@@ -147,7 +147,7 @@ it("shows an API failure and recovers through retry", async () => {
       ? reply(null, 500)
       : original(...args),
   );
-  await user.click(screen.getByRole("button", { name: "Bus Operators" }));
+  await user.click(screen.getByRole("button", { name: "Car Fleet Operators" }));
   expect(await screen.findByText("Could not load operators")).toBeTruthy();
   expect(screen.queryByText("No matching operators")).toBeNull();
   fail = false;
@@ -156,7 +156,7 @@ it("shows an API failure and recovers through retry", async () => {
 });
 it("sends search and status filters to the platform API", async () => {
   const user = await signIn();
-  await user.click(screen.getByRole("button", { name: "Bus Operators" }));
+  await user.click(screen.getByRole("button", { name: "Car Fleet Operators" }));
   await user.type(screen.getByLabelText("Search operators"), "Pune");
   await user.selectOptions(
     screen.getByLabelText("Operator status filter"),

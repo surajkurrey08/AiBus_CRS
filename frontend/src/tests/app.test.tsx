@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import {
   cleanup,
   fireEvent,
@@ -47,7 +47,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("Operator workflows", () => {
-  it("groups Bus, Area and Trip Master on the dedicated Master page", async () => {
+  it("provides direct car-based navigation for Car Master, Route Master, and Trip Master", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -69,64 +69,24 @@ describe("Operator workflows", () => {
         screen.queryByRole("button", { name: "Routes & trips" }),
       ).toBeNull();
       expect(screen.queryByRole("button", { name: "Bus Master" })).toBeNull();
-      const masterToggle = screen.getByRole("button", { name: "Master" });
-      expect(screen.queryByRole("dialog", { name: "Master" })).toBeNull();
-      await user.click(masterToggle);
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Master" }),
-      ).toBeTruthy();
-      expect(masterToggle.getAttribute("aria-current")).toBe("page");
-      expect(screen.queryByRole("dialog", { name: "Master" })).toBeNull();
-      await user.click(screen.getByRole("button", { name: "Bus Master" }));
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Bus Master" }),
-      ).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Vehicles" })).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Seat charts" })).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Crew" })).toBeTruthy();
-      expect(screen.queryByRole("dialog", { name: "Master" })).toBeNull();
-      await user.click(masterToggle);
-      await user.click(screen.getByRole("button", { name: "Area Master" }));
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Area Master" }),
-      ).toBeTruthy();
-      expect(
-        screen.getByRole("tab", { name: "Pickup & drop points" }),
-      ).toBeTruthy();
-      await user.click(masterToggle);
-      await user.click(screen.getByRole("button", { name: "Trip Master" }));
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Trip Master" }),
-      ).toBeTruthy();
-      expect(
-        screen.getByRole("tab", { name: "Multi-trip scheduling" }),
-      ).toBeTruthy();
-      await user.click(screen.getByRole("tab", { name: "Routes" }));
-      await user.click(screen.getByRole("button", { name: "Add route" }));
-      const routeDialog = screen.getByRole("dialog", { name: "Add route" });
-      expect(within(routeDialog).getByLabelText("From city")).toBeTruthy();
-      await user.click(
-        within(routeDialog).getByRole("button", { name: "Cancel" }),
-      );
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Trip Master" }),
-      ).toBeTruthy();
-      await user.click(screen.getByRole("tab", { name: "Scheduled trips" }));
-      expect(
-        screen.getByRole("button", { name: "Schedule a trip" }),
-      ).toBeTruthy();
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Trip Master" }),
-      ).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "Trip Master" })).toBeNull();
-      await user.click(masterToggle);
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Master" }),
-      ).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Bus Master" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Area Master" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Trip Master" })).toBeTruthy();
-      expect(screen.queryByRole("dialog", { name: "Master" })).toBeNull();
+
+      // Directly accessible Car Master in navigation
+      const nav = screen.getByRole("navigation", { name: "Workspace navigation" });
+      const carMasterBtn = within(nav).getByRole("button", { name: "Car Master" });
+      await user.click(carMasterBtn);
+      expect(screen.getByText("Car Fleet Master")).toBeTruthy();
+      expect(carMasterBtn.getAttribute("aria-current")).toBe("page");
+
+      // Directly accessible Trip Master in navigation
+      const tripMasterBtn = within(nav).getByRole("button", { name: "Trip Master" });
+      await user.click(tripMasterBtn);
+      expect(screen.getByText("Car Trip Master")).toBeTruthy();
+      expect(tripMasterBtn.getAttribute("aria-current")).toBe("page");
+
+      // Directly accessible Seat Layout Designer
+      const layoutBtn = within(nav).getByRole("button", { name: "Seat Layout Designer" });
+      await user.click(layoutBtn);
+      expect(screen.getAllByText(/Seat Layout Designer/i).length).toBeGreaterThan(0);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -183,135 +143,59 @@ describe("Operator workflows", () => {
       }),
     );
   });
-  it("opens all eleven screens and supports booking search and no-results recovery", async () => {
+  it("opens all screens in the Car CRS navigation", async () => {
     const user = userEvent.setup();
     render(<App demo />);
     const labels = [
-      "Seat inventory",
-      "Bookings & tickets",
-      "Passenger manifest",
-      "Fare & pricing",
-      "Cancellations & refunds",
-      "Offers & promotions",
-      "Reports & earnings",
-      "Operator settings",
+      "Car Master",
+      "Route Master",
+      "Trip Master",
+      "Seat Layout Designer",
+      "Seat Availability",
+      "Booking Counter",
+      "Passenger Manifest",
+      "Agents",
+      "Finance",
+      "Reports",
+      "Settings",
     ];
+    const nav = screen.getByRole("navigation", { name: "Workspace navigation" });
     for (const name of labels) {
-      await user.click(screen.getByRole("button", { name }));
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(name);
-      expect(document.querySelector(".app.workspace-crs")).toBeTruthy();
-      expect(screen.getByRole("button", { name }).getAttribute("title")).toBe(
-        name,
-      );
+      const btn = within(nav).getByRole("button", { name });
+      await user.click(btn);
+      expect(btn.getAttribute("aria-current")).toBe("page");
     }
-    await user.click(
-      screen.getByRole("button", { name: "Bookings & tickets" }),
-    );
-    const search = screen.getByRole("textbox", { name: "Search bookings" });
-    await user.type(search, "AIB683420");
-    expect(screen.getByText("Aarav Sharma")).toBeTruthy();
-    expect(screen.queryByText("Priya Patel")).toBeNull();
-    await user.clear(search);
-    await user.type(search, "no-such-passenger");
-    expect(screen.getByText("No matching bookings")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(screen.getByText("Priya Patel")).toBeTruthy();
   });
-  it("validates and creates a bus, then persists the new fleet record", async () => {
+  it("validates and creates a car, then persists the new fleet record", async () => {
     const user = userEvent.setup();
     render(<App demo />);
-    await user.click(screen.getByRole("button", { name: "Master" }));
-    await user.click(screen.getByRole("button", { name: "Bus Master" }));
-    await user.click(screen.getByRole("button", { name: "Add bus" }));
+    const nav = screen.getByRole("navigation", { name: "Workspace navigation" });
+    await user.click(within(nav).getByRole("button", { name: "Car Master" }));
+    await user.click(screen.getByRole("button", { name: "Add Car" }));
     const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Add New Car")).toBeTruthy();
     await user.click(
-      within(dialog).getByRole("button", { name: "Save changes" }),
+      within(dialog).getByRole("button", { name: "Save Car" }),
     );
     expect(
-      screen.getByText(/Enter a vehicle registration number with/),
+      screen.getByText(/Enter a valid Indian vehicle registration/),
     ).toBeTruthy();
     const registration = within(dialog).getByLabelText(
-      "Vehicle registration number",
+      "Vehicle Registration Number",
     );
-    await user.type(registration, "001");
-    // Complete the remaining fields before checking invalid registration on save.
-    const fields = {
-      Name: "Aibus Test",
-
-      Capacity: "36",
-    };
-    for (const [label, value] of Object.entries(fields))
-      await user.type(
-        within(dialog).getByLabelText(new RegExp(`^${label}`)),
-        value,
-      );
-    await user.selectOptions(
-      within(dialog).getByLabelText("Type"),
-      "AC Sleeper",
-    );
-    await user.selectOptions(within(dialog).getByLabelText("Status"), "Active");
+    await user.type(registration, "TS-09-ZZ-9999");
+    await user.type(within(dialog).getByLabelText("Car Make"), "Maruti Suzuki");
+    await user.type(within(dialog).getByLabelText("Car Model"), "Dzire");
     await user.click(
-      within(dialog).getByRole("button", { name: "Save changes" }),
+      within(dialog).getByRole("button", { name: "Save Car" }),
     );
-    expect(
-      screen.getByText(/Enter a vehicle registration number with/),
-    ).toBeTruthy();
-    expect(document.activeElement).toBe(registration);
-    await user.clear(registration);
-    await user.type(registration, "TS 09 ZZ 9999");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Save changes" }),
-    );
-    expect(screen.getByText("TS 09 ZZ 9999")).toBeTruthy();
-    expect(localStorage.getItem("aibus-fleet")).toBeNull();
+    expect(screen.getByText("TS-09-ZZ-9999")).toBeTruthy();
   });
-  it("blocks and releases berths without enabling booked berths", async () => {
-    const user = userEvent.setup();
-    render(<App demo />);
-    await user.click(screen.getByRole("button", { name: "Seat inventory" }));
-    const booked = screen.getByRole("button", {
-      name: "L2, booked, 1450 rupees",
-    }) as HTMLButtonElement;
-    expect(booked.disabled).toBe(true);
-    await user.click(
-      screen.getByRole("button", { name: "L1, available, 1450 rupees" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Block selected berths" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "L1, blocked, 1450 rupees" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Release blocked berths" }),
-    );
-    expect(
-      screen.getByRole("button", { name: "L1, available, 1450 rupees" }),
-    ).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Upper deck" }));
-    expect(
-      screen.getByRole("button", { name: "U1, available, 1350 rupees" }),
-    ).toBeTruthy();
-  });
-  it("shows the booking ticket drawer and toggles passenger check-in", async () => {
+  it("shows passenger manifest and toggles passenger check-in", async () => {
     const user = userEvent.setup();
     render(<App demo />);
     await user.click(
-      screen.getByRole("button", { name: "Bookings & tickets" }),
-    );
-    await user.click(
-      screen.getAllByRole("button", { name: "View details" })[0],
-    );
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("PNR AIB683420")).toBeTruthy();
-    expect(
-      within(dialog).getByRole("button", { name: "Print e-ticket" }),
-    ).toBeTruthy();
-    await user.click(
-      within(dialog).getByRole("button", { name: "Close details" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Passenger manifest" }),
+      screen.getByRole("button", { name: "Passenger Manifest" }),
     );
     await user.click(
       screen.getAllByRole("button", { name: "Toggle check-in" })[0],

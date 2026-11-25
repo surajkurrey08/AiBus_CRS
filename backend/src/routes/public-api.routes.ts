@@ -323,6 +323,13 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/trips/:id/holds",
     asyncRoute(async (req, res) => {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+        fail(
+          410,
+          "BUS_CRS_RETIRED",
+          "AIBUS has transitioned to a Car Central Reservation System. Bus ticket booking is retired. Use /api/v1/car for car search and quotes.",
+        );
+      }
       const identity = auth(req, "holds:write"),
         input = z.object({ seats: seatList }).strict().parse(req.body);
       ok(
@@ -341,6 +348,13 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings",
     asyncRoute(async (req, res) => {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+        fail(
+          410,
+          "BUS_CRS_RETIRED",
+          "AIBUS has transitioned to a Car Central Reservation System. Bus ticket booking is retired. Use /api/v1/car for car search and quotes.",
+        );
+      }
       const input = z
         .object({
           tripId: pid,
@@ -371,6 +385,13 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings/:id/payment",
     asyncRoute(async (req, res) => {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+        fail(
+          410,
+          "BUS_CRS_RETIRED",
+          "AIBUS has transitioned to a Car Central Reservation System. Bus ticket booking is retired. Use /api/v1/car for car search and quotes.",
+        );
+      }
       empty(req.body);
       const identity = auth(req, "bookings:write"),
         id = pid.parse(req.params.id),
@@ -391,6 +412,13 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings/:id/payment/verify",
     asyncRoute(async (req, res) => {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+        fail(
+          410,
+          "BUS_CRS_RETIRED",
+          "AIBUS has transitioned to a Car Central Reservation System. Bus ticket booking is retired. Use /api/v1/car for car search and quotes.",
+        );
+      }
       const input = z
           .object({
             razorpay_order_id: z.string().regex(/^order_[A-Za-z0-9]+$/),

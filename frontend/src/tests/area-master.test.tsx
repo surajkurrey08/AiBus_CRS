@@ -135,3 +135,30 @@ it("saves pickup order, city mapping and stop times for an existing route", asyn
     expectedVersion: 0,
   });
 });
+
+it("creates a route like Pune to Nashik from Route Master", async () => {
+  const user = userEvent.setup();
+  render(<AreaMaster defaultTab="routes" />);
+  const create = screen.getByRole("button", { name: "Create route" });
+  await waitFor(() =>
+    expect((create as HTMLButtonElement).disabled).toBe(false),
+  );
+  await user.click(create);
+  const dialog = within(screen.getByRole("dialog"));
+  await user.clear(dialog.getByLabelText("From / Origin city"));
+  await user.type(dialog.getByLabelText("From / Origin city"), "Pune");
+  await user.clear(dialog.getByLabelText("To / Destination city"));
+  await user.type(dialog.getByLabelText("To / Destination city"), "Nashik");
+  await user.click(dialog.getByRole("button", { name: "Save route" }));
+  await waitFor(() => expect(ws.refresh).toHaveBeenCalled());
+  const postCall = vi
+    .mocked(api)
+    .mock.calls.find(
+      ([path, options]) =>
+        path === "/operator/routes" && options?.method === "POST",
+    );
+  expect(postCall).toBeDefined();
+  const body = JSON.parse(postCall![1]!.body as string);
+  expect(body.source).toBe("Pune");
+  expect(body.destination).toBe("Nashik");
+});

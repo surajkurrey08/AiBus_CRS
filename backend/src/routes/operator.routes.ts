@@ -38,6 +38,7 @@ import { provider, requireCapability } from "../integrations/providers.js";
 
 import {
   blockSeats,
+  confirmDirectBooking,
   createBooking,
   createHold,
   passengerInput,
@@ -56,6 +57,7 @@ import { contactInput, gstInput } from "../services/pricing.service.js";
 import type { Config } from "../config/env.js";
 import {
   busInput,
+  carInput,
   fareInput,
   layoutInput,
   offerInput,
@@ -384,6 +386,86 @@ export function operatorRouter(config: Config) {
       }
     },
   );
+  registerCrud(
+    router,
+    "/cars",
+    M.Car,
+    carInput,
+    "fleet:write",
+    [
+      "registrationNumber",
+      "registration",
+      "make",
+      "model",
+      "modelName",
+      "vehicleCategory",
+      "category",
+    ],
+    async (req, input, existing) => {
+      if (input.registrationNumber && !input.registration) {
+        input.registration = input.registrationNumber.toUpperCase().replace(/[\s-]/g, "");
+      }
+      if (input.registration && !input.registrationNumber) {
+        input.registrationNumber = input.registration;
+      }
+      if (input.model && !input.modelName) {
+        input.modelName = input.model;
+      }
+      if (input.modelName && !input.model) {
+        input.model = input.modelName;
+      }
+      if (input.vehicleCategory && !input.category) {
+        input.category = input.vehicleCategory;
+      }
+      if (input.category && !input.vehicleCategory) {
+        input.vehicleCategory = input.category;
+      }
+      const reg = (input.registrationNumber || input.registration || "")
+        .toUpperCase()
+        .replace(/[\s-]/g, "");
+      if (reg) {
+        const query: any = {
+          ...tenant(req),
+          $or: [{ registration: reg }, { registrationNumber: reg }],
+        };
+        if (existing) {
+          query._id = { $ne: existing._id };
+        }
+        const duplicate = await M.Car.exists(query);
+        if (duplicate) {
+          fail(
+            409,
+            "DUPLICATE_REGISTRATION",
+            `Vehicle registration '${reg}' is already registered.`,
+          );
+        }
+      }
+    },
+  );
+  router.patch(
+    "/cars/:id/status",
+    permit("fleet:write"),
+    asyncRoute(async (req, res) => {
+      const statusSchema = z.object({
+        status: z.enum([
+          "Active",
+          "Inactive",
+          "Maintenance",
+          "Under Maintenance",
+          "Archived",
+        ]),
+      });
+      const { status: newStatus } = statusSchema.parse(req.body);
+      const recordId = parseId(req);
+      const car = await M.Car.findOneAndUpdate(
+        { _id: recordId, ...tenant(req) },
+        { $set: { status: newStatus } },
+        { new: true, runValidators: true },
+      );
+      if (!car) fail(404, "NOT_FOUND", "Car record not found");
+      ok(res, car);
+    }),
+  );
   router.get(
     "/buses/:id/layout",
     permit("read"),
@@ -486,9 +568,55 @@ export function operatorRouter(config: Config) {
     routeInput,
     "routes:write",
     ["source", "destination"],
-    async (_req, input) => {
+    async (req, input) => {
       if (input.source.toLowerCase() === input.destination.toLowerCase())
         fail(400, "INVALID_ROUTE", "Source and destination must differ");
+
+      // Resolve or auto-create source city in M.City
+      if (!input.sourceCityId && req.auth.operatorId) {
+        const sourceCity = (await M.City.findOne({
+          ...tenant(req),
+          name: literalRegex(input.source.trim()),
+        })) as any;
+        if (
+          sourceCity &&
+          String(sourceCity.name || "").toLowerCase() === input.source.trim().toLowerCase()
+        ) {
+          input.sourceCityId = sourceCity._id;
+        } else if (!sourceCity) {
+          const created = await M.City.create({
+            operatorId: req.auth.operatorId,
+            name: input.source.trim(),
+            state: "Maharashtra",
+            country: "India",
+            status: "Active",
+          });
+          input.sourceCityId = created._id;
+        }
+      }
+
+      // Resolve or auto-create destination city in M.City
+      if (!input.destinationCityId && req.auth.operatorId) {
+        const destCity = (await M.City.findOne({
+          ...tenant(req),
+          name: literalRegex(input.destination.trim()),
+        })) as any;
+        if (
+          destCity &&
+          String(destCity.name || "").toLowerCase() === input.destination.trim().toLowerCase()
+        ) {
+          input.destinationCityId = destCity._id;
+        } else if (!destCity) {
+          const created = await M.City.create({
+            operatorId: req.auth.operatorId,
+            name: input.destination.trim(),
+            state: "Maharashtra",
+            country: "India",
+            status: "Active",
+          });
+          input.destinationCityId = created._id;
+        }
+      }
     },
   );
   registerCrud(
@@ -514,7 +642,37 @@ export function operatorRouter(config: Config) {
   router.get(
     "/trips",
     permit("read"),
-    asyncRoute(async (req, res) => list(M.Trip, req, res, [])),
+    asyncRoute(async (req, res) => {
+      const p = pagination(req),
+        filter: any = { ...tenant(req) };
+      if (p.status) filter.status = p.status;
+      if (p.journeyDate) filter.journeyDate = p.journeyDate;
+      const [rows, total] = await Promise.all([
+        M.Trip.find(filter)
+          .sort(sortFor(p))
+          .skip((p.page - 1) * p.limit)
+          .limit(p.limit)
+          .lean(),
+        M.Trip.countDocuments(filter),
+      ]);
+      const mapped = rows.map((t: any) => {
+        const available = t.seats
+          ? (t.seats as any[]).filter(
+              (s) => s.state === "available" && !s.isDriver && s.number !== "D",
+            ).length
+          : t.bookableCapacity || 4;
+        return {
+          ...t,
+          availableSeatsCount: available,
+        };
+      });
+      return ok(res, mapped, {
+        page: p.page,
+        limit: p.limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / p.limit)),
+      });
+    }),
   );
   router.get(
     "/trips/:id",
@@ -535,6 +693,34 @@ export function operatorRouter(config: Config) {
         undefined,
         201,
       );
+    }),
+  );
+  router.post(
+    "/trips/:id/publish",
+    permit("routes:write"),
+    asyncRoute(async (req, res) => {
+      const tripId = parseId(req);
+      const trip = await M.Trip.findOneAndUpdate(
+        { _id: tripId, ...tenant(req), status:"Draft", departureAt:{$gt:new Date()} },
+        { $set: { status: "Scheduled", bookingOpen: true } },
+        { new: true },
+      );
+      if (!trip) fail(404, "NOT_FOUND", "Trip not found");
+      ok(res, trip);
+    }),
+  );
+  router.post(
+    "/trips/:id/close-sales",
+    permit("routes:write"),
+    asyncRoute(async (req, res) => {
+      const tripId = parseId(req);
+      const trip = await M.Trip.findOneAndUpdate(
+        { _id: tripId, ...tenant(req) },
+        { $set: { bookingOpen: false } },
+        { new: true },
+      );
+      if (!trip) fail(404, "NOT_FOUND", "Trip not found");
+      ok(res, trip);
     }),
   );
   router.post(
@@ -597,19 +783,52 @@ export function operatorRouter(config: Config) {
       const trip = await owned(M.Trip, req, parseId(req));
       if (trip.inventoryOwner !== "internal") requireCapability("availability");
       const now = new Date();
-      const seats = (trip.seats as any[]).map((s) => ({
-        number: s.number,
-        deck: s.deck,
-        row: s.row,
-        column: s.column,
-        category: s.category,
-        farePaise: s.farePaise,
-        quotaLabel: s.quotaLabel,
-        state:
-          s.state === "held" && new Date(s.holdUntil) <= now
-            ? "available"
-            : s.state,
-      }));
+      const bookingIds = (trip.seats as any[])
+        .filter((s: any) => s.state === "booked" && s.bookingId)
+        .map((s: any) => s.bookingId);
+      const bookings: any[] = bookingIds.length
+        ? await M.Booking.find({ _id: { $in: bookingIds } }).lean()
+        : [];
+      const bookingMap = new Map(bookings.map((b: any) => [String(b._id), b]));
+
+      const seats = (trip.seats as any[]).map((s) => {
+        const booking = s.bookingId ? bookingMap.get(String(s.bookingId)) : null;
+        const passenger = booking?.passengers?.find((p: any) => p.seat === s.number);
+        let bookedByChannel: "operator" | "agent" | "customer" | "external" | undefined;
+        let bookedByName: string | undefined;
+        let bookedPnr: string | undefined;
+        let bookedPassengerName: string | undefined;
+        if (s.state === "booked" && booking) {
+          bookedByChannel = booking.source || (booking.agentId ? "agent" : "operator");
+          bookedByName =
+            bookedByChannel === "operator"
+              ? "Operator Counter"
+              : bookedByChannel === "agent"
+                ? (booking.commissionSnapshot?.partnerName || "Travel Agent")
+                : bookedByChannel === "external"
+                  ? "API User / External Partner"
+                  : "Customer App";
+          bookedPnr = booking.pnr;
+          bookedPassengerName = passenger?.name || booking.passengers?.[0]?.name;
+        }
+        return {
+          number: s.number,
+          deck: s.deck,
+          row: s.row,
+          column: s.column,
+          category: s.category,
+          farePaise: s.farePaise,
+          quotaLabel: s.quotaLabel,
+          state:
+            s.state === "held" && new Date(s.holdUntil) <= now
+              ? "available"
+              : s.state,
+          bookedByChannel,
+          bookedByName,
+          bookedPnr,
+          bookedPassengerName,
+        };
+      });
       ok(res, {
         tripId: String(trip._id),
         status: trip.status,
@@ -722,7 +941,14 @@ export function operatorRouter(config: Config) {
         .strict()
         .parse(req.body);
       const key = z.string().min(16).max(100).parse(req.get("idempotency-key"));
-      ok(res, await createBooking(req.auth, input, key), undefined, 201);
+      ok(res, await createBooking(req.auth, input, key, "operator"), undefined, 201);
+    }),
+  );
+  router.post(
+    "/bookings/:id/confirm-direct",
+    permit("bookings:write"),
+    asyncRoute(async (req, res) => {
+      ok(res, await confirmDirectBooking(req.auth, parseId(req)));
     }),
   );
   router.get(

@@ -11,7 +11,19 @@ export const Trip = model(
   {
     ...tenantFields,
     routeId: { type: objectId, required: true },
-    busId: { type: objectId, required: true },
+    carId: { type: objectId, ref: "Car" },
+    busId: { type: objectId, required: false },
+    tripNumber: String,
+    tripType: {
+      type: String,
+      enum: ["ONE_WAY", "ROUND_TRIP"],
+      default: "ONE_WAY",
+    },
+    vehicleCategory: { type: String, default: "4-Passenger Sedan" },
+    carRegistration: String,
+    routeName: String,
+    bookableCapacity: { type: Number, default: 4 },
+    totalPhysicalSeats: { type: Number, default: 5 },
     scheduleId: objectId,
     serviceId: objectId,
     serviceName: String,
@@ -26,6 +38,9 @@ export const Trip = model(
     journeyDate: { type: String, required: true },
     departureAt: { type: Date, required: true },
     arrivalAt: Date,
+    estimatedArrivalAt: Date,
+    baseFarePaise: Number,
+    availableSeatsCount: Number,
     seatSideFares: {
       type: { doublePaise: Number, singlePaise: Number },
       default: undefined,
@@ -33,7 +48,15 @@ export const Trip = model(
     bookingOpen: { type: Boolean, default: true },
     status: {
       type: String,
-      enum: ["Scheduled", "Departed", "Completed", "Cancelled"],
+      enum: [
+        "Draft",
+        "Scheduled",
+        "Boarding",
+        "On Road",
+        "Arrived",
+        "Completed",
+        "Cancelled",
+      ],
       default: "Scheduled",
     },
     inventoryOwner: {
@@ -47,6 +70,7 @@ export const Trip = model(
   [
     { keys: { operatorId: 1, journeyDate: 1 } },
     { keys: { operatorId: 1, status: 1, departureAt: 1 } },
+    { keys: { carId: 1, departureAt: 1 } },
     { keys: { busId: 1, departureAt: 1 }, options: { unique: true } },
     {
       keys: { operatorId: 1, serviceId: 1, journeyDate: 1 },
@@ -55,5 +79,6 @@ export const Trip = model(
         partialFilterExpression: { serviceId: { $type: "objectId" } },
       },
     },
+    { keys: { routeId: 1, journeyDate: 1, status: 1 } },
   ],
 );

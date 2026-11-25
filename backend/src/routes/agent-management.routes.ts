@@ -10,6 +10,10 @@ import {
   ownedAgent,
 } from "../services/agent.service.js";
 import {
+  getOperatorAgentSettlements,
+  markSettlementCleared,
+} from "../services/agent-settlement.service.js";
+import {
   agentInput,
   agentUserInput,
   commissionConfig,
@@ -277,6 +281,32 @@ export function agentManagementRouter() {
         undefined,
         201,
       );
+    }),
+  );
+  router.get(
+    "/settlements/daily",
+    asyncRoute(async (req, res) => {
+      const targetDate = typeof req.query.date === "string" ? req.query.date : undefined;
+      const settlements = await getOperatorAgentSettlements(
+        req.auth.operatorId!,
+        targetDate,
+      );
+      ok(res, { settlements, date: targetDate || settlements[0]?.date });
+    }),
+  );
+  router.post(
+    "/settlements/:id/clear",
+    permit("agents:write"),
+    asyncRoute(async (req, res) => {
+      const settlementId = Array.isArray(req.params.id) ? req.params.id[0] : String(req.params.id);
+      const notes = typeof req.body.notes === "string" ? req.body.notes : undefined;
+      const result = await markSettlementCleared(
+        req.auth.operatorId!,
+        settlementId,
+        req.auth.userId,
+        notes,
+      );
+      ok(res, { settlement: result, message: "Daily amount marked as Cleared." });
     }),
   );
   return router;

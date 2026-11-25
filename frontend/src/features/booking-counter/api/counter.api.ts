@@ -144,6 +144,11 @@ export const counterApi = {
       { signal },
     ),
   policy: () => api<PricingPolicy | null>("/operator/pricing-policy"),
+  confirmDirect: (id: string) =>
+    api<{ status: string; paymentStatus: string; pnr?: string; reference: string }>(
+      `/operator/bookings/${id}/confirm-direct`,
+      { method: "POST" },
+    ),
 };
 export async function ticketHtml(id: string, retry = true): Promise<string> {
   const response = await fetch(`/api/v1/operator/bookings/${id}/ticket.html`, {

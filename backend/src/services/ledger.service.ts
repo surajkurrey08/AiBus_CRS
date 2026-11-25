@@ -18,9 +18,9 @@ export type JournalInput = {
     | "Reversal"
     | "Wallet funding"
     | "Credit repayment"
-  | "Cancellation adjustment"
-  | "Refund"
-  | "Exception refund"
+    | "Cancellation adjustment"
+    | "Refund"
+    | "Exception refund"
     | "Settlement receipt"
     | "Settlement payout";
   reason: string;
@@ -32,6 +32,7 @@ export type JournalInput = {
   lines: { account: AccountSpec; debitPaise: number; creditPaise: number }[];
 };
 const chart: Record<string, { owner: string; type: string }> = {
+  "counter-cash-clearing": { owner: "Operator", type: "Asset" },
   "simulated-bank-clearing": { owner: "Platform", type: "Asset" },
   "payment-clearing": { owner: "Platform", type: "Asset" },
   "payment-exceptions": { owner: "Platform", type: "Liability" },

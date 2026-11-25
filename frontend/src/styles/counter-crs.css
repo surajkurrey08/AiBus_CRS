@@ -1,22 +1,395 @@
-﻿.counter-crs {
+.counter-crs {
   --crs-selected: #ffeadc;
   --crs-available: #dff4e6;
-  --counter-gap: 10px;
+  --counter-gap: 8px;
   color: var(--crs-ink);
   font-family: Arial, sans-serif;
+  zoom: 0.88; /* Zoom out all layout and text to fit single screen without vertical scrolling */
 }
+
+/* Compact Top Banner */
+.car-crs-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f0f7ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 5px 12px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.car-crs-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.car-badge-live {
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 700;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.car-strip-desc {
+  color: #475569;
+}
+.car-strip-pnr {
+  color: #1e40af;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.counter-topline-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.counter-nav-pills {
+  display: inline-flex;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: 6px;
+}
+.counter-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.counter-nav-pill:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.counter-nav-pill.active {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.counter-tab-badge {
+  background: #2563eb;
+  color: white;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.counter-crs .counter-action-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 8px;
+  align-items: start;
+}
+
+/* Automotive Car Blueprint Container (Polished Automotive Chassis) */
+.car-blueprint-container {
+  position: relative;
+  width: 270px;
+  margin: 0 auto;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.car-blueprint-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.car-cabin-overlay {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+.car-cabin-overlay.sedan {
+  padding: 124px 10px 16px 10px;
+  gap: 8px;
+}
+.car-cabin-overlay.muv {
+  padding: 122px 10px 12px 10px;
+  gap: 6px;
+}
+.car-cabin-row-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.car-row-label {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+  letter-spacing: 0.4px;
+  margin-bottom: 1px;
+}
+.car-row-seats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.car-row-seats.row-front {
+  justify-content: center;
+  gap: 10px;
+}
+.car-row-seats.row-bench {
+  justify-content: center;
+  gap: 5px;
+}
+.center-console {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex: 0 0 22px;
+  font-size: 7px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.4px;
+  gap: 1px;
+}
+.gear-knob {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #334155;
+  border: 1.2px solid #64748b;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Ergonomic Car Bucket Seats (Strictly Fitted Inside Cabin Silhouette) */
+.counter-crs .car-seat {
+  width: 46px;
+  min-width: 44px;
+  max-width: 48px;
+  height: 42px;
+  flex: 0 0 46px;
+  padding: 2px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 7px 7px 5px 5px;
+  position: relative;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: 1.2px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+.counter-crs .car-seat-headrest {
+  width: 14px;
+  height: 2.5px;
+  background: currentColor;
+  opacity: 0.35;
+  border-radius: 2px;
+  margin-bottom: 1px;
+}
+.counter-crs .car-seat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 1px;
+  box-sizing: border-box;
+}
+.counter-crs .car-seat-code {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.counter-crs .car-seat-pill {
+  font-size: 6.5px;
+  font-weight: 700;
+  padding: 0.5px 2px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.08);
+  line-height: 1;
+}
+.counter-crs .car-seat-price {
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Dedicated Driver Cockpit */
+.counter-crs .car-seat.car-driver-seat {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+  cursor: not-allowed !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.counter-crs .car-seat.car-driver-seat .car-seat-headrest {
+  background: #94a3b8;
+  opacity: 0.6;
+}
+.counter-crs .driver-title {
+  font-size: 8.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: #f8fafc;
+}
+.counter-crs .car-steering-icon {
+  font-size: 9px;
+}
+.counter-crs .driver-sub {
+  font-size: 6px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5px 2px;
+  border-radius: 2px;
+  letter-spacing: 0.2px;
+}
+
+/* Seat States */
+.counter-crs .car-seat.available:hover:not(:disabled) {
+  background: #d1fae5 !important;
+  border-color: #10b981 !important;
+  transform: translateY(-1px);
+}
+.counter-crs .car-seat.selected {
+  background: #fff7ed !important;
+  border-color: #f97316 !important;
+  color: #9a3412 !important;
+  box-shadow: 0 0 0 2px #f97316, 0 2px 6px rgba(249, 115, 22, 0.25) !important;
+}
+.counter-crs .car-seat.selected::after {
+  content: "✓";
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 8.5px;
+  line-height: 14px;
+  text-align: center;
+  font-weight: bold;
+}
+.counter-crs .car-seat.booked {
+  background: #fee2e2 !important;
+  border-color: #f87171 !important;
+  color: #991b1b !important;
+}
+
+/* Distinct Booked Channel Colors & Badges */
+/* 1. Operator Counter Booking: Warm Amber/Orange */
+.counter-crs .car-seat.booked.booked-operator,
+.counter-crs .counter-legend .booked-operator {
+  background: #ffedd5 !important;
+  border-color: #ea580c !important;
+  color: #9a3412 !important;
+}
+.counter-crs .car-seat.booked.booked-operator .car-seat-pill {
+  background: #ea580c !important;
+  color: #ffffff !important;
+}
+
+/* 2. Travel Agent Booking: Purple/Violet */
+.counter-crs .car-seat.booked.booked-agent,
+.counter-crs .counter-legend .booked-agent {
+  background: #f3e8ff !important;
+  border-color: #9333ea !important;
+  color: #6b21a8 !important;
+}
+.counter-crs .car-seat.booked.booked-agent .car-seat-pill {
+  background: #9333ea !important;
+  color: #ffffff !important;
+}
+
+/* 3. API / Customer App Booking: Sky Blue / Cyan */
+.counter-crs .car-seat.booked.booked-api,
+.counter-crs .counter-legend .booked-api {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+.counter-crs .car-seat.booked.booked-api .car-seat-pill {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+}
+.counter-crs .car-seat.held {
+  background: #f3e8ff !important;
+  border-color: #c084fc !important;
+  color: #6b21a8 !important;
+}
+.counter-crs .car-seat.blocked:not(.car-driver-seat) {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+  color: #b91c1c !important;
+}
+
+.counter-crs .counter-legend.car-legend .driver {
+  background: #1e293b;
+  border-color: #475569;
+}
+
 .is-booking-counter main > .demo-strip {
   display: none;
 }
 .is-booking-counter .page-heading {
-  margin-bottom: 8px;
+  display: none !important;
+}
+.is-booking-counter main {
+  padding: 6px 12px 10px !important;
+}
+.car-topline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+.car-topline-badge .car-badge-live {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
 }
 .counter-crs .counter-chart-panel .panel-heading {
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .counter-crs .counter-chart-panel .panel-heading h3 {
-  line-height: 1.5;
+  line-height: 1.4;
 }
 .counter-crs .counter-berth-grid .berth:focus-visible {
   outline: 3px solid var(--crs-blue);
@@ -27,25 +400,26 @@
   flex-wrap: wrap;
 }
 .counter-crs .counter-topline {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 .counter-crs .counter-session {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--crs-blue);
 }
 .counter-crs .counter-timezone {
-  font-size: 11px;
+  font-size: 10px;
   color: #52616b;
 }
 .counter-crs .counter-workbench {
   display: grid;
-  grid-template-columns: minmax(320px, 34%) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(310px, 33%) minmax(0, 1fr);
+  gap: 10px;
 }
 .counter-crs .counter-left,
 .counter-crs .counter-right {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
 }
 .counter-crs .panel {
@@ -76,9 +450,9 @@
   order: 3;
 }
 .counter-crs .counter-map-stage {
-  min-height: 260px;
+  min-height: 190px;
   margin: 0;
-  padding: 16px 14px;
+  padding: 8px 10px;
   background: #fdfbf8;
 }
 .counter-crs .counter-bus {
@@ -386,14 +760,15 @@
 }
 .counter-crs .counter-trip-results {
   padding: 0;
-  max-height: 230px;
-  min-height: 110px;
+  max-height: 100px;
+  min-height: 60px;
+  overflow-y: auto;
 }
 .counter-crs .counter-trip-option {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 5px 12px;
-  padding: 10px 14px;
+  gap: 3px 10px;
+  padding: 6px 12px;
   margin: 0;
   border-radius: 0;
   border-bottom: 1px solid var(--crs-line);
@@ -480,25 +855,28 @@
 }
 .crs-fare-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 9px;
-  padding: 16px 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 10px;
 }
 .crs-fare-grid label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 12px;
+  gap: 3px;
+  font-size: 11px;
 }
 .crs-fare-grid output {
   display: block;
-  min-height: 36px;
-  padding: 8px 7px;
+  min-height: 28px;
+  padding: 4px 6px;
   background: #fdfaf6;
   border: 1px solid #bec8cf;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 6px;
+  font-size: 12px;
   overflow-wrap: anywhere;
+}
+.crs-fare-grid label:last-child {
+  grid-column: span 2;
 }
 .crs-fare-grid label:last-child output {
   background: #fff7d6;
@@ -663,4 +1041,82 @@
 .counter-crs .counter-legend .blocked {
   background: #fee2e2;
   border-color: #dc6868;
+}
+
+/* Zero-scroll dashboard compactness */
+.counter-crs {
+  gap: 4px;
+}
+.counter-crs .counter-topline {
+  margin: 0 0 3px;
+}
+.counter-crs .panel-heading {
+  padding: 5px 8px;
+}
+.counter-crs .panel-heading h3 {
+  font-size: 12.5px;
+}
+.counter-crs .counter-inventory-counts {
+  padding: 2px 4px;
+  gap: 2px;
+}
+.counter-crs .counter-inventory-counts strong {
+  font-size: 13px;
+  line-height: 1;
+}
+.counter-crs .counter-inventory-counts span {
+  font-size: 9px;
+}
+.counter-crs .counter-legend {
+  padding: 2px 4px;
+  font-size: 9.5px;
+  gap: 5px;
+}
+.crs-channel-summary > div {
+  padding: 3px 6px;
+  font-size: 9.5px;
+}
+.counter-crs .counter-controls {
+  padding: 4px 6px;
+  gap: 3px;
+}
+.counter-crs .counter-controls .btn {
+  padding: 3px 6px;
+  min-height: 26px;
+  font-size: 10.5px;
+}
+.counter-crs .counter-search .counter-fields {
+  gap: 4px;
+}
+.counter-crs .counter-search .counter-fields input {
+  min-height: 26px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.counter-crs .counter-trip-option {
+  padding: 4px 6px;
+  margin-bottom: 2px;
+}
+.counter-crs .counter-trip-results {
+  max-height: 90px;
+}
+.crs-fare-grid {
+  padding: 3px 6px;
+  gap: 3px;
+}
+.crs-fare-grid label {
+  font-size: 9.5px;
+  gap: 1px;
+}
+.crs-fare-grid output {
+  min-height: 22px;
+  padding: 2px 4px;
+  font-size: 10.5px;
+}
+.crs-section-hint {
+  padding: 1px 6px 3px;
+  font-size: 10px;
+}
+.counter-crs .counter-summary {
+  padding: 4px 6px 6px;
 }
