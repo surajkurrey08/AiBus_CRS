@@ -3,6 +3,7 @@ import { Car, Plus, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from "
 import { api } from "../../api/client";
 import { DataTable, MiniStats, Overlay, Panel } from "../../components/index";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import "./car-master.css";
 
 export interface CarRecord {
   id?: string;
@@ -307,10 +308,13 @@ export function CarMaster() {
 
       {dialogOpen && (
         <Overlay
+          className="car-editor-dialog"
           title={editingCar ? "Edit Car" : "Add New Car"}
           onClose={() => setDialogOpen(false)}
         >
-          <form onSubmit={handleSave} noValidate style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <form onSubmit={handleSave} noValidate className="car-editor-form">
+            <div className="car-editor-body">
+            <p className="car-editor-intro">Add your vehicle details. Passenger seats are configured automatically for the selected category.</p>
             {formError && (
               <div className="counter-alert error" role="alert">
                 <AlertTriangle size={16} />
@@ -329,7 +333,7 @@ export function CarMaster() {
               />
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div className="car-editor-row">
               <label>
                 Car Make
                 <input
@@ -352,7 +356,7 @@ export function CarMaster() {
               </label>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div className="car-editor-row">
               <label>
                 Vehicle Category
                 <select
@@ -364,8 +368,8 @@ export function CarMaster() {
                     })
                   }
                 >
-                  <option value="4-Passenger Sedan">4-Passenger Sedan (5 Physical = 1 Driver + 4 Pax)</option>
-                  <option value="7-Passenger MUV">7-Passenger MUV (8 Physical = 1 Driver + 7 Pax)</option>
+                  <option value="4-Passenger Sedan">Sedan · 4 passengers</option>
+                  <option value="7-Passenger MUV">MUV · 7 passengers</option>
                 </select>
               </label>
               <label>
@@ -380,7 +384,7 @@ export function CarMaster() {
               </label>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div className="car-editor-row">
               <label>
                 Color (Optional)
                 <input
@@ -408,17 +412,18 @@ export function CarMaster() {
               </label>
             </div>
 
-            <div className="info-banner" style={{ fontSize: "12px", marginTop: "8px" }}>
+            <div className="car-editor-capacity" role="status">
               <ShieldCheck size={16} />
               <div>
-                <strong>Strict Physical Capacity Invariant</strong>: Driver seat is always non-bookable.
+                <strong>Passenger capacity</strong><br />Driver seat is reserved and cannot be booked.
                 {formData.vehicleCategory === "4-Passenger Sedan"
                   ? " Exactly 4 passenger seats will be bookable."
                   : " Exactly 7 passenger seats will be bookable."}
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+            </div>
+            <div className="car-editor-footer">
               <button type="button" className="btn secondary" onClick={() => setDialogOpen(false)}>
                 Cancel
               </button>

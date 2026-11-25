@@ -56,6 +56,6 @@ it("filters cars by category and opens add car modal with capacity validation", 
   await user.click(screen.getByRole("button", { name: "Add Car" }));
   expect(screen.getByRole("heading", { name: "Add New Car" })).toBeTruthy();
 
-  // Verify strict physical capacity invariant notice
-  expect(screen.getByText(/Strict Physical Capacity Invariant/)).toBeTruthy();
+  expect(screen.getByText("Passenger capacity")).toBeTruthy();
+  expect(screen.getByText(/Driver seat is reserved and cannot be booked/)).toBeTruthy();
 });
