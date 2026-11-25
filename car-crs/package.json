@@ -1,0 +1,28 @@
+{
+  "name": "@aibus/car-crs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.24.9",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "mongodb-memory-server": "^11.3.0",
+    "supertest": "^7.3.2",
+    "typescript": "~5.7.2",
+    "vitest": "^3.2.7"
+  }
+}

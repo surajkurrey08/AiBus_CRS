@@ -323,7 +323,7 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/trips/:id/holds",
     asyncRoute(async (req, res) => {
-      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING !== "true") {
         fail(
           410,
           "BUS_CRS_RETIRED",
@@ -348,7 +348,7 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings",
     asyncRoute(async (req, res) => {
-      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING !== "true") {
         fail(
           410,
           "BUS_CRS_RETIRED",
@@ -385,7 +385,7 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings/:id/payment",
     asyncRoute(async (req, res) => {
-      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING !== "true") {
         fail(
           410,
           "BUS_CRS_RETIRED",
@@ -412,7 +412,7 @@ export function publicApiRouter(config: Config, limiter: Limiter) {
   router.post(
     "/bookings/:id/payment/verify",
     asyncRoute(async (req, res) => {
-      if (process.env.ENABLE_LEGACY_BUS_SELLING === "false") {
+      if (process.env.ENABLE_LEGACY_BUS_SELLING !== "true") {
         fail(
           410,
           "BUS_CRS_RETIRED",

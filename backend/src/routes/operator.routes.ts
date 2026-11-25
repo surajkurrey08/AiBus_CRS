@@ -663,7 +663,7 @@ export function operatorRouter(config: Config) {
           : t.bookableCapacity || 4;
         return {
           ...t,
-          availableSeatsCount: available,
+          availableSeatsCount: t.availableSeatsCount ?? available,
         };
       });
       return ok(res, mapped, {
@@ -701,7 +701,12 @@ export function operatorRouter(config: Config) {
     asyncRoute(async (req, res) => {
       const tripId = parseId(req);
       const trip = await M.Trip.findOneAndUpdate(
-        { _id: tripId, ...tenant(req), status:"Draft", departureAt:{$gt:new Date()} },
+        {
+          _id: tripId,
+          ...tenant(req),
+          status: "Draft",
+          departureAt: { $gt: new Date() },
+        },
         { $set: { status: "Scheduled", bookingOpen: true } },
         { new: true },
       );

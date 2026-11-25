@@ -247,7 +247,16 @@ describe("Operator Car Trip Master Scheduling Integration", () => {
     await M.PricingPolicy.create({operatorId:operator._id,taxBasisPoints:0,chargePaise:0,chargesTaxable:false,operatorDiscountMaxPaise:0,requireAge:false,requireGender:false,requireMobile:false,gstEnabled:false,version:1});
     await expect(createHold(auth,String(trip._id),["D"])).rejects.toMatchObject({code:"SEAT_UNAVAILABLE"});
     const hold:any=await createHold(auth,String(trip._id),["FP"]);
-    const booking:any=await createBooking(auth,{tripId:String(trip._id),holdId:hold.holdId,passengers:[{seat:"FP",name:"Car test passenger"}]},"car-full-booking-test-key","operator");
+    const booking:any=await createBooking(
+      auth,
+      {
+        tripId: String(trip._id),
+        holdId: hold.holdId,
+        passengers: [{ seat: "FP", name: "Car test passenger" }],
+      },
+      "car-full-booking-test-key",
+      "customer",
+    );
     expect(booking.totalPaise).toBe(55000);expect(booking.status).toBe("Pending payment");
     const confirmed=await confirmDirectBooking(auth,String(booking._id));
     expect(confirmed.status).toBe("Confirmed");expect(confirmed.pnr).toBeTruthy();

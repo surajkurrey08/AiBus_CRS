@@ -512,6 +512,8 @@ export async function createBooking(
             userId: auth.userId,
             holdId: input.holdId,
             reference: `AB-${randomUUID()}`,
+            status: "Pending payment",
+            paymentStatus: "Pending",
             source: auth.agentId ? "agent" : channel,
             createdByUserId: auth.userId,
             ...(auth.agentId ? { agentId: auth.agentId } : {}),
@@ -557,7 +559,9 @@ export async function createBooking(
             },
           })),
         },
-        { $set: { "seats.$[seat].bookingId": booking._id } },
+        {
+          $set: { "seats.$[seat].bookingId": booking._id },
+        },
         {
           session,
           arrayFilters: [
@@ -571,6 +575,7 @@ export async function createBooking(
       );
       if (locked.modifiedCount !== 1)
         fail(409, "HOLD_EXPIRED", "Held seats are no longer available");
+
       result = booking.toObject();
       await Audit.create(
         [
@@ -620,6 +625,7 @@ export async function createBooking(
   }
   return result;
 }
+
 // Callable only by a future server-side adapter after signature verification and
 // authoritative amount/status verification. No public endpoint trusts this shape.
 export async function confirmDirectBooking(auth: Principal, bookingId: string) {
