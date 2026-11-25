@@ -35,6 +35,7 @@ export async function selectedOperator(operatorId?: string) {
 }
 const permits: Record<string, Permission> = {
   buses: "platform:monitor:read",
+  cars: "platform:monitor:read",
   trips: "platform:monitor:read",
   routes: "platform:monitor:read",
   agencies: "platform:agencies:read",
@@ -133,6 +134,21 @@ export async function platformRows(
           type: b.type,
           capacity: b.capacity,
         }));
+      if (resource === "cars")
+        rows = (
+          await capped(
+            M.Car,
+            scope,
+            "operatorId registration make model vehicleCategory bookablePassengerCapacity status",
+            session,
+          )
+        ).map((c: any) => ({
+          ...common(c),
+          registration: c.registration,
+          name: [c.make, c.model].filter(Boolean).join(" "),
+          type: c.vehicleCategory,
+          capacity: c.bookablePassengerCapacity,
+        }));
       if (resource === "routes")
         rows = (
           await capped(
@@ -165,7 +181,7 @@ export async function platformRows(
                 }
               : {}),
           },
-          "operatorId routeId busId journeyDate departureAt arrivalAt status operationStage bookingOpen seats",
+          "operatorId routeId busId carId journeyDate departureAt arrivalAt status operationStage bookingOpen seats",
           session,
         );
         const buses = await M.Bus.find({
@@ -182,17 +198,19 @@ export async function platformRows(
             .select("source destination")
             .session(session)
             .lean();
-        const busMap = new Map(buses.map((b) => [String(b._id), b])),
+        const cars=await M.Car.find({...scope,_id:{$in:trips.map(t=>t.carId||t.busId)}}).select("registration vehicleCategory").session(session).lean();
+        const vehicles:any[]=[...buses,...cars.map(c=>({...c,type:c.vehicleCategory}))];
+        const busMap = new Map(vehicles.map((b) => [String(b._id), b])),
           routeMap = new Map(routes.map((r) => [String(r._id), r]));
         const inventory = (t: any) => ({
-          total: t.seats.length,
+          total: t.seats.filter((s:any)=>!s.isDriver&&s.isBookable!==false).length,
           available: t.seats.filter(
             (s: any) =>
               s.state === "available" ||
               (s.state === "held" && new Date(s.holdUntil) <= new Date()),
           ).length,
           booked: t.seats.filter((s: any) => s.state === "booked").length,
-          blocked: t.seats.filter((s: any) => s.state === "blocked").length,
+          blocked: t.seats.filter((s: any) => !s.isDriver && s.isBookable!==false && s.state === "blocked").length,
           held: t.seats.filter(
             (s: any) =>
               s.state === "held" && new Date(s.holdUntil) > new Date(),
@@ -596,6 +614,7 @@ export async function platformOverview(auth: Principal, q: PlatformQuery) {
     activeOperators: operators.filter((o) => o.status === "approved").length,
     pendingOperators: operators.filter((o) => o.status === "pending").length,
     buses: await M.Bus.countDocuments(scope),
+    cars: await M.Car.countDocuments(scope),
     activeTrips: trips.filter((t) =>
       ["Scheduled", "Departed"].includes(t.status),
     ).length,

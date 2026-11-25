@@ -33,6 +33,8 @@ Seat blocking/release is performed atomically by backend inventory services. Hol
 
 ## Counter ownership
 
+- Agent workspace navigation: `agent` and legacy `booking_staff` identities display as **Agent**. The page allowlist is Bookings, Booking Counter and Passenger Manifest (the latter still requires manifest permission). The landing page is booking history, not operator fleet/revenue statistics. Master pages, agency management, operator Finance/Reports and company Settings are hidden and rejected by the shared navigation guard, including aliases and overview shortcuts. Company account management is removed from the agent account menu; sign out remains available. Existing database role identifiers and server permissions are preserved; sidebar visibility does not grant or replace API authorization. Operator navigation remains available according to its existing permissions.
+
 - SeatMap is shared by Booking Counter and live seat inventory; row, column, deck and fare come from the trip snapshot. Quota assignment/release uses the existing Trip inventory document.
 - SeatMap's counter-chart variant renders both decks together, offsets upper-deck columns after the lower deck, and retains each seat's original coordinates and accessible state. The default inventory variant retains keyboard deck tabs. Counter fare-grid outputs are read-only server quote values; selecting a seat never constitutes confirmation. Origin/destination swap only changes the uncommitted search fields and is disabled while seats are held.
 - features/booking-counter/api/counter.api.ts owns counter endpoint contracts; features/booking-counter/components/CounterDialogs.tsx owns reusable passenger fields and confirmation/details dialogs. Existing Overlay now portals its native dialog to the document body so print views and focus isolation work consistently.
@@ -82,7 +84,3 @@ AuthScreen owns the authentication Form variant and existing login/register/forg
 | --- | --- | --- | --- | --- |
 | Form | AuthScreen for authentication; RecordForm for business records | Existing auth API and 12-character registration/reset policy | login, register, forgot, reset | src/tests/auth-screen.test.tsx; src/tests/auth.test.tsx |
 | Scrollbar | src/styles/theme.css | Shared workspace styling and natural document scrolling | auth documents grow with form content | Desktop/mobile/320px browser inspection |
-
-## Agent workspace
-
-Agent and legacy booking_staff logins display as Agent. Their sidebar is restricted to Bookings & tickets, Booking counter and Passenger manifest (subject to manifest permission). They start on booking history. Operator setup, inventory management, finance, reports, company settings and account management shortcuts are unavailable. Sign out and existing booking details remain available. Stored roles and server authorization are unchanged.

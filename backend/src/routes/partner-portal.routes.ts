@@ -273,6 +273,69 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
     }),
   );
   r.get(
+    "/settlements",
+    asyncRoute(async (req, res) => {
+      const p = await member(req, "partner:bookings");
+      const refs = await P.PartnerBookingReference.find({ partnerId: p._id }).lean();
+      const bookingIds = refs.map((r) => r.bookingId);
+      const bookings = await M.Booking.find({
+        _id: { $in: bookingIds },
+        status: "Confirmed",
+        paymentStatus: "Paid",
+      }).sort({ createdAt: -1 }).lean();
+
+      const kolkataDate = (d: Date) =>
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(d);
+
+      const today = kolkataDate(new Date());
+      const dateMap = new Map<string, any[]>();
+      dateMap.set(today, []);
+
+      for (const b of (bookings as any[])) {
+        const d = b.createdAt ? kolkataDate(new Date(b.createdAt)) : today;
+        if (!dateMap.has(d)) dateMap.set(d, []);
+        dateMap.get(d)!.push(b);
+      }
+
+      const settlements = [];
+      for (const [date, dayBookings] of dateMap.entries()) {
+        const totalBookings = dayBookings.length;
+        const grossPaise = dayBookings.reduce((sum, b: any) => sum + Number(b.grossPaise || b.totalPaise || 0), 0);
+        const commissionPaise = dayBookings.reduce((sum, b: any) => sum + Number(b.commissionPaise || 0), 0);
+        const netPayablePaise = Math.max(0, grossPaise - commissionPaise);
+
+        const existing = await M.DailyAgentSettlement.findOne({
+          agentId: p._id,
+          date,
+        }).lean();
+
+        settlements.push({
+          date,
+          totalBookings,
+          grossPaise,
+          commissionPaise,
+          netPayablePaise,
+          status: existing?.status || "Pending",
+          clearedAt: existing?.clearedAt,
+        });
+      }
+
+      const sorted = settlements.sort((a, b) => b.date.localeCompare(a.date));
+      const todaySettlement = sorted.find((s) => s.date === today);
+
+      ok(res, {
+        settlements: sorted,
+        todayStatus: todaySettlement?.status || "Pending",
+        todayNetPayablePaise: todaySettlement?.netPayablePaise || 0,
+      });
+    }),
+  );
+  r.get(
     "/bookings/:id",
     asyncRoute(async (req, res) => {
       const p = await member(req, "partner:bookings"),

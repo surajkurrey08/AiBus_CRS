@@ -81,22 +81,22 @@ export function integrationExample(op: any, spec: any, language: string) {
 }
 export const sandboxScenarios = [
   {
-    name: "Available bus",
+    name: "Available car (4/7-passenger)",
     operation: "trips",
     steps:
-      "Grant a future internal sandbox trip with an active bus and route. Search its exact cities and journey date; inspect returned trip IDs.",
+      "Grant a future internal sandbox car trip with an active 4-passenger sedan or 7-passenger MUV and route. Search its exact cities and journey date; inspect returned car trip IDs.",
   },
   {
-    name: "Unavailable bus",
+    name: "Unavailable car",
     operation: "trips",
     steps:
-      "Search a date or city pair without a granted scheduled trip. Expect an empty result, never other operators’ inventory.",
+      "Search a date or city pair without a granted scheduled car trip. Expect an empty result, never other operators’ car inventory.",
   },
   {
-    name: "Sold-out seats",
+    name: "Sold-out car seats",
     operation: "seatLayout",
     steps:
-      "Use a fixture whose seats are already held, booked or blocked. Read the seat states; holding those seats must return an inventory conflict.",
+      "Use a fixture whose car passenger seats (4 or 7) are already held, booked or blocked. Read the seat states; holding those seats must return an inventory conflict. Note: Driver seat is always non-bookable.",
   },
   {
     name: "Fare changed",

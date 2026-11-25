@@ -1,4 +1,4 @@
-import { Armchair, BusFront, X } from "lucide-react";
+import { Armchair, Car, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Panel, useStored } from "../../components/index.ts";
 import { useWorkspace } from "../../context/WorkspaceContext.tsx";
@@ -53,8 +53,8 @@ function DemoSeatInventory({
           </select>
         </label>
         <span>
-          <BusFront size={17} />
-          TS 09 FG 1245 · AC Sleeper (2+1) · 36 berths
+          <Car size={17} />
+          DL 01 AB 1234 · 4-Passenger Sedan (5 Physical Seats: 1 Driver + 4 Pax)
         </span>
       </div>
       <div className="seat-page">

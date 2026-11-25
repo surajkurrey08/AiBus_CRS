@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  BusFront,
+  Car,
   LayoutDashboard,
   KeyRound,
   Network,
   BookOpen,
   Code2,
   Ticket,
+  IndianRupee,
   Webhook,
   ChartNoAxesCombined,
   ShieldCheck,
@@ -79,12 +80,12 @@ function Workspace({ user }: { user: Identity }) {
     <div className="platform-admin workspace-crs partner-shell">
       <aside className="platform-sidebar">
         <div className="platform-brand">
-          <BusFront />
+          <Car />
           <strong>
-            ai<span>bus</span>
+            ai<span>car</span>
           </strong>
         </div>
-        <span className="platform-nav-label">PARTNER PLATFORM</span>
+        <span className="platform-nav-label">CAR PARTNER PLATFORM</span>
         <nav aria-label="Partner navigation">
           {available.map(([id, label, , Icon]) => (
             <button

@@ -151,6 +151,7 @@ export function WorkspaceProvider({
         "routes",
         "trips",
         "buses",
+        "cars",
         "bookings",
         "fares",
         "offers",
@@ -166,6 +167,14 @@ export function WorkspaceProvider({
         ),
       );
       const lookup = Object.fromEntries(results);
+      if (lookup.cars?.length)
+        lookup.buses = lookup.cars.map((c: Raw) => ({
+          ...c,
+          name: [c.make, c.model].filter(Boolean).join(" "),
+          type: c.vehicleCategory,
+          capacity: c.bookablePassengerCapacity,
+          registration: c.registration || c.registrationNumber,
+        }));
       const [p, d] = await Promise.all([
         api<Raw>("/operator/profile"),
         api<Raw>("/operator/dashboard"),

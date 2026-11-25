@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Building2,
-  BusFront,
+  Car,
   Users,
   Ticket,
   Wallet,
@@ -42,16 +42,16 @@ const navigation = [
   },
   {
     id: "operators",
-    label: "Bus Operators",
-    title: "Bus Operators",
+    label: "Car Fleet Operators",
+    title: "Car Fleet Operators",
     icon: Building2,
     permission: "platform:operators:read",
   },
   {
     id: "monitor",
-    label: "Buses & Trips",
-    title: "Fleet and trip monitoring",
-    icon: BusFront,
+    label: "Cars & Trips",
+    title: "Car fleet and trip monitoring",
+    icon: Car,
     permission: "platform:monitor:read",
   },
   {
@@ -115,12 +115,12 @@ export function PlatformScreen({ user }: { user: Identity }) {
     <div className="platform-admin workspace-crs">
       <aside className="platform-sidebar">
         <div className="platform-brand">
-          <BusFront />
+          <Car />
           <strong>
-            ai<span>bus</span>
+            ai<span>car</span>
           </strong>
         </div>
-        <span className="platform-nav-label">ADMIN PANEL</span>
+        <span className="platform-nav-label">CAR ADMIN PANEL</span>
         <nav aria-label="Admin navigation">
           {available.map((n) => (
             <button

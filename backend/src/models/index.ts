@@ -1,6 +1,7 @@
 export { Audit } from "./audit.model.js";
 export { Booking } from "./booking.model.js";
 export { Bus } from "./bus.model.js";
+export { Car } from "./car.model.js";
 export { Cancellation } from "./cancellation.model.js";
 export { ExternalMapping } from "./external-mapping.model.js";
 export { FareHistory } from "./fare-history.model.js";
@@ -69,4 +70,5 @@ export { OperationalJob, OperationalJobRun, OperationalIssue, TripIncident } fro
 export * from "./public-api.model.js";
 
 export { PartnerSupport } from "./partner-portal.model.js";
+export { DailyAgentSettlement } from "./agent-settlement.model.js";
 export { CatalogCity, CityCatalogImport } from "./city-catalog.model.js";

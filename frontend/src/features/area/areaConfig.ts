@@ -1,4 +1,4 @@
-﻿export type AreaField = {
+export type AreaField = {
   key: string;
   label: string;
   type?: string;
@@ -15,10 +15,11 @@ const coordinates: AreaField[] = [
   { key: "longitude", label: "Longitude", type: "number", optional: true },
 ];
 export const areaTabs = [
+  { id: "routes", label: "Routes (City pairs)" },
+  { id: "route-stops", label: "Route stop assignment" },
   { id: "cities", label: "Cities" },
   { id: "locations", label: "Pickup & drop points" },
   { id: "pois", label: "POI / landmarks" },
-  { id: "route-stops", label: "Route stop assignment" },
 ];
 export const areaFields: Record<string, AreaField[]> = {
   cities: [
@@ -51,6 +52,15 @@ export const areaFields: Record<string, AreaField[]> = {
   ],
 };
 export const areaColumns: Record<string, [string, string][]> = {
+  routes: [
+    ["source", "From / Origin"],
+    ["destination", "To / Destination"],
+    ["departure", "Departure"],
+    ["arrival", "Arrival"],
+    ["durationMinutes", "Duration (mins)"],
+    ["distanceKm", "Distance (km)"],
+    ["status", "Status"],
+  ],
   cities: [
     ["name", "City"],
     ["state", "State / region"],

@@ -1,4 +1,4 @@
-﻿import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 export const objectId = Schema.Types.ObjectId;
 
 export const tenantFields = {
@@ -62,6 +62,10 @@ export const inventorySeat = new Schema(
     holdUntil: Date,
     bookingId: objectId,
     quotaLabel: String,
+    isDriver: { type: Boolean, default: false },
+    isBookable: { type: Boolean, default: true },
+    seatId: String,
+    label: String,
   },
   { _id: false, strict: "throw" },
 );

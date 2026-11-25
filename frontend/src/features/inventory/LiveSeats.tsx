@@ -1,4 +1,4 @@
-import { Armchair, BusFront, X } from "lucide-react";
+import { Armchair, Car, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client.ts";
 import { Overlay, Panel } from "../../components/index.ts";
@@ -107,9 +107,9 @@ export function LiveSeats({ date }: { date: string }) {
           </select>
         </label>
         <span>
-          <BusFront size={17} />
+          <Car size={17} />
           {bus
-            ? `${bus.registration} · ${bus.type} · ${bus.capacity} seats`
+            ? `${bus.registration} · ${bus.type || "4-Passenger Sedan"} · ${bus.capacity} seats`
             : "No scheduled trips for this date"}
         </span>
       </div>

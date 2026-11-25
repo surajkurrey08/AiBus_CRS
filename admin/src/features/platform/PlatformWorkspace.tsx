@@ -21,22 +21,22 @@ const resources: Record<
   string,
   { title: string; columns: [string, string][] }
 > = {
-  buses: {
-    title: "Registered buses",
+  cars: {
+    title: "Registered cars",
     columns: [
       ["operator", "Operator"],
       ["registration", "Registration"],
-      ["name", "Bus"],
-      ["type", "Type"],
-      ["capacity", "Seats"],
+      ["name", "Car Make & Model"],
+      ["type", "Vehicle Category"],
+      ["capacity", "Passenger Seats (4/7)"],
       ["status", "Status"],
     ],
   },
   trips: {
-    title: "Trip monitoring",
+    title: "Car trip monitoring",
     columns: [
       ["operator", "Operator"],
-      ["registration", "Bus"],
+      ["registration", "Car"],
       ["route", "Route"],
       ["date", "Travel date"],
       ["available", "Available"],
@@ -109,7 +109,7 @@ export function PlatformWorkspace({
   user: Identity;
   section: string;
 }) {
-  const [tab, setTab] = useState("buses"),
+  const [tab, setTab] = useState("cars"),
     [selected, setSelected] = useState<any>(null),
     [revision, setRevision] = useState(0),
     [notice, setNotice] = useState("");
@@ -353,7 +353,7 @@ export function PlatformWorkspace({
     <div className="platform-section">
       {section === "monitor" && (
         <nav className="platform-section-tabs" aria-label="Fleet monitoring">
-          {["buses", "trips", "routes", "alerts"].map((id) => (
+          {["cars", "trips", "routes", "alerts"].map((id) => (
             <button
               className={`btn ${tab === id ? "primary" : ""}`}
               aria-current={tab === id ? "page" : undefined}
@@ -380,7 +380,7 @@ export function PlatformWorkspace({
               ]
             : resource === "trips"
               ? ["Scheduled", "Departed", "Completed", "Cancelled"]
-              : resource === "buses" || resource === "agencies"
+              : resource === "cars" || resource === "agencies"
                 ? ["Active", "Inactive"]
                 : undefined
         }

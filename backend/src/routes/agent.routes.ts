@@ -16,6 +16,7 @@ import {
   agencyBookingScope,
   authorizeAgent,
 } from "../services/agent.service.js";
+import { getAgentDailySettlements } from "../services/agent-settlement.service.js";
 import type { AgentCapability } from "../types/agent.js";
 import {
   createBooking,
@@ -313,6 +314,7 @@ export function agentRouter(config: Config) {
         req.auth,
         input,
         z.string().min(16).max(100).parse(req.get("Idempotency-Key")),
+        "agent",
       );
       ok(
         res,
@@ -521,6 +523,19 @@ export function agentRouter(config: Config) {
       const filter = { operatorId: req.auth.operatorId!, agentId: req.auth.agentId!, workflowVersion: 1, ...createdDuring(q) };
       const rows = await M.Settlement.find(filter).select("externalId kind workflowStatus netPaise currency mode periodFrom periodTo settledAt").sort({ createdAt: -1 }).skip((q.page - 1) * q.limit).limit(q.limit).lean();
       ok(res, { available: true, settlements: rows, livePayoutAvailable: false }, { page: q.page, limit: q.limit, total: await M.Settlement.countDocuments(filter) });
+    }),
+  );
+  router.get(
+    "/daily-settlements",
+    asyncRoute(async (req, res) => {
+      if (!req.auth.agentId) {
+        fail(403, "AGENT_REQUIRED", "Agent session required");
+      }
+      const settlements = await getAgentDailySettlements(
+        req.auth.operatorId!,
+        req.auth.agentId!,
+      );
+      ok(res, { settlements });
     }),
   );
   return router;

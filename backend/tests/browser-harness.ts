@@ -109,6 +109,7 @@ try {
   await M.User.create({name:"Browser Partner Owner",email:"partner@browser.test",role:"partner",partnerId:apiPartner._id,partnerRole:"Owner",passwordHash:hash});
   await M.User.create({name:"Browser Read Only",email:"readonly@browser.test",role:"partner",partnerId:apiPartner._id,partnerRole:"Read Only",passwordHash:hash});
   await M.PartnerInventoryGrant.create({partnerId:apiPartner._id,operatorId:owner._id,kind:"Operator",targetId:owner._id,expiresAt:new Date(Date.now()+86400000)});
+  await M.Car.create({operatorId:owner._id,registration:"MH12CR4321",registrationNumber:"MH12CR4321",make:"Browser Car",model:"Sedan",vehicleCategory:"4-Passenger Sedan",category:"4-Passenger Sedan",totalPhysicalSeats:5,bookablePassengerCapacity:4,status:"Active"});
   const bus = await M.Bus.create({
     operatorId: owner._id,
     registration: "MH12BR1234",

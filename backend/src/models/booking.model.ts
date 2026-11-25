@@ -40,7 +40,10 @@ export const Booking = model(
       default: "Pending",
     },
     paidAt: Date,
-    fundingMethod: { type: String, enum: ["gateway", "wallet", "credit"] },
+    fundingMethod: {
+      type: String,
+      enum: ["gateway", "wallet", "credit", "cash", "counter_cash"],
+    },
     passengers: [passenger],
     contact: { phone: String, email: String },
     gst: { number: String, company: String, address: String },

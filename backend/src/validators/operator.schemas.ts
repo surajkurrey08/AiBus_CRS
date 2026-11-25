@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { amount, dateOnly, id, text } from "../utils/core.js";
 export const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
@@ -28,6 +28,29 @@ export const busInput = z
   })
   .strict();
 
+export const carInput = z
+  .object({
+    registrationNumber: text.optional(),
+    registration: text.optional(),
+    make: text,
+    model: text.optional(),
+    modelName: text.optional(),
+    year: z.coerce.number().int().min(1900).max(2100).optional().default(() => new Date().getFullYear()),
+    vehicleCategory: z
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .optional()
+      .default("4-Passenger Sedan"),
+    category: z
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .optional(),
+    totalPhysicalSeats: z.coerce.number().int().min(5).max(9),
+    bookablePassengerCapacity: z.coerce.number().int().min(1).max(8),
+    color: z.string().optional().default(""),
+    status: z
+      .enum(["Active", "Inactive", "Maintenance", "Under Maintenance", "Archived"])
+      .default("Active"),
+  });
+
 export const point = z
   .object({ name: text, time: time.optional(), address: text.optional() })
   .strict();
@@ -36,6 +59,8 @@ export const routeInput = z
   .object({
     source: text,
     destination: text,
+    sourceCityId: id.optional(),
+    destinationCityId: id.optional(),
     boarding: z.array(point).min(1).max(40),
     dropping: z.array(point).min(1).max(40),
     departure: time,
@@ -91,8 +116,18 @@ export const scheduleInput = z
 
 export const tripInput = z
   .object({
-    routeId: id,
-    busId: id,
+    routeId: id.optional(),
+    carId: z.string().optional(),
+    busId: z.string().optional(),
+    tripNumber: z.string().optional(),
+    tripType: z.enum(["ONE_WAY", "ROUND_TRIP"]).default("ONE_WAY"),
+    vehicleCategory: z
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .optional(),
+    carRegistration: z.string().optional(),
+    routeName: z.string().optional(),
+    bookableCapacity: z.coerce.number().int().optional(),
+    totalPhysicalSeats: z.coerce.number().int().optional(),
     scheduleId: id.optional(),
     serviceId: id.optional(),
     crewIds: z
@@ -104,8 +139,15 @@ export const tripInput = z
       )
       .optional(),
     journeyDate: dateOnly,
-    departureAt: z.string().datetime({ offset: true }),
-    arrivalAt: z.string().datetime({ offset: true }).optional(),
+    departureAt: z.string().datetime({offset:true}),
+    arrivalAt: z.string().datetime({offset:true}).optional(),
+    estimatedArrivalAt: z.string().datetime({offset:true}).optional(),
+    baseFarePaise: amount.optional(),
+    baseFareRupees: z.coerce.number().optional(),
+    status: z.enum(["Draft", "Scheduled", "Cancelled"]).optional().default("Scheduled"),
+    bookingOpen: z.boolean().optional().default(true),
+    availableSeatsCount: z.coerce.number().int().optional(),
+    _id: z.string().optional(),
     seatSideFares: z
       .object({
         doublePaise: amount.refine(
@@ -120,7 +162,7 @@ export const tripInput = z
       .strict()
       .optional(),
   })
-  .strict();
+  .passthrough();
 
 export const fareInput = z
   .object({

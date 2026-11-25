@@ -6,7 +6,7 @@ import {
   ArrowUpRight,
   BadgePercent,
   Bell,
-  BusFront,
+  Car,
   Calculator,
   CalendarDays,
   CalendarClock,
@@ -21,6 +21,7 @@ import {
   Folders,
   IndianRupee,
   LayoutDashboard,
+  LayoutGrid,
   Menu,
   PanelLeftClose,
   Plus,
@@ -72,9 +73,11 @@ import {
   TripControls,
 } from "../features/index.ts";
 import { SeatInventory } from "../features/inventory/SeatInventory.tsx";
+import { AgentDailySettlement } from "../features/agents/AgentDailySettlement.tsx";
 import { TripCalendar } from "../features/trips/TripCalendar.tsx";
-import { BusMaster } from "../features/fleet/BusMaster";
-import { TripMaster } from "../features/trip-master/TripMaster";
+import { CarMaster } from "../features/car-master/CarMaster";
+import { CarTripMaster } from "../features/car-trip-master/CarTripMaster";
+import { SeatLayoutDesigner } from "../features/car-layout/SeatLayoutDesigner";
 import { AreaMaster } from "../features/area/AreaMaster";
 import "../styles/base.css";
 import "../styles/theme.css";
@@ -86,60 +89,45 @@ import {
 } from "../utils/workspace-access.ts";
 const nav = [
   ["Overview", LayoutDashboard],
-  ["Bus & fleet", BusFront],
-  ["Routes & trips", Route],
-  ["Seat inventory", Armchair],
-  ["Bookings & tickets", TicketCheck],
-  ["Passenger manifest", ClipboardList],
-  ["Fare & pricing", IndianRupee],
-  ["Cancellations & refunds", TicketX],
-  ["Offers & promotions", BadgePercent],
-  ["Reports & earnings", ChartNoAxesCombined],
-  ["Operator settings", Settings],
-  ["Booking counter", Calculator],
-  ["Bus Master", Warehouse],
-  ["Area Master", MapPin],
+  ["Car Master", Car],
+  ["Route Master", Route],
   ["Trip Master", CalendarClock],
-  ["Master", Folders],
+  ["Seat Layout Designer", LayoutGrid],
+  ["Seat Availability", Armchair],
+  ["Booking Counter", Calculator],
+  ["Passenger Manifest", ClipboardList],
+  ["Agents", Users],
   ["Finance", IndianRupee],
+  ["Reports", ChartNoAxesCombined],
+  ["Settings", Settings],
 ] as const;
 const navCaptions = [
   "Overview",
-  "Fleet",
-  "Routes",
-  "Seats",
-  "Bookings",
-  "Passengers",
-  "Fares",
-  "Refunds",
-  "Offers",
+  "Car Master",
+  "Route Master",
+  "Trip Master",
+  "Seat Layout",
+  "Availability",
+  "Counter",
+  "Manifest",
+  "Agents",
+  "Finance",
   "Reports",
   "Settings",
-  "Counter",
-  "Bus Master",
-  "Area Master",
-  "Trip Master",
-  "Master",
-  "Finance",
 ];
 const descriptions = [
-  "Your operator records, departures and recorded ticket sales.",
-  "Manage your buses and keep your fleet ready for every journey.",
+  "Your car operator records, departures and recorded ticket sales.",
+  "Manage your 4-seater and 7-seater cars and keep your fleet ready for every journey.",
   "Connect cities. Keep every departure on schedule.",
-  "A clear view of every berth, on every journey.",
-  "Every booking, from confirmation to boarding.",
-  "Keep your crew and passengers on the same page.",
-  "Manage fares across routes, seats and travel seasons.",
-  "Track requests and manage passenger refunds.",
-  "Give passengers one more reason to travel with you.",
-  "Understand your performance and track every rupee.",
+  "Scheduled One-Way and Round-Trip car trip operations and seat inventory.",
+  "Design and customize 4-passenger and 7-passenger top-down car seat charts.",
+  "Real-time car seat inventory and availability maps.",
+  "Search car trips, select individual seats, and calculate authoritative fares.",
+  "Car passenger manifests, contact information and pickup/drop points.",
+  "Manage travel agencies, approved credit balances and commission rates.",
+  "Manage agency funds and approved credit with ledger-backed records.",
+  "Understand operational performance and track car seat revenues.",
   "Manage your company, team and workspace preferences.",
-  "Search trips, manage seats and handle counter bookings in one workspace.",
-  "Manage reusable seat charts, coach types, crew, owners, vehicle records and GPS mappings.",
-  "Manage service cities, pickup/drop points, landmarks and route stop assignments.",
-  "Manage services, bulk scheduling, operational records and commission rules.",
-  "Choose Bus Master, Area Master or Trip Master to manage your setup.",
-  "Manage agency prepaid funds and approved credit with ledger-backed records.",
 ];
 export function App({ demo = false }: { demo?: boolean }) {
   return (
@@ -151,10 +139,12 @@ export function App({ demo = false }: { demo?: boolean }) {
 function Dashboard() {
   const ws = useWorkspace();
   const agentWorkspace = isAgentWorkspace(ws.user.role);
+  const pageLabel = (index: number) =>
+    agentWorkspace && index === 0 ? "Bookings" : nav[index][0];
   const counterGuard = useRef<((proceed: () => void) => void) | null>(null);
   const permitted = (p: string) => ws.user.permissions.includes(p);
   const routeNames = ws.records.routes.map((r) => r.route);
-  const [page, setPage] = useState(agentWorkspace ? 4 : 0),
+  const [page, setPage] = useState(0),
     [collapsed, setCollapsed] = useState(false),
     [tripMasterTab, setTripMasterTab] = useState("services");
   const { bookings, buses: fleet, routes, fares, offers, refunds } = ws.records;
@@ -214,19 +204,21 @@ function Dashboard() {
   }, [toast]);
   const navigate = (i: number) => {
     const proceed = () => {
-      const target = i === 1 ? 12 : i === 2 ? 14 : i;
+      let target = i;
+      if (i === 12) target = 1;
+      else if (i === 13) target = 2;
+      else if (i === 14) target = 3;
+      else if (i === 15) target = 1;
+      else if (i === 16) target = 9;
       if (
         !canOpenWorkspacePage(ws.user.role, i) ||
         !canOpenWorkspacePage(ws.user.role, target)
       )
         return;
-      if (i === 2) setTripMasterTab("trips");
-      else if (i === 14) setTripMasterTab("services");
       setPage(target);
-
       setDetail(null);
     };
-    if (page === 11 && i !== 11 && counterGuard.current)
+    if (page === 6 && i !== 6 && counterGuard.current)
       counterGuard.current(proceed);
     else proceed();
   };
@@ -261,7 +253,7 @@ function Dashboard() {
   };
   const newBooking = () => {
     if (!ws.demo) {
-      navigate(11);
+      navigate(6);
       return;
     }
     setForm({
@@ -286,12 +278,12 @@ function Dashboard() {
   ];
   return (
     <div
-      className={`app workspace-crs ${collapsed ? "sidebar-collapsed" : ""} ${page === 11 ? "is-booking-counter" : ""}`}
+      className={`app workspace-crs ${collapsed ? "sidebar-collapsed" : ""} ${page === 6 ? "is-booking-counter" : ""}`}
     >
       <aside className="sidebar" id="workspace-sidebar">
         <a
           className="brand"
-          aria-label="Aibus overview"
+          aria-label="Aicar overview"
           href="#"
           onClick={(e) => {
             e.preventDefault();
@@ -299,13 +291,13 @@ function Dashboard() {
           }}
         >
           <span className="brand-mark">
-            <BusFront size={24} />
+            <Car size={24} />
           </span>
           {!collapsed && (
             <>
               <span>
-                ai<span className="brand-light">bus</span>
-                <small>OPERATOR WORKSPACE</small>
+                ai<span className="brand-light">car</span>
+                <small>CAR OPERATOR WORKSPACE</small>
               </span>
               <span className="brand-dot" />
             </>
@@ -331,47 +323,38 @@ function Dashboard() {
         </button>
         <div className="nav-label">{collapsed ? "•••" : "WORKSPACE"}</div>
         <nav id="workspace-navigation" aria-label="Workspace navigation">
-          {[0, 15, 3, 11, 4, 5, 6, 7, 8, 9, 16, 10]
-            .map((i) => ({
-              entry: nav[i],
-              i,
-            }))
-            .map(({ entry: [label, Icon], i }) =>
-              !canOpenWorkspacePage(ws.user.role, i) ||
-              ([5, 7, 9, 16].includes(i) &&
-                !permitted(
-                  i === 5
-                    ? "manifest:read"
-                    : i === 7
-                      ? "refunds:write"
-                      : "finance:read",
-                )) ? null : (
-                <React.Fragment key={label}>
-                  {i === 6 && (
-                    <div className="nav-label">
-                      {collapsed ? "•••" : "BUSINESS"}
-                    </div>
-                  )}
-                  {i === 10 && <div className="nav-divider" />}
-                  <button
-                    aria-label={label}
-                    title={label}
-                    aria-current={page === i ? "page" : undefined}
-                    className={
-                      page === i || (i === 15 && [12, 13, 14].includes(page))
-                        ? "nav-item active"
-                        : "nav-item"
-                    }
-                    onClick={() => navigate(i)}
-                  >
-                    <Icon size={21} aria-hidden="true" />
-                    <span className="nav-caption" aria-hidden="true">
-                      {navCaptions[i]}
-                    </span>
-                  </button>
-                </React.Fragment>
-              ),
-            )}
+          {nav.map(([label, Icon], i) => {
+            if (!canOpenWorkspacePage(ws.user.role, i)) return null;
+            if (i === 7 && !permitted("manifest:read")) return null;
+            if ([9, 10].includes(i) && !permitted("finance:read")) return null;
+            return (
+              <React.Fragment key={label}>
+                {i === 4 && (
+                  <div className="nav-label">
+                    {collapsed ? "•••" : "INVENTORY"}
+                  </div>
+                )}
+                {i === 8 && (
+                  <div className="nav-label">
+                    {collapsed ? "•••" : "BUSINESS"}
+                  </div>
+                )}
+                {i === 11 && <div className="nav-divider" />}
+                <button
+                  aria-label={pageLabel(i)}
+                  title={pageLabel(i)}
+                  aria-current={page === i ? "page" : undefined}
+                  className={page === i ? "nav-item active" : "nav-item"}
+                  onClick={() => navigate(i)}
+                >
+                  <Icon size={21} aria-hidden="true" />
+                  <span className="nav-caption" aria-hidden="true">
+                    {agentWorkspace && i === 0 ? "Bookings" : navCaptions[i]}
+                  </span>
+                </button>
+              </React.Fragment>
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           {!collapsed && (
@@ -430,7 +413,7 @@ function Dashboard() {
                 <ChevronRight size={13} />
               </>
             )}
-            <strong>{nav[page][0]}</strong>
+            <strong>{pageLabel(page)}</strong>
           </div>
           <div className="header-right">
             <span className="live">
@@ -542,9 +525,15 @@ function Dashboard() {
                 <span>· {ws.user.operatorId?.slice(-8)}</span>
               </div>
               <h1>
-                {page === 0 ? "Your operations, at a glance." : nav[page][0]}
+                {page === 0 && !agentWorkspace
+                  ? "Your operations, at a glance."
+                  : pageLabel(page)}
               </h1>
-              <p>{descriptions[page]}</p>
+              <p>
+                {agentWorkspace && page === 0
+                  ? "Find booking records and open passenger and ticket details."
+                  : descriptions[page]}
+              </p>
             </div>
             <div className="heading-actions">
               {[0, 2, 3, 4, 5, 9].includes(page) && (
@@ -599,7 +588,18 @@ function Dashboard() {
             </span>
             <span className="today-pill">{date}</span>
           </div>
-          {page === 0 && (
+          {page === 0 && agentWorkspace && (
+            <Panel title="Booking history">
+              <DataTable
+                rows={bookings}
+                journeyDate={date}
+                columns={bookingCols}
+                title="bookings"
+                onView={setDetail}
+              />
+            </Panel>
+          )}
+          {page === 0 && !agentWorkspace && (
             <>
               <div className="stats-grid">
                 {[
@@ -620,13 +620,13 @@ function Dashboard() {
                     chart: [3, 4, 3, 6, 5, 7, 7, 10],
                   },
                   {
-                    label: "Active buses",
+                    label: "Active cars",
                     value: String(
                       fleet.filter((r) => r.status === "Active").length,
                     ),
-                    change: `${fleet.length} total fleet`,
+                    change: `${fleet.length} total cars`,
                     note: `${fleet.filter((r) => r.status !== "Active").length} inactive`,
-                    Icon: BusFront,
+                    Icon: Car,
                     chart: [5, 5, 6, 6, 7, 7, 7, 8],
                   },
                   {
@@ -818,8 +818,8 @@ function Dashboard() {
                         </div>
                         <h4>{r.route}</h4>
                         <p>
-                          <BusFront size={13} />
-                          {fleet[i]?.id} <span>AC Sleeper</span>
+                          <Car size={13} />
+                          {fleet[i]?.id || "Car"} <span>4/7-Pax Car</span>
                         </p>
                         <div className="departure-bottom">
                           <span>
@@ -848,7 +848,7 @@ function Dashboard() {
                     <div className="quick-actions">
                       {[
                         { Icon: Armchair, label: "Manage seats", target: 3 },
-                        { Icon: BusFront, label: "Add a bus", target: 1 },
+                        { Icon: Car, label: "Manage fleet", target: 1 },
                         { Icon: Tag, label: "Create offer", target: 8 },
                         { Icon: Download, label: "Download report", target: 9 },
                       ]
@@ -901,212 +901,43 @@ function Dashboard() {
               />
             </>
           )}
-          {page === 3 && (
+          {page === 1 && <CarMaster />}
+          {page === 2 && <AreaMaster defaultTab="routes" />}
+          {page === 3 && <CarTripMaster />}
+          {page === 4 && <SeatLayoutDesigner />}
+          {page === 5 && (
             <SeatInventory routes={routes} date={date} notify={notify} />
           )}
-          {page === 4 && (
-            <>
-              <MiniStats
-                items={[
-                  [String(bookings.length), "Total bookings"],
-                  [
-                    String(
-                      bookings.filter((r) => r.status === "Confirmed").length,
-                    ),
-                    "Confirmed",
-                  ],
-                  [
-                    String(
-                      bookings.filter((r) => r.status === "Pending").length,
-                    ),
-                    "Awaiting payment",
-                  ],
-                  [
-                    money(
-                      bookings
-                        .filter((r) => r.status === "Confirmed")
-                        .reduce((s, r) => s + Number(r.fare), 0),
-                    ),
-                    "Confirmed ticket sales",
-                  ],
-                ]}
-              />
+          {page === 6 && <BookingCounter navigationGuard={counterGuard} />}
+          {page === 7 && <LiveManifest date={date} initialRoute={trip} />}
+          {page === 8 && (
+            <Panel title="Travel Agencies & Agents">
+              <p>
+                Agency management, partner credit limits, commission calculation
+                and daily settlements.
+              </p>
               <DataTable
-                key="bookings"
-                journeyDate={date}
-                rows={bookings.filter((r) => r.date === date)}
+                key="agents"
+                rows={(ws.raw.agents || []).map((a: any) => ({
+                  id: a._id || a.id,
+                  name: a.name || a.agencyName || "Agency",
+                  email: a.email || "—",
+                  commission: `${a.commissionRate || 0}%`,
+                  status: a.status || "Active",
+                }))}
                 columns={[
-                  ...bookingCols.slice(0, 3),
-                  ["date", "Journey date"],
-                  ...bookingCols.slice(3),
-                ]}
-                onView={setDetail}
-                title="bookings"
-                exportable
-              />
-            </>
-          )}
-          {page === 5 && <LiveManifest date={date} initialRoute={trip} />}
-          {page === 6 && (
-            <>
-              {permitted("pricing:write") && (
-                <div className="section-heading">
-                  <h3>Route fares</h3>
-                  <button className="btn primary" onClick={() => edit("Fare")}>
-                    <Plus size={15} />
-                    Add fare
-                  </button>
-                </div>
-              )}
-              <div className="info-banner">
-                <ShieldCheck size={20} />
-                <div>
-                  <strong>Pricing that works for every journey</strong>
-                  <p>
-                    Set double-side and single-side fares per passenger for
-                    weekdays and weekends. Applies to new trips on this route;
-                    existing trips keep their saved fares.
-                  </p>
-                </div>
-              </div>
-              <DataTable
-                key="fares"
-                rows={fares}
-                columns={[
-                  ["route", "Route"],
-                  ["weekday", "Double · weekday"],
-                  ["single", "Single · weekday"],
-                  ["weekend", "Double · weekend"],
-                  ["singleWeekend", "Single · weekend"],
-                ]}
-                onEdit={
-                  permitted("pricing:write")
-                    ? (r) => edit("Fare", r)
-                    : undefined
-                }
-                title="fares"
-              />
-              <Panel title="Seat-wise pricing">
-                <div className="pricing-rules">
-                  <div>
-                    <Armchair />
-                    <strong>Double side</strong>
-                    <span>Same fare per person for both adjacent berths</span>
-                  </div>
-                  <div>
-                    <Armchair />
-                    <strong>Single side</strong>
-                    <span>
-                      Separate fare for the berth across the aisle on both decks
-                    </span>
-                  </div>
-                  <div>
-                    <Users />
-                    <strong>Seater / special fares</strong>
-                    <span>
-                      Seaters use the double-side rate. Date and seat overrides
-                      take priority.
-                    </span>
-                  </div>
-                </div>
-              </Panel>
-            </>
-          )}
-          {page === 7 && (
-            <>
-              <MiniStats
-                items={[
-                  [
-                    String(
-                      refunds.filter((r) => r.status === "Requested").length,
-                    ),
-                    "Pending requests",
-                  ],
-                  [
-                    money(
-                      refunds
-                        .filter((r) => r.status === "Requested")
-                        .reduce((s, r) => s + Number(r.amount), 0),
-                    ),
-                    "Pending refunds",
-                  ],
-                  [
-                    money(
-                      refunds
-                        .filter((r) => r.status === "Refunded")
-                        .reduce((s, r) => s + Number(r.amount), 0),
-                    ),
-                    "Refunded",
-                  ],
-                  [String(summary.cancelled || 0), "Recorded cancellations"],
-                ]}
-              />
-              <DataTable
-                key="refunds"
-                rows={refunds}
-                columns={[
-                  ["id", "Refund ID"],
-                  ["passenger", "Passenger"],
-                  ["route", "Route"],
-                  ["amount", "Refund amount"],
-                  ["date", "Requested on"],
+                  ["name", "Agency name"],
+                  ["email", "Email"],
+                  ["commission", "Commission"],
                   ["status", "Status"],
                 ]}
-                title="refunds"
-                onView={setDetail}
+                title="agents"
               />
-              <LivePolicy />
-            </>
+              <AgentDailySettlement />
+            </Panel>
           )}
-          {page === 8 && (
-            <>
-              <MiniStats
-                items={[
-                  [
-                    String(offers.filter((o) => o.status === "Active").length),
-                    "Active offers",
-                  ],
-                  [
-                    String(offers.reduce((n, o) => n + Number(o.used || 0), 0)),
-                    "Total redemptions",
-                  ],
-                  ["—", "Attributed revenue unavailable"],
-                  ["—", "Conversion not recorded"],
-                ]}
-              />
-              <div className="offers-grid">
-                {offers.map((o) => (
-                  <Panel key={o.id}>
-                    <div className="offer-top">
-                      <span className="offer-icon">
-                        <Tag size={23} />
-                      </span>
-                      <Badge value={o.status} />
-                    </div>
-                    <h2>{o.discount} off</h2>
-                    <h3>{o.name}</h3>
-                    <div className="promo-code">{o.id}</div>
-                    <p className="muted">
-                      <CalendarDays size={14} />
-                      {o.period}
-                    </p>
-                    <div className="offer-foot">
-                      <span>{o.used || "0"} redemptions</span>
-                      <button
-                        className="text-btn"
-                        disabled={!permitted("offers:write")}
-                        onClick={() => edit("Offer", o)}
-                      >
-                        Edit offer
-                        <ArrowUpRight size={14} />
-                      </button>
-                    </div>
-                  </Panel>
-                ))}
-              </div>
-            </>
-          )}
-          {page === 9 && (
+          {page === 9 && permitted("finance:read") && <FinanceHub />}
+          {page === 10 && (
             <>
               <div className="report-range">
                 <label>
@@ -1200,77 +1031,12 @@ function Dashboard() {
               />
             </>
           )}
-          {page === 10 && <LiveSettings />}
-          {page === 11 && <BookingCounter navigationGuard={counterGuard} />}
-          {page === 12 && (
-            <BusMaster
-              onAddBus={() => edit("Bus")}
-              onEditBus={(row) => edit("Bus", row)}
-            />
-          )}
-          {page === 13 && <AreaMaster />}
+          {page === 11 && <LiveSettings />}
+          {page === 12 && <CarMaster />}
+          {page === 13 && <AreaMaster defaultTab="cities" />}
+          {page === 14 && <CarTripMaster />}
           {page === 15 && <MasterHub onOpen={navigate} />}
           {page === 16 && permitted("finance:read") && <FinanceHub />}
-          {page === 14 && (
-            <TripMaster
-              onCounter={() => navigate(11)}
-              onArea={() => navigate(13)}
-              key={tripMasterTab}
-              initialTab={tripMasterTab}
-              routesContent={
-                <>
-                  <div className="section-heading">
-                    <h3>Routes</h3>
-                    {permitted("routes:write") && (
-                      <button
-                        className="btn primary"
-                        onClick={() => edit("Route")}
-                      >
-                        <Plus size={15} />
-                        Add route
-                      </button>
-                    )}
-                  </div>
-                  <DataTable
-                    key="routes"
-                    rows={routes}
-                    columns={[
-                      ["id", "Route ID"],
-                      ["route", "Route"],
-                      ["departure", "Departure"],
-                      ["arrival", "Arrival"],
-                      ["duration", "Duration"],
-                      ["status", "Status"],
-                    ]}
-                    onView={setDetail}
-                    onEdit={
-                      permitted("routes:write")
-                        ? (row) => edit("Route", row)
-                        : undefined
-                    }
-                    title="routes"
-                  />
-                </>
-              }
-              tripsContent={
-                <>
-                  <div className="section-heading">
-                    <h3>Trip calendar</h3>
-                    <label>
-                      Journey date
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <TripCalendar date={date} onChange={setDate} />
-                  <TripControls />
-                </>
-              }
-            />
-          )}
           <footer className="app-footer">
             <span>© 2026 Aibus · Operator workspace</span>
             <span>
@@ -1314,7 +1080,7 @@ function Dashboard() {
           <div className="detail-content">
             <div className="detail-hero">
               <span className="route-icon">
-                {detail.pnr ? <Ticket size={24} /> : <BusFront size={24} />}
+                {detail.pnr ? <Ticket size={24} /> : <Car size={24} />}
               </span>
               <h2>{detail.id}</h2>
               <Badge value={detail.status || "Active"} />
@@ -1324,21 +1090,31 @@ function Dashboard() {
               !ws.demo &&
               permitted("bookings:write") &&
               detail.status === "Pending payment" && (
-                <RazorpayPaymentActions
-                  bookingId={detail._id || detail.id}
-                  onUpdated={(payment) => {
-                    setDetail({
-                      ...detail,
-                      status: payment.status,
-                      paymentStatus:
-                        payment.paymentStatus ||
-                        detail.paymentStatus ||
-                        "Pending",
-                      pnr: payment.pnr || detail.pnr || "Not issued",
-                    });
-                    void ws.refresh();
-                  }}
-                />
+                <div style={{ margin: "10px 0" }}>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={async () => {
+                      try {
+                        const res = await api<any>(
+                          `/operator/bookings/${detail._id || detail.id}/confirm-direct`,
+                          { method: "POST" },
+                        );
+                        setDetail({
+                          ...detail,
+                          status: res.data.status,
+                          paymentStatus: res.data.paymentStatus,
+                          pnr: res.data.pnr || "Not issued",
+                        });
+                        void ws.refresh();
+                      } catch (e: any) {
+                        alert(e.message || "Failed to confirm booking");
+                      }
+                    }}
+                  >
+                    Confirm Booking & Mark Paid (Counter Cash)
+                  </button>
+                </div>
               )}
             {Object.entries(detail).map(([k, v]) => (
               <div className="detail-row" key={k}>

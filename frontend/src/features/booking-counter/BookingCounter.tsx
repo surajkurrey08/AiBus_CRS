@@ -2,7 +2,7 @@ import { PartnerSelector } from "./components/PartnerSelector";
 import {
   ArrowLeftRight,
   ArrowRight,
-  BusFront,
+  Car,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -28,7 +28,6 @@ import {
 } from "../../components/seats/SeatMap.tsx";
 import { useWorkspace } from "../../context/WorkspaceContext.tsx";
 import { money } from "../../data/demo-data.ts";
-import { RazorpayPaymentActions } from "../payments/components/RazorpayPaymentActions";
 import "../../styles/counter-crs.css";
 import {
   counterApi,
@@ -102,6 +101,9 @@ export function BookingCounter({
     tripId: string;
     counts: Record<string, number>;
   } | null>(null);
+  const [counterView, setCounterView] = useState<"booking" | "bookings">(
+    "booking",
+  );
   const [manageInventory, setManageInventory] = useState(false);
   const [committed, setCommitted] = useState({
       from: "",
@@ -138,6 +140,7 @@ export function BookingCounter({
       reference: string;
       status: string;
       id: string;
+      pnr?: string;
     } | null>(null),
     [refreshVersion, setRefreshVersion] = useState(0);
   const [operation, setOperation] = useState<
@@ -151,6 +154,8 @@ export function BookingCounter({
     >(null),
     [quotaLabel, setQuotaLabel] = useState(""),
     [chartOpen, setChartOpen] = useState(false),
+    [fareOverrides, setFareOverrides] = useState<Record<string, string>>({}),
+    [fareSaving, setFareSaving] = useState<string | null>(null),
     [leaveAction, setLeaveAction] = useState<(() => void) | null>(null);
   const searchRequest = useRef<AbortController | null>(null),
     activeHold = useRef<CounterHold | null>(null),
@@ -310,6 +315,32 @@ export function BookingCounter({
       if (!controller.signal.aborted) setInventoryLoading(false);
     }
   }
+
+  async function saveCustomSeatFare(seatNum: string) {
+    if (!trip) return;
+    const val = Number(fareOverrides[seatNum]);
+    if (isNaN(val) || val < 0) {
+      setError("Please enter a valid non-negative fare amount");
+      return;
+    }
+    setFareSaving(seatNum);
+    setError("");
+    try {
+      const paiseVal = Math.round(val * 100);
+      await api(`/operator/trips/${trip.id}/seat-fares`, {
+        method: "PATCH",
+        body: JSON.stringify({ seatFares: { [seatNum]: paiseVal } }),
+      });
+      setNotice(`Seat ${seatNum} fare updated to ₹${val}.`);
+      await loadInventory();
+      setPolicyRevision((v) => v + 1);
+    } catch (e: any) {
+      setError(e.message || "Failed to update seat fare");
+    } finally {
+      setFareSaving(null);
+    }
+  }
+
   useEffect(() => {
     void loadInventory();
     if (!trip) return;
@@ -562,6 +593,7 @@ export function BookingCounter({
         id: String(response.data._id),
         reference: response.data.reference,
         status: response.data.status,
+        pnr: response.data.pnr,
       });
       activeHold.current = null;
       pendingPayload.current = null;
@@ -675,11 +707,47 @@ export function BookingCounter({
         </div>
       )}
       <div className="counter-topline">
-        <div>
+        <div className="counter-topline-left">
           <span className="counter-session">
             <ShieldCheck size={14} />
             Booking counter
+            <span className="car-topline-badge">
+              <span className="car-badge-live">LIVE</span>
+              Car Central Reservation System
+            </span>
           </span>
+          <div className="counter-nav-pills" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={counterView === "booking"}
+              className={`counter-nav-pill ${counterView === "booking" ? "active" : ""}`}
+              onClick={() => setCounterView("booking")}
+            >
+              <Ticket size={13} />
+              Reservation Console
+            </button>
+            {trip && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={counterView === "bookings"}
+                className={`counter-nav-pill ${counterView === "bookings" ? "active" : ""}`}
+                onClick={() => setCounterView("bookings")}
+              >
+                <Users size={13} />
+                Trip Bookings & PNRs
+                {counterSources && (
+                  <span className="counter-tab-badge">
+                    {Object.values(counterSources.counts).reduce(
+                      (a, b) => a + b,
+                      0,
+                    )}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
           <span className="counter-timezone">All journey times in IST</span>
         </div>
         <button
@@ -714,14 +782,17 @@ export function BookingCounter({
           </button>
         </div>
       )}
-      <div className="counter-workbench">
+      <div
+        className="counter-workbench"
+        style={{ display: counterView === "booking" ? "grid" : "none" }}
+      >
         <div className="counter-left">
           <SeatMap
             variant="counter-chart"
             title={
               trip
-                ? `Bus No : ${trip.registration} (${trip.busType})`
-                : "Bus No : Select a trip"
+                ? `Vehicle : ${trip.registration || (trip.busName && trip.busName !== "Bus unavailable" ? trip.busName : "Car Fleet")} (${trip.busType || "Car"})`
+                : "Vehicle : Select a trip"
             }
             seats={seats}
             selected={selected}
@@ -989,7 +1060,7 @@ export function BookingCounter({
               </button>
               <strong>
                 {trip
-                  ? `${trip.busName} · ${trip.busType} · ${trip.journeyDate} · ${time(trip.departureAt)} IST`
+                  ? `${trip.busName && trip.busName !== "Bus unavailable" ? trip.busName : trip.registration || "Car"} · ${trip.busType} · ${trip.journeyDate} · ${time(trip.departureAt)} IST`
                   : "Select a departure to begin booking"}
               </strong>
               <button
@@ -1003,7 +1074,7 @@ export function BookingCounter({
             </div>
             <div className="crs-trip-columns" aria-hidden="true">
               <span>Departure / Route</span>
-              <span>Service / Bus</span>
+              <span>Service / Car</span>
               <span>Seats / Fare</span>
             </div>
             {searchError && (
@@ -1024,7 +1095,7 @@ export function BookingCounter({
                 <div className="counter-empty">
                   {hasSearched
                     ? "No authorized trips for this search. Try another date or route."
-                    : "Enter origin, destination and journey date, then select Search trips to view buses."}
+                    : "Enter origin, destination and journey date, then select Search trips to view scheduled cars."}
                 </div>
               ) : (
                 trips.map((t) => (
@@ -1037,7 +1108,13 @@ export function BookingCounter({
                     onClick={() => selectTrip(t)}
                   >
                     <div className="counter-trip-option-head">
-                      <strong>{t.busName}</strong>
+                      <strong>
+                        {t.busName && t.busName !== "Bus unavailable"
+                          ? t.busName
+                          : t.registration
+                            ? `Car (${t.registration})`
+                            : "Car"}
+                      </strong>
                       <span>
                         {t.availableSeats ?? "—"} / {t.totalSeats ?? "—"}{" "}
                         available
@@ -1097,434 +1174,645 @@ export function BookingCounter({
               </div>
             </div>
           </Panel>
-          <Panel
-            title="Fare details"
-            className="crs-fare-panel"
-            aside={
-              <span className="counter-source-pill">
-                Operator counter · INR
-              </span>
-            }
-          >
-            <p className="crs-section-hint" role="status">
-              {result
-                ? "Booking saved. Review its recorded status below."
-                : hold
-                  ? "Seats held. Complete passenger details to save your booking."
-                  : selected.length
-                    ? "Next: hold these seats, then enter passenger details."
-                    : "Step 1: Search a trip and select green available seats."}
-            </p>
-            <div className="crs-fare-grid">
-              {[
-                ["Seats", String(selected.length)],
-                [
-                  "Seat type",
-                  selectedSeats.length
-                    ? [...new Set(selectedSeats.map((s) => s.category))].join(
-                        " / ",
-                      )
-                    : "—",
-                ],
-                [
-                  "Base fare",
-                  quote
-                    ? money(quote.pricing.grossPaise / 100)
-                    : selected.length &&
-                        selectedSeats.length === selected.length
-                      ? money(
-                          selectedSeats.reduce(
-                            (sum, seat) => sum + seat.farePaise,
-                            0,
-                          ) / 100,
+          <div className="counter-action-split">
+            <Panel
+              title="Fare details"
+              className="crs-fare-panel"
+              aside={
+                <span className="counter-source-pill">
+                  Operator counter · INR
+                </span>
+              }
+            >
+              <p className="crs-section-hint" role="status">
+                {result
+                  ? "Booking saved. Review its recorded status below."
+                  : hold
+                    ? "Seats held. Complete passenger details to save your booking."
+                    : selected.length
+                      ? "Next: hold these seats, then enter passenger details."
+                      : "Step 1: Search a trip and select green available seats."}
+              </p>
+              <div className="crs-fare-grid">
+                {[
+                  ["Seats", String(selected.length)],
+                  [
+                    "Seat type",
+                    selectedSeats.length
+                      ? [...new Set(selectedSeats.map((s) => s.category))].join(
+                          " / ",
                         )
                       : "—",
-                ],
-                [
-                  "Discount",
-                  quote ? money(quote.pricing.discountPaise / 100) : "—",
-                ],
-                [
-                  "Charges",
-                  quote ? money(quote.pricing.chargePaise / 100) : "—",
-                ],
-                ["Tax", quote ? money(quote.pricing.taxPaise / 100) : "—"],
-                [
-                  "Grand total",
-                  quote ? money(quote.pricing.totalPaise / 100) : "—",
-                ],
-              ].map(([label, value]) => (
-                <label key={label}>
-                  {label}
-                  <output>{value}</output>
-                </label>
-              ))}
-            </div>
-            {quoteError && (
-              <div className="counter-alert error" role="alert">
-                <span>
-                  {quoteError} The base fare above is a preview; the final total
-                  requires a validated quote.
-                </span>
-                {allowed("pricing:write") && !policy && (
-                  <button className="btn" onClick={() => setPolicyOpen(true)}>
-                    Configure pricing
-                  </button>
-                )}
-                <button
-                  className="text-btn"
-                  onClick={() => setPolicyRevision((v) => v + 1)}
-                >
-                  Retry calculation
-                </button>
+                  ],
+                  [
+                    "Base fare",
+                    quote
+                      ? money(quote.pricing.grossPaise / 100)
+                      : selected.length &&
+                          selectedSeats.length === selected.length
+                        ? money(
+                            selectedSeats.reduce(
+                              (sum, seat) => sum + seat.farePaise,
+                              0,
+                            ) / 100,
+                          )
+                        : "—",
+                  ],
+                  [
+                    "Discount",
+                    quote ? money(quote.pricing.discountPaise / 100) : "—",
+                  ],
+                  [
+                    "Charges",
+                    quote ? money(quote.pricing.chargePaise / 100) : "—",
+                  ],
+                  ["Tax", quote ? money(quote.pricing.taxPaise / 100) : "—"],
+                  [
+                    "Grand total",
+                    quote ? money(quote.pricing.totalPaise / 100) : "—",
+                  ],
+                ].map(([label, value]) => (
+                  <label key={label}>
+                    {label}
+                    <output>{value}</output>
+                  </label>
+                ))}
               </div>
-            )}
-            {!quote && !quoteError && (
-              <p className="crs-section-hint">
-                {quoting
-                  ? "Validating fares…"
-                  : selected.length
-                    ? "Base fare preview from selected seats. Final charges and total require a validated quote."
-                    : "Select available seats to calculate the fare."}
-              </p>
-            )}
-            {trip && !hold && allowed("bookings:write") && (
-              <div className="counter-summary">
-                <button
-                  className="btn primary full"
-                  disabled={
-                    !quote ||
-                    quoting ||
-                    busy ||
-                    !freeSelection ||
-                    !trip.bookingOpen
-                  }
-                  onClick={() => void acquireHold()}
-                >
-                  <LockKeyhole size={15} />
-                  {busy ? "Reserving seats…" : "Hold seats & add passengers"}
-                </button>
-                {!trip.bookingOpen && (
-                  <p className="error">This trip is closed for new bookings.</p>
-                )}
-              </div>
-            )}
-          </Panel>
-          {trip && (
-            <Panel
-              title="Booking summary"
-              aside={
-                <span className="counter-source-pill">Operator counter</span>
-              }
-            >
-              <div className="counter-summary">
-                <div className="counter-journey">
-                  <BusFront size={19} />
-                  <div>
-                    <strong>{trip.route}</strong>
-                    <span>
-                      {trip.registration} · {trip.journeyDate} ·{" "}
-                      {time(trip.departureAt)}–{time(trip.arrivalAt)} IST
-                    </span>
-                  </div>
-                </div>
-                <div className="counter-selected-row">
-                  <span>Selected seats</span>
-                  <div>
-                    {selected.length ? (
-                      selected.map((s) => (
-                        <span className="counter-seat-chip" key={s}>
-                          {s}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="muted">No seats selected</span>
-                    )}
-                  </div>
-                </div>
-                {allowed("bookings:write") && (
-                  <div className="counter-fields counter-discounts">
-                    <label>
-                      Coupon · optional
-                      <div className="counter-input">
-                        <Tag size={13} />
-                        <input
-                          aria-label="Counter coupon"
-                          value={promo}
-                          onChange={(e) =>
-                            setPromo(e.target.value.toUpperCase())
-                          }
-                          placeholder="Promo code"
-                          disabled={busy}
-                        />
-                      </div>
-                    </label>
-                    {allowed("pricing:write") &&
-                      policy &&
-                      policy.operatorDiscountMaxPaise > 0 && (
-                        <label>
-                          Operator discount · INR
-                          <input
-                            aria-label="Operator discount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={discount}
-                            onChange={(e) => setDiscount(e.target.value)}
-                            disabled={busy}
-                            placeholder={`Max ${policy.operatorDiscountMaxPaise / 100}`}
-                          />
-                        </label>
-                      )}
-                  </div>
-                )}
-                {quoting ? (
-                  <div className="counter-quote-state" role="status">
-                    Validating fares and pricing rules…
-                  </div>
-                ) : quoteError ? (
-                  <p className="crs-section-hint">
-                    Resolve the pricing issue in Fare details above to continue.
-                  </p>
-                ) : quote ? (
-                  <>
-                    <div className="counter-fare-lines">
-                      {quote.pricing.seatFares.map((s) => (
-                        <div key={s.number}>
-                          <span>Seat {s.number} · base fare</span>
-                          <strong>{money(s.basePaise / 100)}</strong>
-                        </div>
-                      ))}
-                      <div>
-                        <span>Discount</span>
-                        <strong>
-                          −{money(quote.pricing.discountPaise / 100)}
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Tax · {quote.pricing.taxBasisPoints / 100}%</span>
-                        <strong>{money(quote.pricing.taxPaise / 100)}</strong>
-                      </div>
-                      <div>
-                        <span>Additional charges</span>
-                        <strong>
-                          {money(quote.pricing.chargePaise / 100)}
-                        </strong>
-                      </div>
-                    </div>
-                    <p className="counter-quote-note">
-                      <ShieldCheck size={12} />
-                      Server quote · valid until {time(quote.expiresAt)} IST
-                    </p>
-                  </>
-                ) : (
-                  <div className="counter-quote-state">
-                    Select available seats to request a server-validated fare.
-                  </div>
-                )}
-                {!trip.bookingOpen && (
-                  <div className="counter-alert">
-                    New bookings are stopped for this trip.
-                  </div>
-                )}
-                {hold ? (
-                  <div className="counter-hold-state">
-                    <span>
-                      <Clock size={14} />
-                      Seats held for {Math.floor(seconds / 60)}:
-                      {String(seconds % 60).padStart(2, "0")}
-                    </span>
-                    <button
-                      className="text-btn"
-                      disabled={busy}
-                      onClick={() => setOperation("release-hold")}
-                    >
-                      Release hold
+              {quoteError && (
+                <div className="counter-alert error" role="alert">
+                  <span>
+                    {quoteError} The base fare above is a preview; the final
+                    total requires a validated quote.
+                  </span>
+                  {allowed("pricing:write") && !policy && (
+                    <button className="btn" onClick={() => setPolicyOpen(true)}>
+                      Configure pricing
                     </button>
-                  </div>
-                ) : null}
-                {!trip.capabilities.payment && (
-                  <p className="counter-availability-note">
-                    Payment confirmation is unavailable until a verified
-                    provider is connected.
-                  </p>
-                )}
-              </div>
-            </Panel>
-          )}
-          {hold && trip && (
-            <Panel
-              title="Passenger & contact details"
-              aside={
-                <span className="count">{selected.length} passengers</span>
-              }
-            >
-              <form
-                noValidate
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (validateForm()) setReview(true);
-                }}
-              >
-                <div className="counter-passenger-body">
-                  {error && (
-                    <p className="counter-alert error" role="alert">
-                      {error}
-                    </p>
-                  )}
-                  <div className="counter-fields">
-                    <PartnerSelector
-                      value={salesPartnerId}
-                      onChange={setSalesPartnerId}
-                    />
-                    <label>
-                      Booking contact mobile
-                      <input
-                        id="counter-contact-phone"
-                        aria-label="Booking contact mobile"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        autoComplete="off"
-                      />
-                    </label>
-                    <label>
-                      Email · optional
-                      <input
-                        aria-label="Booking contact email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="off"
-                      />
-                    </label>
-                  </div>
-                  <PassengerFields
-                    seats={selected}
-                    values={passengers}
-                    onChange={setPassengers}
-                    trip={trip}
-                    requireAge={quote?.pricing.requirements.age}
-                    requireGender={quote?.pricing.requirements.gender}
-                  />
-                  {quote?.pricing.requirements.gstEnabled && (
-                    <>
-                      <label className="counter-check">
-                        <input
-                          type="checkbox"
-                          checked={gstEnabled}
-                          onChange={(e) => setGstEnabled(e.target.checked)}
-                        />
-                        Include GST details
-                      </label>
-                      {gstEnabled && (
-                        <div className="counter-fields">
-                          {(["number", "company", "address"] as const).map(
-                            (key) => (
-                              <label key={key}>
-                                GST {key}
-                                <input
-                                  value={gst[key]}
-                                  onChange={(e) =>
-                                    setGst({
-                                      ...gst,
-                                      [key]:
-                                        key === "number"
-                                          ? e.target.value.toUpperCase()
-                                          : e.target.value,
-                                    })
-                                  }
-                                />
-                              </label>
-                            ),
-                          )}
-                        </div>
-                      )}
-                    </>
                   )}
                   <button
-                    className="btn primary full"
-                    disabled={busy || quoting || !quote || seconds === 0}
+                    className="text-btn"
+                    onClick={() => setPolicyRevision((v) => v + 1)}
                   >
-                    Review booking
-                    <ArrowRight size={15} />
+                    Retry calculation
                   </button>
                 </div>
-              </form>
-            </Panel>
-          )}
-          {!hold && (
-            <Panel
-              title="Passenger & contact details"
-              className="crs-passenger-placeholder"
-            >
-              <div
-                className="crs-contact-preview"
-                aria-label="Passenger form preview"
-              >
-                <label>
-                  Mobile
-                  <input
-                    type="tel"
-                    disabled
-                    placeholder="Booking contact mobile"
-                  />
-                </label>
-                <label>
-                  Email
-                  <input type="email" disabled placeholder="Email · optional" />
-                </label>
-                <label>
-                  Passenger name
-                  <input disabled placeholder="Passenger name" />
-                </label>
-                <label>
-                  GSTIN
-                  <input disabled placeholder="GST details" />
-                </label>
-              </div>
-              <p className="crs-section-hint">
-                <LockKeyhole size={13} />
-                Hold selected seats to enter passenger details.
-              </p>
-            </Panel>
-          )}
-          {result && (
-            <Panel title="Booking recorded">
-              <div className="counter-summary">
-                <Badge value={result.status} />
-                <h3 className="counter-result-reference">{result.reference}</h3>
-                <p className="counter-availability-note">
-                  {bookingOutcomeText(result.status)}
+              )}
+              {!quote && !quoteError && (
+                <p className="crs-section-hint">
+                  {quoting
+                    ? "Validating fares…"
+                    : selected.length
+                      ? "Base fare preview from selected seats. Final charges and total require a validated quote."
+                      : "Select available seats to calculate the fare."}
                 </p>
-                {result.status === "Pending payment" &&
-                  trip?.capabilities.payment && (
-                    <RazorpayPaymentActions
-                      bookingId={result.id}
-                      onUpdated={(payment) => {
-                        setResult({ ...result, status: payment.status });
-                        setNotice(
-                          payment.status === "Confirmed"
-                            ? "Test payment verified. Booking confirmed; your ticket is available in trip bookings."
-                            : payment.message ||
-                                `Booking status: ${payment.status}`,
-                        );
-                        void refreshAll();
+              )}
+              {trip &&
+                selected.length > 0 &&
+                !hold &&
+                allowed("bookings:write") && (
+                  <div
+                    className="counter-fare-override-card"
+                    style={{
+                      margin: "8px 0 10px",
+                      padding: "8px 10px",
+                      background: "#f8fafc",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "6px",
                       }}
-                    />
+                    >
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <Tag size={13} color="#2563eb" />
+                        Operator Seat Price Control (Exclusive)
+                      </span>
+                      <span style={{ fontSize: "10px", color: "#64748b" }}>
+                        Edit seat fare directly
+                      </span>
+                    </div>
+                    <div
+                      style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
+                    >
+                      {selected.map((seatNum) => {
+                        const curSeat = seats.find((s) => s.number === seatNum);
+                        const currentVal =
+                          fareOverrides[seatNum] ??
+                          (curSeat ? String(curSeat.farePaise / 100) : "");
+                        return (
+                          <div
+                            key={seatNum}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: "#ffffff",
+                              padding: "3px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #94a3b8",
+                            }}
+                          >
+                            <strong
+                              style={{ fontSize: "11px", color: "#1e293b" }}
+                            >
+                              {seatNum}:
+                            </strong>
+                            <span
+                              style={{ fontSize: "11px", color: "#64748b" }}
+                            >
+                              ₹
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="10"
+                              style={{
+                                width: "60px",
+                                padding: "2px 4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#0f172a",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "3px",
+                              }}
+                              value={currentVal}
+                              onChange={(e) =>
+                                setFareOverrides({
+                                  ...fareOverrides,
+                                  [seatNum]: e.target.value,
+                                })
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="btn primary"
+                              style={{
+                                padding: "2px 6px",
+                                fontSize: "10px",
+                                height: "22px",
+                                minHeight: "22px",
+                                cursor: "pointer",
+                              }}
+                              disabled={busy || fareSaving === seatNum}
+                              onClick={() => void saveCustomSeatFare(seatNum)}
+                            >
+                              {fareSaving === seatNum ? "…" : "Set"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              {trip && !hold && allowed("bookings:write") && (
+                <div className="counter-summary" style={{ paddingTop: "4px" }}>
+                  <button
+                    className="btn primary full"
+                    disabled={
+                      !quote ||
+                      quoting ||
+                      busy ||
+                      !freeSelection ||
+                      !trip.bookingOpen
+                    }
+                    onClick={() => void acquireHold()}
+                  >
+                    <LockKeyhole size={15} />
+                    {busy ? "Reserving seats…" : "Hold seats & add passengers"}
+                  </button>
+                  {!trip.bookingOpen && (
+                    <p className="error">
+                      This trip is closed for new bookings.
+                    </p>
                   )}
-              </div>
+                </div>
+              )}
+              {hold ? (
+                <div
+                  className="counter-hold-state"
+                  style={{ margin: "6px 12px 10px" }}
+                >
+                  <span>
+                    <Clock size={14} />
+                    Seats held for {Math.floor(seconds / 60)}:
+                    {String(seconds % 60).padStart(2, "0")}
+                  </span>
+                  <button
+                    className="text-btn"
+                    disabled={busy}
+                    onClick={() => setOperation("release-hold")}
+                  >
+                    Release hold
+                  </button>
+                </div>
+              ) : null}
             </Panel>
-          )}
+
+            {result ? (
+              <Panel title="Booking recorded">
+                <div className="counter-summary">
+                  <Badge value={result.status} />
+                  <h3 className="counter-result-reference">
+                    {result.reference}
+                  </h3>
+                  {(result as any).pnr && (
+                    <div className="detail-row" style={{ marginTop: "8px" }}>
+                      <span>PNR</span>
+                      <strong>{(result as any).pnr}</strong>
+                    </div>
+                  )}
+                  <p className="counter-availability-note">
+                    {bookingOutcomeText(result.status)}
+                  </p>
+                  {result.status === "Pending payment" && !["agent", "booking_staff"].includes(ws.user.role) && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginTop: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={busy}
+                        onClick={async () => {
+                          setBusy(true);
+                          try {
+                            const res = await counterApi.confirmDirect(
+                              result.id,
+                            );
+                            setResult({
+                              ...result,
+                              status: res.data.status,
+                              pnr: res.data.pnr,
+                            });
+                            setNotice("Booking confirmed and ticket issued!");
+                            await refreshAll();
+                          } catch (err: any) {
+                            setError(
+                              err.message || "Failed to confirm booking",
+                            );
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <CheckCircle2 size={14} />
+                        Confirm cash received & book
+                      </button>
+                    </div>
+                  )}
+                  {result.status === "Confirmed" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginTop: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <a
+                        href={`/api/v1/operator/bookings/${result.id}/ticket.html`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn primary"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          textDecoration: "none",
+                        }}
+                      >
+                        <Ticket size={14} />
+                        View & Print Ticket
+                      </a>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          setResult(null);
+                          setSelected([]);
+                          setHold(null);
+                          setQuote(null);
+                          setPassengers({});
+                        }}
+                      >
+                        Book Next Seat
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            ) : hold && trip ? (
+              <Panel
+                title="Passenger & contact details"
+                aside={
+                  <span className="count">{selected.length} passengers</span>
+                }
+              >
+                <form
+                  noValidate
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (validateForm()) setReview(true);
+                  }}
+                >
+                  <div className="counter-passenger-body">
+                    {error && (
+                      <p className="counter-alert error" role="alert">
+                        {error}
+                      </p>
+                    )}
+                    <div className="counter-fields">
+                      <PartnerSelector
+                        value={salesPartnerId}
+                        onChange={setSalesPartnerId}
+                      />
+                      <label>
+                        Booking contact mobile
+                        <input
+                          id="counter-contact-phone"
+                          aria-label="Booking contact mobile"
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </label>
+                      <label>
+                        Email · optional
+                        <input
+                          aria-label="Booking contact email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </label>
+                    </div>
+                    <PassengerFields
+                      seats={selected}
+                      values={passengers}
+                      onChange={setPassengers}
+                      trip={trip}
+                      requireAge={quote?.pricing.requirements.age}
+                      requireGender={quote?.pricing.requirements.gender}
+                    />
+                    {quote?.pricing.requirements.gstEnabled && (
+                      <>
+                        <label className="counter-check">
+                          <input
+                            type="checkbox"
+                            checked={gstEnabled}
+                            onChange={(e) => setGstEnabled(e.target.checked)}
+                          />
+                          Include GST details
+                        </label>
+                        {gstEnabled && (
+                          <div className="counter-fields">
+                            {(["number", "company", "address"] as const).map(
+                              (key) => (
+                                <label key={key}>
+                                  GST {key}
+                                  <input
+                                    value={gst[key]}
+                                    onChange={(e) =>
+                                      setGst({
+                                        ...gst,
+                                        [key]:
+                                          key === "number"
+                                            ? e.target.value.toUpperCase()
+                                            : e.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                              ),
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <button
+                      className="btn primary full"
+                      disabled={busy || quoting || !quote || seconds === 0}
+                    >
+                      Review booking
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </form>
+              </Panel>
+            ) : trip ? (
+              <Panel
+                title="Booking summary"
+                aside={
+                  <span className="counter-source-pill">Operator counter</span>
+                }
+              >
+                <div className="counter-summary">
+                  <div className="counter-journey">
+                    <Car size={18} />
+                    <div>
+                      <strong>{trip.route}</strong>
+                      <span>
+                        {trip.registration} · {trip.journeyDate} ·{" "}
+                        {time(trip.departureAt)}–{time(trip.arrivalAt)} IST
+                      </span>
+                    </div>
+                  </div>
+                  <div className="counter-selected-row">
+                    <span>Selected seats</span>
+                    <div>
+                      {selected.length ? (
+                        selected.map((s) => (
+                          <span className="counter-seat-chip" key={s}>
+                            {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="muted">No seats selected</span>
+                      )}
+                    </div>
+                  </div>
+                  {allowed("bookings:write") && (
+                    <div className="counter-fields counter-discounts">
+                      <label>
+                        Coupon · optional
+                        <div className="counter-input">
+                          <Tag size={13} />
+                          <input
+                            aria-label="Counter coupon"
+                            value={promo}
+                            onChange={(e) =>
+                              setPromo(e.target.value.toUpperCase())
+                            }
+                            placeholder="Promo code"
+                            disabled={busy}
+                          />
+                        </div>
+                      </label>
+                      {allowed("pricing:write") &&
+                        policy &&
+                        policy.operatorDiscountMaxPaise > 0 && (
+                          <label>
+                            Operator discount · INR
+                            <input
+                              aria-label="Operator discount"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={discount}
+                              onChange={(e) => setDiscount(e.target.value)}
+                              disabled={busy}
+                              placeholder={`Max ${policy.operatorDiscountMaxPaise / 100}`}
+                            />
+                          </label>
+                        )}
+                    </div>
+                  )}
+                  {quoting ? (
+                    <div className="counter-quote-state" role="status">
+                      Validating fares and pricing rules…
+                    </div>
+                  ) : quoteError ? (
+                    <p className="crs-section-hint">
+                      Resolve the pricing issue in Fare details to continue.
+                    </p>
+                  ) : quote ? (
+                    <>
+                      <div className="counter-fare-lines">
+                        {quote.pricing.seatFares.map((s) => (
+                          <div key={s.number}>
+                            <span>Seat {s.number} · base fare</span>
+                            <strong>{money(s.basePaise / 100)}</strong>
+                          </div>
+                        ))}
+                        <div>
+                          <span>Discount</span>
+                          <strong>
+                            −{money(quote.pricing.discountPaise / 100)}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>
+                            Tax · {quote.pricing.taxBasisPoints / 100}%
+                          </span>
+                          <strong>{money(quote.pricing.taxPaise / 100)}</strong>
+                        </div>
+                        <div>
+                          <span>Additional charges</span>
+                          <strong>
+                            {money(quote.pricing.chargePaise / 100)}
+                          </strong>
+                        </div>
+                      </div>
+                      <p className="counter-quote-note">
+                        <ShieldCheck size={12} />
+                        Server quote · valid until {time(quote.expiresAt)} IST
+                      </p>
+                    </>
+                  ) : (
+                    <div className="counter-quote-state">
+                      Select available seats to request a server-validated fare.
+                    </div>
+                  )}
+                  {!trip.bookingOpen && (
+                    <div className="counter-alert">
+                      New bookings are stopped for this trip.
+                    </div>
+                  )}
+                  {hold ? (
+                    <div className="counter-hold-state">
+                      <span>
+                        <Clock size={14} />
+                        Seats held for {Math.floor(seconds / 60)}:
+                        {String(seconds % 60).padStart(2, "0")}
+                      </span>
+                      <button
+                        className="text-btn"
+                        disabled={busy}
+                        onClick={() => setOperation("release-hold")}
+                      >
+                        Release hold
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+            ) : (
+              <Panel
+                title="Passenger & contact details"
+                className="crs-passenger-placeholder"
+              >
+                <div
+                  className="crs-contact-preview"
+                  aria-label="Passenger form preview"
+                >
+                  <label>
+                    Mobile
+                    <input
+                      type="tel"
+                      disabled
+                      placeholder="Booking contact mobile"
+                    />
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      disabled
+                      placeholder="Email · optional"
+                    />
+                  </label>
+                  <label>
+                    Passenger name
+                    <input disabled placeholder="Passenger name" />
+                  </label>
+                  <label>
+                    GSTIN
+                    <input disabled placeholder="GST details" />
+                  </label>
+                </div>
+                <p className="crs-section-hint">
+                  <LockKeyhole size={13} />
+                  Hold selected seats to enter passenger details.
+                </p>
+              </Panel>
+            )}
+          </div>
         </div>
       </div>
       {trip && (
-        <TripBookings
-          trip={trip}
-          revision={refreshVersion + ws.revision}
-          onRefresh={() => void refreshAll()}
-          onSourceCounts={setCounterSources}
-        />
+        <div style={{ display: counterView === "bookings" ? "block" : "none" }}>
+          <TripBookings
+            trip={trip}
+            revision={refreshVersion + ws.revision}
+            onRefresh={() => void refreshAll()}
+            onSourceCounts={setCounterSources}
+          />
+        </div>
       )}
       {policyOpen && (
         <PricingDialog
@@ -1542,7 +1830,7 @@ export function BookingCounter({
       {review && quote && (
         <ConfirmAction
           title="Review counter booking"
-          description="Create a pending booking with the held seats and server-validated fare. Payment verification is required before confirmation or ticket issuance."
+          description="Create a pending booking. Seats are confirmed only after verified payment, approved agency funding, or operator confirmation of cash received."
           action="Create pending booking"
           busy={busy}
           onClose={() => setReview(false)}

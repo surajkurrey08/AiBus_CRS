@@ -100,30 +100,56 @@ export function counterRouter(config: Config) {
           .lean(),
         M.Trip.countDocuments(filter),
       ]);
-      const buses = await M.Bus.find({
-        ...tenant(req),
-        _id: { $in: trips.map((t) => t.busId) },
-      }).lean();
+      const vehicleIds = trips.map((t) => t.carId || t.busId).filter(Boolean);
+      const [buses, cars] = await Promise.all([
+        M.Bus.find({
+          ...tenant(req),
+          _id: { $in: vehicleIds },
+        }).lean(),
+        M.Car.find({
+          ...tenant(req),
+          _id: { $in: vehicleIds },
+        }).lean(),
+      ]);
       const now = new Date();
       ok(
         res,
         trips.map((t) => {
-          const route = routes.find((r) => String(r._id) === String(t.routeId)),
-            bus = buses.find((b) => String(b._id) === String(t.busId));
+          const route = routes.find((r) => String(r._id) === String(t.routeId));
+          const car = cars.find(
+            (c) => String(c._id) === String(t.carId || t.busId),
+          );
+          const bus = buses.find((b) => String(b._id) === String(t.busId));
+          const vehicleName = car
+            ? `${car.make} ${car.model || car.modelName || ""}`.trim()
+            : bus?.name || t.carRegistration || "Car";
+          const vehicleReg =
+            car?.registrationNumber ||
+            car?.registration ||
+            t.carRegistration ||
+            bus?.registration ||
+            "";
+          const vehicleType =
+            car?.vehicleCategory ||
+            car?.category ||
+            t.vehicleCategory ||
+            bus?.type ||
+            "4-Passenger Sedan";
+
           const seats = t.seats as any[],
             internal = t.inventoryOwner === "internal";
           return {
             id: String(t._id),
             routeId: String(t.routeId),
-            busId: String(t.busId),
+            busId: String(t.busId || t.carId),
             route: `${route?.source} → ${route?.destination}`,
             source: route?.source,
             destination: route?.destination,
             boarding: route?.boarding || [],
             dropping: route?.dropping || [],
-            busName: bus?.name || "Bus unavailable",
-            registration: bus?.registration || "",
-            busType: bus?.type || "",
+            busName: vehicleName,
+            registration: vehicleReg,
+            busType: vehicleType,
             journeyDate: t.journeyDate,
             departureAt: t.departureAt,
             arrivalAt: t.arrivalAt,
@@ -131,26 +157,37 @@ export function counterRouter(config: Config) {
               t.bookingOpen !== false && new Date(t.departureAt as Date) > now,
             version: t.__v || 0,
             inventoryOwner: t.inventoryOwner,
-            totalSeats: internal ? seats.length : null,
+            totalSeats: internal
+              ? seats.filter((s) => !s.isDriver && s.number !== "D").length
+              : null,
             availableSeats: internal
               ? seats.filter(
                   (s) =>
-                    s.state === "available" ||
-                    (s.state === "held" && new Date(s.holdUntil) <= now),
+                    !s.isDriver &&
+                    s.number !== "D" &&
+                    (s.state === "available" ||
+                      (s.state === "held" && new Date(s.holdUntil) <= now)),
                 ).length
               : null,
             bookedSeats: internal
               ? seats.filter((s) => s.state === "booked").length
               : null,
             blockedSeats: internal
-              ? seats.filter((s) => s.state === "blocked").length
+              ? seats.filter(
+                  (s) =>
+                    s.state === "blocked" && !s.isDriver && s.number !== "D",
+                ).length
               : null,
             quotaSeats: internal
               ? seats.filter((s) => s.state === "quota").length
               : null,
             baseFarePaise:
               internal && seats.length
-                ? Math.min(...seats.map((s) => s.farePaise))
+                ? Math.min(
+                    ...seats
+                      .filter((s) => !s.isDriver && s.number !== "D")
+                      .map((s) => s.farePaise),
+                  )
                 : null,
             capabilities: {
               inventory: internal,
@@ -321,6 +358,37 @@ export function counterRouter(config: Config) {
         undefined,
         201,
       );
+    }),
+  );
+  router.patch(
+    "/trips/:id/seat-fares",
+    permit("pricing:write"),
+    asyncRoute(async (req, res) => {
+      const tripId = id.parse(req.params.id);
+      const { seatFares } = z
+        .object({
+          seatFares: z.record(z.string(), z.number().int().min(0)),
+        })
+        .strict()
+        .parse(req.body);
+
+      const trip = await M.Trip.findOne({ _id: tripId, ...tenant(req) });
+      if (!trip) {
+        fail(404, "NOT_FOUND", "Trip not found");
+        throw new Error("Trip not found");
+      }
+
+      for (const [seatNum, fare] of Object.entries(seatFares)) {
+        const s = (trip.seats as any[]).find((s) => s.number === seatNum);
+        if (s) {
+          s.farePaise = fare;
+        }
+      }
+      await trip.save();
+      ok(res, {
+        message: "Seat fares updated successfully",
+        seats: trip.seats,
+      });
     }),
   );
   router.patch(

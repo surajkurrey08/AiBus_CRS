@@ -214,6 +214,18 @@ export function createApp(
   app.use("/api/v1/operator/agents", agentManagementRouter());
   app.use(
     "/api/v1/operator/bus-master",
+    (req, res, next) => {
+      if (process.env.ENABLE_LEGACY_BUS_MASTER === "false") {
+        return res.status(410).json({
+          error: {
+            code: "BUS_MASTER_RETIRED",
+            message:
+              "Bus fleet management is retired. Use /api/v1/operator/cars for car fleet management.",
+          },
+        });
+      }
+      next();
+    },
     authenticate(config),
     busMasterRouter(),
   );
