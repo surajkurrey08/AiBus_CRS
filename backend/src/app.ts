@@ -215,7 +215,7 @@ export function createApp(
   app.use(
     "/api/v1/operator/bus-master",
     (req, res, next) => {
-      if (process.env.ENABLE_LEGACY_BUS_MASTER === "false") {
+      if (process.env.ENABLE_LEGACY_BUS_MASTER !== "true") {
         return res.status(410).json({
           error: {
             code: "BUS_MASTER_RETIRED",

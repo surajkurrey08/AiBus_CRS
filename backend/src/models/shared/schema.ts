@@ -67,7 +67,7 @@ export const inventorySeat = new Schema(
     seatId: String,
     label: String,
   },
-  { _id: false, strict: "throw" },
+  { _id: false, strict: "throw", versionKey: false },
 );
 
 export const passenger = new Schema(

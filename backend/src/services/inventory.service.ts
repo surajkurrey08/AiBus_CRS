@@ -22,6 +22,8 @@ import {
   RefundIntent,
   PaymentOrder,
   FinanceException,
+  DailyAgentSettlement,
+  SalesPartner,
 } from "../models/index.js";
 import { fail, type Principal } from "../utils/core.js";
 import {
@@ -504,6 +506,16 @@ export async function createBooking(
         input.salesPartnerId,
         session,
       );
+      const isDirectConfirm =
+        channel === "operator" ||
+        channel === "agent" ||
+        Boolean(auth.agentId) ||
+        Boolean(input.salesPartnerId);
+
+      const bookingPnr = isDirectConfirm
+        ? `AI-${randomUUID().replaceAll("-", "").toUpperCase().slice(0, 10)}`
+        : undefined;
+
       const [booking] = await Booking.create(
         [
           {
@@ -512,6 +524,11 @@ export async function createBooking(
             userId: auth.userId,
             holdId: input.holdId,
             reference: `AB-${randomUUID()}`,
+            pnr: bookingPnr,
+            status: isDirectConfirm ? "Confirmed" : "Pending payment",
+            paymentStatus: isDirectConfirm ? "Paid" : "Pending",
+            paidAt: isDirectConfirm ? new Date() : undefined,
+            fundingMethod: isDirectConfirm ? (auth.agentId ? "credit" : "counter_cash") : undefined,
             source: auth.agentId ? "agent" : channel,
             createdByUserId: auth.userId,
             ...(auth.agentId ? { agentId: auth.agentId } : {}),
@@ -557,7 +574,20 @@ export async function createBooking(
             },
           })),
         },
-        { $set: { "seats.$[seat].bookingId": booking._id } },
+        {
+          $set: {
+            "seats.$[seat].bookingId": booking._id,
+            ...(isDirectConfirm ? { "seats.$[seat].state": "booked" } : {}),
+          },
+          ...(isDirectConfirm
+            ? {
+                $unset: {
+                  "seats.$[seat].holdUntil": 1,
+                  "seats.$[seat].holdUserId": 1,
+                },
+              }
+            : {}),
+        },
         {
           session,
           arrayFilters: [
@@ -571,13 +601,97 @@ export async function createBooking(
       );
       if (locked.modifiedCount !== 1)
         fail(409, "HOLD_EXPIRED", "Held seats are no longer available");
+
+      if (isDirectConfirm) {
+        await Ticket.create(
+          [
+            {
+              operatorId: auth.operatorId,
+              bookingId: booking._id,
+              pnr: bookingPnr!,
+              issuedAt: new Date(),
+            },
+          ],
+          { session },
+        );
+        await Hold.updateOne(
+          {
+            operatorId: auth.operatorId,
+            tripId: input.tripId,
+            holdId: input.holdId,
+            userId: auth.userId,
+          },
+          { $set: { status: "consumed" } },
+          { session },
+        );
+
+        // Daily agent settlement synchronization
+        const effectiveAgentId =
+          auth.agentId ||
+          (commission.salesPartnerId &&
+          commission.commissionSnapshot?.partnerKind === "Agent"
+            ? String(commission.salesPartnerId)
+            : null);
+
+        if (effectiveAgentId) {
+          const kolkataToday = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date());
+
+          const daySettlement = await DailyAgentSettlement.findOne({
+            operatorId: auth.operatorId,
+            agentId: effectiveAgentId,
+            date: kolkataToday,
+          }).session(session);
+
+          const gross = Number(hold!.amountPaise || (pricing as any).totalPaise || 0);
+          const comm = Number(commission.commissionPaise || 0);
+          const net = Math.max(0, gross - comm);
+
+          if (daySettlement) {
+            daySettlement.totalBookings += 1;
+            daySettlement.grossPaise += gross;
+            daySettlement.commissionPaise += comm;
+            daySettlement.netPayablePaise += net;
+            await daySettlement.save({ session });
+          } else {
+            const partnerDoc = await SalesPartner.findOne({
+              _id: effectiveAgentId,
+              operatorId: auth.operatorId,
+            })
+              .session(session)
+              .lean();
+
+            await DailyAgentSettlement.create(
+              [
+                {
+                  operatorId: auth.operatorId,
+                  agentId: new mongoose.Types.ObjectId(effectiveAgentId),
+                  agentName: partnerDoc?.name || "Agent",
+                  date: kolkataToday,
+                  totalBookings: 1,
+                  grossPaise: gross,
+                  commissionPaise: comm,
+                  netPayablePaise: net,
+                  status: "Pending",
+                },
+              ],
+              { session },
+            );
+          }
+        }
+      }
+
       result = booking.toObject();
       await Audit.create(
         [
           {
             operatorId: auth.operatorId,
             actorId: auth.userId,
-            action: "booking.create.pending_payment",
+            action: isDirectConfirm ? "booking.create.confirmed" : "booking.create.pending_payment",
             resource: "booking",
             resourceId: String(booking._id),
           },
@@ -620,6 +734,7 @@ export async function createBooking(
   }
   return result;
 }
+
 // Callable only by a future server-side adapter after signature verification and
 // authoritative amount/status verification. No public endpoint trusts this shape.
 export async function confirmDirectBooking(auth: Principal, bookingId: string) {
