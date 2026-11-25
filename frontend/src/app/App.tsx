@@ -145,7 +145,9 @@ function Dashboard() {
   const permitted = (p: string) => ws.user.permissions.includes(p);
   const routeNames = ws.records.routes.map((r) => r.route);
   const [page, setPage] = useState(0),
-    [collapsed, setCollapsed] = useState(false),
+    [collapsed, setCollapsed] = useState(
+      () => window.matchMedia?.("(max-width: 600px)")?.matches ?? false,
+    ),
     [tripMasterTab, setTripMasterTab] = useState("services");
   const { bookings, buses: fleet, routes, fares, offers, refunds } = ws.records;
   const [toast, setToast] = useState(""),

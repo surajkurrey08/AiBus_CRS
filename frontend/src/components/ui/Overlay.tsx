@@ -7,11 +7,13 @@ export function Overlay({
   onClose,
   children,
   drawer = false,
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   drawer?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -23,7 +25,7 @@ export function Overlay({
     <dialog
       ref={ref}
       aria-label={title}
-      className={drawer ? "drawer" : "modal"}
+      className={`${drawer ? "drawer" : "modal"} ${className}`.trim()}
       onCancel={onClose}
     >
       <div className="dialog-head">

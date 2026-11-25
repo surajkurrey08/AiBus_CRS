@@ -783,8 +783,8 @@ export function BookingCounter({
         </div>
       )}
       <div
-        className="counter-workbench"
-        style={{ display: counterView === "booking" ? "grid" : "none" }}
+        className={`counter-workbench${trip ? " has-trip" : ""}`}
+        hidden={counterView !== "booking"}
       >
         <div className="counter-left">
           <SeatMap
