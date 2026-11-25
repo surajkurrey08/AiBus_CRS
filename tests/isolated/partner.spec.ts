@@ -15,7 +15,7 @@ test("partner registration submits from its own origin with responsive grouped f
     ["Business address", "Pune sandbox office"],
     ["Technical contact email", "tech@browser.test"],
     ["Intended API usage", "Bus booking sandbox integration"],
-    ["Owner password (12+ characters)", password],
+    ["Owner password (8+ characters)", password],
   ])
     await page.getByLabel(label, { exact: true }).fill(value);
   await expect(

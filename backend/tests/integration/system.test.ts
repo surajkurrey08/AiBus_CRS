@@ -3670,7 +3670,7 @@ describe("authentication and isolation", () => {
         tripId,
         holdId: hold.holdId,
         passengers: [
-          { name: "Private Passenger", phone: "+919876543210", seat: "L1" },
+          { name: "Private Passenger", phone: "9876543210", seat: "L1" },
         ],
       },
       randomUUID(),
@@ -3728,7 +3728,7 @@ describe("authentication and isolation", () => {
       name: "New Admin",
       email: "new@example.test",
       password,
-      phone: "+919876543210",
+      phone: "9876543210",
       address: "Hyderabad",
     });
     expect(registered.status).toBe(201);
@@ -4204,7 +4204,7 @@ describe("shared booking counter engine", () => {
           tripId,
           holdId: hold.holdId,
           passengers: [
-            { name: "Passenger", seat: "L1", phone: "+919876543210" },
+            { name: "Passenger", seat: "L1", phone: "9876543210" },
           ],
         },
         randomUUID(),
@@ -4222,7 +4222,7 @@ describe("shared booking counter engine", () => {
               seat: "L1",
               age: 30,
               gender: "female",
-              phone: "+919876543210",
+              phone: "9876543210",
               boarding: "Not on this route",
             },
           ],
@@ -4235,7 +4235,7 @@ describe("shared booking counter engine", () => {
       {
         tripId,
         holdId: hold.holdId,
-        contact: { phone: "+919876543210", email: "passenger@example.test" },
+        contact: { phone: "9876543210", email: "passenger@example.test" },
         passengers: [
           {
             name: "Passenger",
