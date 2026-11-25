@@ -253,7 +253,7 @@ describe("Car CRS Operator Booking Counter — Browser Sandbox Smoke Test", () =
     // 8. Enter Passenger Details
     const nameInput = await screen.findByLabelText("Passenger full name FP");
     await user.type(nameInput, "Aarav Sharma");
-    await user.type(screen.getByLabelText("Booking contact mobile"), "+919876543210");
+    await user.type(screen.getByLabelText("Booking contact mobile"), "9876543210");
 
     // 9. Proceed to Booking Review
     const reviewButton = screen.getByRole("button", { name: /Review booking/i });
@@ -342,7 +342,7 @@ describe("Car CRS Operator Booking Counter — Browser Sandbox Smoke Test", () =
 
     const nameInput = await screen.findByLabelText("Passenger full name FP");
     await user.type(nameInput, "Test Passenger");
-    await user.type(screen.getByLabelText("Booking contact mobile"), "+919876543210");
+    await user.type(screen.getByLabelText("Booking contact mobile"), "9876543210");
     await user.click(screen.getByRole("button", { name: /Review booking/i }));
 
     const reviewDialog = await screen.findByRole("dialog", { name: "Review counter booking" });
@@ -388,7 +388,7 @@ describe("Car CRS Operator Booking Counter — Browser Sandbox Smoke Test", () =
 
     const nameInput = await screen.findByLabelText("Passenger full name FP");
     await user.type(nameInput, "Priya Sharma");
-    await user.type(screen.getByLabelText("Booking contact mobile"), "+919876543211");
+    await user.type(screen.getByLabelText("Booking contact mobile"), "9876543211");
     await user.click(screen.getByRole("button", { name: /Review booking/i }));
 
     const reviewDialog = await screen.findByRole("dialog", { name: "Review counter booking" });
