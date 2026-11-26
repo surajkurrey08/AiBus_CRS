@@ -1,5 +1,13 @@
 # Admin interaction contract
 
+## Sandbox inventory assignment
+
+API Partners → company → Manage inventory grant uses named operator/resource selects from `GET /platform/api-partners/:id/inventory-options`. Trip is the default and labels include route, date and IST departure time. Search is debounced and aborted/stale responses cannot replace current choices. Only approved sandbox operators and eligible resources are selectable; previously assigned resources remain available for access changes. Results are bounded to 100; filters narrow additional matches.
+
+FinanceReviewForm owns the password, reason, review, discard, busy and recovery states. Dependent choices reset when their source changes. A rejected password clears only that password; the inventory decision and command key survive retries. Expiration is the end of the chosen date in IST. A successful save refreshes organization inventory and reports "Sandbox inventory access updated." Partner read-only users cannot load grant controls or assignment choices.
+
+The production control plane authorizes and verifies the administrator locally, then sends only a signed, purpose-bound inventory command through the existing sandbox connection. The sandbox rechecks the current source administrator/session and selected partner before reading choices or applying a grant. Credentials, passwords and dashboard tokens never cross this boundary. See `docs/SANDBOX-PORTAL-BRIDGE.md` for transport, isolation and release details.
+
 ## Central City Master
 
 Read permission is `platform:settings:read`; adding/importing requires `platform:settings:write` and the existing reviewed current-password flow. Upload previews all source rows without creating cities. Conflicts and invalid rows remain excluded; importing never overwrites existing cities. The browser shows actual committed progress, preserves the import ID for retry/resume, and guards unload during processing. Uncertain chunk responses replay the same cursor. Read-only users see the catalog without import/add controls. Existing operator city IDs and public search IDs remain compatible. Partner city responses contain only authorized inventory, not the complete master catalog.

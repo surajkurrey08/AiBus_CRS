@@ -35,16 +35,16 @@ test("all original API operations are represented and all scripts compile", () =
 });
 test("token refresh preserves request identities and existing booking references", () => {
   const values=store(); values.set("apiCredential","fixture-only-credential");
-  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:300});
+  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:2700});
   const key=values.get("holdKey"), reference=values.get("partnerReference");
   values.set("bookingId","booking_fixture_existing");
-  run(flow[0],"test",values,{accessToken:"new-fixture-only-token",expiresIn:300});
+  run(flow[0],"test",values,{accessToken:"new-fixture-only-token",expiresIn:2700});
   assert.equal(values.get("holdKey"),key); assert.equal(values.get("partnerReference"),reference);
   assert.equal(values.get("bookingId"),"booking_fixture_existing");
 });
 test("city, trip, seat, hold and quote responses populate subsequent requests", () => {
   const values=store();
-  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:300});
+  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:2700});
   run(flow[1],"test",values,{environment:"sandbox",liveTicketIssuance:false});
   run(flow[2],"test",values,[{id:"city_pune_fixture",name:"Pune"},{id:"city_mumbai_fixture",name:"Mumbai"}]);
   run(flow[3],"test",values,[{id:"trip_fixture_available",availableSeats:1}]);
@@ -59,7 +59,7 @@ test("production hosts and writes without explicit sandbox opt-in are blocked", 
   values.set("baseUrl","https://api.bookmybus.pro/api/v1/public");
   assert.throws(()=>run(flow[0],"prerequest",values),Skip);
   values.set("baseUrl","http://127.0.0.1:4001/api/v1/public");
-  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:300});
+  run(flow[0],"test",values,{accessToken:"fixture-only-token",expiresIn:2700});
   run(flow[1],"test",values,{environment:"sandbox",liveTicketIssuance:false});
   values.set("tripId","trip_fixture"); values.set("seatNumber","L1");
   assert.throws(()=>run(flow[8],"prerequest",values),Skip);

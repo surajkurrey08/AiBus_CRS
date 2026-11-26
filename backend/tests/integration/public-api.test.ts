@@ -1,6 +1,7 @@
 import { inspectTripIntegrity } from "../../src/services/operations-integrity.service.js";
 import { inspectPublicReadiness } from "../../src/services/public-readiness.service.js";
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from "vitest";
+import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from "vitest";
+import jwt from "jsonwebtoken";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
@@ -537,8 +538,16 @@ describe("Phase 7 public API provider", () => {
     ).toBe(0);
     expect(await M.Ticket.countDocuments()).toBe(1);
   });
-  it("exchanges hashed credentials for scoped short-lived tokens", async () => {
+  it("exchanges hashed credentials for scoped 45-minute tokens", async () => {
     expect(token).toBeTruthy();
+    const exchange = await post("/auth/token", {}, randomUUID(), credential);
+    expect(exchange.status).toBe(200);
+    expect(exchange.body.data).toMatchObject({
+      tokenType: "Bearer",
+      expiresIn: 2700,
+    });
+    const claims = jwt.decode(exchange.body.data.accessToken) as jwt.JwtPayload;
+    expect(claims.exp! - claims.iat!).toBe(2700);
     expect(JSON.stringify(await P.ApiCredential.find().lean())).not.toContain(
       credential.split(".")[1],
     );
@@ -554,6 +563,18 @@ describe("Phase 7 public API provider", () => {
       paymentMode: "razorpay_test",
       testRefunds: true,
     });
+  });
+  it("accepts a token just before 45 minutes and rejects it at expiration", async () => {
+    const claims = jwt.decode(token) as jwt.JwtPayload;
+    const clock = vi.spyOn(Date, "now");
+    try {
+      clock.mockReturnValue((claims.iat! + 2699) * 1000);
+      expect((await get("/capabilities")).status).toBe(200);
+      clock.mockReturnValue((claims.iat! + 2700) * 1000);
+      expect((await get("/capabilities")).status).toBe(401);
+    } finally {
+      clock.mockRestore();
+    }
   });
   it("rejects invalid, revoked, expired and rotated credentials", async () => {
     expect(

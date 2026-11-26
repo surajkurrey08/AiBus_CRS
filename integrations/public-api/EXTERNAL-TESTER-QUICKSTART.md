@@ -32,7 +32,7 @@ Use synthetic passenger data only. Razorpay Test Mode does not collect real mone
 
 ## Retries
 
-Access tokens last five minutes. Repeat Token exchange to refresh without replacing the current booking request keys. After a timeout, inspect booking status and retry the identical operation/body/key; do not begin another booking while the result is uncertain.
+Access tokens last 45 minutes. Repeat Token exchange to refresh without replacing the current booking request keys. After a timeout, inspect booking status and retry the identical operation/body/key; do not begin another booking while the result is uncertain.
 
 For a new independent test, review the old outcome first and set a new unique `testRunId` (16–60 letters, digits, dot, underscore, colon or hyphen), or clear it before Token exchange. Each new successful booking uses another test seat and a Razorpay Test Mode transaction. Parallel iterations are not a concurrency test.
 

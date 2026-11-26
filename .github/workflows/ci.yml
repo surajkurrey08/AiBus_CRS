@@ -54,7 +54,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chrome
       - run: npm run test:e2e:isolated
-      - name: City Master browser contract
+      - name: Admin UI browser contracts
         run: npx playwright test --config playwright.city-catalog.config.ts
       - name: Report browser result
         if: always()

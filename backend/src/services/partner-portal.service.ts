@@ -558,53 +558,75 @@ export async function manageGrant(
     id,
     "admin.inventory.grant",
     input,
-    async (session) => {
-      const owner = await M.Operator.exists({
-        _id: input.operatorId,
-        status: "approved",
-        publicSandboxInventory: true,
-      }).session(session);
-      if (!owner)
-        fail(
-          400,
-          "SANDBOX_OPERATOR_REQUIRED",
-          "Choose an approved explicitly sandbox-enabled operator",
-        );
-      const models: any = {
-        Route: M.Route,
-        Service: M.BusService,
-        Trip: M.Trip,
-      };
-      if (
-        input.kind === "Operator"
-          ? input.targetId !== input.operatorId
-          : !(await models[input.kind]
-              .exists({ _id: input.targetId, operatorId: input.operatorId })
-              .session(session))
-      )
-        fail(
-          400,
-          "GRANT_OWNER",
-          "Resource must belong to the selected operator",
-        );
-      if (new Date(input.expiresAt) <= new Date())
-        fail(400, "GRANT_EXPIRY", "Choose a future expiration");
-      const g = await P.PartnerInventoryGrant.findOneAndUpdate(
-        {
-          partnerId: id,
-          operatorId: input.operatorId,
-          kind: input.kind,
-          targetId: input.targetId,
-        },
-        {
-          $set: { active: input.active, expiresAt: new Date(input.expiresAt) },
-        },
-        { upsert: true, new: true, session },
-      );
-      return { id: String(g!._id), active: g!.active };
-    },
+    (session) => applySandboxGrant(id, input, session),
     true,
   );
+}
+// Called only after a local reviewed platform command or an authorized private
+// inventory bridge command. The caller owns its transaction and audit record.
+export async function applySandboxGrant(
+  id: string,
+  input: any,
+  session: ClientSession,
+) {
+  if (!input.active) {
+    const existing = await P.PartnerInventoryGrant.findOneAndUpdate(
+      {
+        partnerId: id,
+        operatorId: input.operatorId,
+        kind: input.kind,
+        targetId: input.targetId,
+      },
+      { $set: { active: false } },
+      { session, new: true },
+    );
+    if (!existing)
+      fail(
+        404,
+        "NOT_FOUND",
+        "An existing owned inventory grant is required to disable access",
+      );
+    return { id: String(existing!._id), active: false };
+  }
+  const owner = await M.Operator.exists({
+    _id: input.operatorId,
+    status: "approved",
+    publicSandboxInventory: true,
+  }).session(session);
+  if (!owner)
+    fail(
+      400,
+      "SANDBOX_OPERATOR_REQUIRED",
+      "Choose an approved explicitly sandbox-enabled operator",
+    );
+  const models: any = {
+    Route: M.Route,
+    Service: M.BusService,
+    Trip: M.Trip,
+  };
+  if (
+    input.kind === "Operator"
+      ? input.targetId !== input.operatorId
+      : !(await models[input.kind]
+          .exists({ _id: input.targetId, operatorId: input.operatorId })
+          .session(session))
+  )
+    fail(400, "GRANT_OWNER", "Resource must belong to the selected operator");
+  if (new Date(input.expiresAt) <= new Date())
+    fail(400, "GRANT_EXPIRY", "Choose a future expiration");
+  const g = await P.PartnerInventoryGrant.findOneAndUpdate(
+    {
+      partnerId: id,
+      operatorId: input.operatorId,
+      kind: input.kind,
+      targetId: input.targetId,
+    },
+    {
+      $set: { active: input.active, expiresAt: new Date(input.expiresAt) },
+    },
+    { upsert: true, new: true, session },
+  );
+  return { id: String(g!._id), active: g!.active };
 }
 export async function manageWebhook(
   config: Config,

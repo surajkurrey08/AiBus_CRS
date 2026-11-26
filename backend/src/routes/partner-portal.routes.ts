@@ -22,6 +22,11 @@ import {
 import { platformPermit } from "../services/platform-read.service.js";
 import { checkPassword } from "../services/auth.service.js";
 import {
+  adminInventoryOptions,
+  adminInventoryView,
+  adminManageGrant,
+} from "../services/sandbox-inventory-admin.service.js";
+import {
   forwardSandboxPortal,
   sandboxPortalOperation,
 } from "../services/sandbox-portal.service.js";
@@ -277,13 +282,17 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
     "/settlements",
     asyncRoute(async (req, res) => {
       const p = await member(req, "partner:bookings");
-      const refs = await P.PartnerBookingReference.find({ partnerId: p._id }).lean();
+      const refs = await P.PartnerBookingReference.find({
+        partnerId: p._id,
+      }).lean();
       const bookingIds = refs.map((r) => r.bookingId);
       const bookings = await M.Booking.find({
         _id: { $in: bookingIds },
         status: "Confirmed",
         paymentStatus: "Paid",
-      }).sort({ createdAt: -1 }).lean();
+      })
+        .sort({ createdAt: -1 })
+        .lean();
 
       const kolkataDate = (d: Date) =>
         new Intl.DateTimeFormat("en-CA", {
@@ -297,7 +306,7 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
       const dateMap = new Map<string, any[]>();
       dateMap.set(today, []);
 
-      for (const b of (bookings as any[])) {
+      for (const b of bookings as any[]) {
         const d = b.createdAt ? kolkataDate(new Date(b.createdAt)) : today;
         if (!dateMap.has(d)) dateMap.set(d, []);
         dateMap.get(d)!.push(b);
@@ -306,8 +315,14 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
       const settlements = [];
       for (const [date, dayBookings] of dateMap.entries()) {
         const totalBookings = dayBookings.length;
-        const grossPaise = dayBookings.reduce((sum, b: any) => sum + Number(b.grossPaise || b.totalPaise || 0), 0);
-        const commissionPaise = dayBookings.reduce((sum, b: any) => sum + Number(b.commissionPaise || 0), 0);
+        const grossPaise = dayBookings.reduce(
+          (sum, b: any) => sum + Number(b.grossPaise || b.totalPaise || 0),
+          0,
+        );
+        const commissionPaise = dayBookings.reduce(
+          (sum, b: any) => sum + Number(b.commissionPaise || 0),
+          0,
+        );
         const netPayablePaise = Math.max(0, grossPaise - commissionPaise);
 
         const existing = await M.DailyAgentSettlement.findOne({
@@ -633,7 +648,7 @@ export function platformPartnersRouter(config: Config) {
           .select(metadata)
           .limit(100)
           .lean(),
-        inventory: await S.inventoryView(config, p),
+        inventory: await adminInventoryView(config, req.auth, id),
         usage: await S.usageSummary(id, {}),
         bookings: await S.portalBookings(id, { page: 1, limit: 25 }),
         failures: await P.PartnerWebhookDelivery.find({
@@ -674,7 +689,7 @@ export function platformPartnersRouter(config: Config) {
     asyncRoute(async (req, res) =>
       ok(
         res,
-        await S.manageGrant(
+        await adminManageGrant(
           config,
           req.auth,
           oid.parse(req.params.id),
@@ -682,6 +697,18 @@ export function platformPartnersRouter(config: Config) {
         ),
       ),
     ),
+  );
+  r.get(
+    "/:id/inventory-options",
+    asyncRoute(async (req, res) => {
+      const result: any = await adminInventoryOptions(
+        config,
+        req.auth,
+        oid.parse(req.params.id),
+        req.query,
+      );
+      ok(res, result.data, result.meta);
+    }),
   );
   r.post(
     "/:id/credentials/:credential/revoke",

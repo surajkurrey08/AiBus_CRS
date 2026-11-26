@@ -58,7 +58,7 @@ Internal IDs in the grant CLI are trusted provisioning inputs, not external auth
 
 ## Integration sequence
 
-1. Exchange your credential using `Authorization: Bearer ap_sandbox_cred_...secret` and body `{}` at POST /auth/token. Keep the credential server-side. Use the resulting Bearer access token (five-minute lifetime) for API calls.
+1. Exchange your credential using `Authorization: Bearer ap_sandbox_cred_...secret` and body `{}` at POST /auth/token. Keep the credential server-side. Use the resulting Bearer access token (45-minute lifetime) for API calls.
 2. GET /cities, select the returned city IDs, then search /trips with both cities and the actual journey date. There is no implicit all-operator inventory access.
 3. GET trip details, /seats, /stops and /cancellation-policy. Seat fares are base fares per passenger; they are not final checkout totals.
 4. POST /quotes with `{"seats":["L1"]}` for a pre-hold recheck. POST /holds with those seats and a durable Idempotency-Key. Holds last at most five minutes.

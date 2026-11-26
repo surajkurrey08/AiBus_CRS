@@ -4612,7 +4612,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "5-minute token. Credential revocation, expiry, rotation and current partner scopes checked on every request."
+        "description": "45-minute token. Credential revocation, expiry, rotation and current partner scopes checked on every request."
       }
     },
     "schemas": {
@@ -4659,7 +4659,7 @@
           },
           "expiresIn": {
             "enum": [
-              300
+              2700
             ]
           },
           "environment": {

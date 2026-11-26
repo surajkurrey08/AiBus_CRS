@@ -41,7 +41,7 @@ Select **AIBUS live — diagnostics only**. Run the folder **00 Live diagnostics
    | `allowSandboxWrites` | `true`, only when ready to create test bookings and cancellation requests |
    | `testRunId` | Leave empty for the first test; an operation identity is generated automatically |
 
-3. Run **01 Token exchange** once. Its body is raw JSON `{}`. The complete API credential is sent as Bearer authorization. The returned access token is stored automatically with its five-minute expiry. Subsequent requests use that token.
+3. Run **01 Token exchange** once. Its body is raw JSON `{}`. The complete API credential is sent as Bearer authorization. The returned access token is stored automatically with its 45-minute expiry. Subsequent requests use that token.
 
    For this existing local setup, the private credential file is `.cache/aibus-sandbox-credential.json`; use its complete `credential` value, not just `credentialId`. Do not share that file. Saved fixture metadata is in `.cache/aibus-sandbox-test-data.json`; its recorded journey date was `2026-11-26` during this check. Verify the scheduled fixture still exists after starting the sandbox instead of substituting a production trip date.
 4. Run **02 Capabilities** and **03 Cities** once. The collection selects city IDs only when each configured city name has exactly one authorized match on the first 100-row page. If a name is ambiguous or absent, copy the exact `id` values from the relevant Cities response into `fromCityId` and `toCityId`. These are public search IDs, not provider IDs or raw MongoDB IDs. Configure a trip date that actually exists; importing the central city catalog does not create trip inventory.

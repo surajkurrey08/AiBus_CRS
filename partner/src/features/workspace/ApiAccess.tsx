@@ -67,7 +67,7 @@ export function CredentialsGuide({ writable }: { writable: boolean }) {
           <code>POST /api/v1/public/auth/token</code>
           <small>
             Use the credential as the Bearer authorization value. Tokens last
-            five minutes.
+            45 minutes.
           </small>
         </div>
       </div>

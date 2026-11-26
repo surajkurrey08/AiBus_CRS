@@ -6,6 +6,7 @@ import * as P from "../models/public-api.model.js";
 import type { Config } from "../config/env.js";
 import { fail } from "../utils/core.js";
 import { sourceEntitlement } from "./sandbox-bridge.transport.js";
+const ACCESS_TOKEN_TTL_SECONDS = 45 * 60;
 export const publicScopes = [
   "inventory:read",
   "holds:write",
@@ -216,11 +217,11 @@ export async function authenticatePartner(config: Config, raw: string) {
         subject: identity.publicId,
         audience: "aibus-public-v1",
         issuer: "aibus",
-        expiresIn: "5m",
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
       },
     ),
     tokenType: "Bearer",
-    expiresIn: 300,
+    expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     environment: "sandbox",
     scopes: identity.scopes,
   };

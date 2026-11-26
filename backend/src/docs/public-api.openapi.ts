@@ -534,7 +534,7 @@ export const publicApiSpec = {
         scheme: "bearer",
         bearerFormat: "JWT",
         description:
-          "5-minute token. Credential revocation, expiry, rotation and current partner scopes checked on every request.",
+          "45-minute token. Credential revocation, expiry, rotation and current partner scopes checked on every request.",
       },
     },
     schemas: {
@@ -544,7 +544,7 @@ export const publicApiSpec = {
       Token: object({
         accessToken: string,
         tokenType: { enum: ["Bearer"] },
-        expiresIn: { enum: [300] },
+        expiresIn: { enum: [2700] },
         environment: { enum: ["sandbox"] },
         scopes: { type: "array", items: string },
       }),

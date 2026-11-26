@@ -4,8 +4,15 @@ import { z } from "zod";
 import type { Config } from "../config/env.js";
 import { fail } from "../utils/core.js";
 
+export type BridgePurpose =
+  "execute" | "entitlement" | "inventory-execute" | "inventory-entitlement";
 const claimsSchema = z.object({
-  purpose: z.enum(["execute", "entitlement"]),
+  purpose: z.enum([
+    "execute",
+    "entitlement",
+    "inventory-execute",
+    "inventory-entitlement",
+  ]),
   digest: z.string().length(64),
   sub: z.string().regex(/^partner_[\w-]{16,100}$/),
   actorId: z.string().regex(/^[a-f\d]{24}$/i),
@@ -14,7 +21,7 @@ export const bridgeDigest = (body: unknown) =>
   createHash("sha256").update(JSON.stringify(body)).digest("hex");
 export function bridgeProof(
   config: Config,
-  purpose: "execute" | "entitlement",
+  purpose: BridgePurpose,
   partnerId: string,
   actorId: string,
   body: unknown,
@@ -39,7 +46,7 @@ export function bridgeProof(
 }
 export function verifyBridgeProof(
   config: Config,
-  purpose: "execute" | "entitlement",
+  purpose: BridgePurpose,
   token: string,
   body: unknown,
 ) {
@@ -63,7 +70,7 @@ export function verifyBridgeProof(
 export async function bridgeCall(
   config: Config,
   origin: string,
-  purpose: "execute" | "entitlement",
+  purpose: BridgePurpose,
   partnerId: string,
   actorId: string,
   body: unknown,

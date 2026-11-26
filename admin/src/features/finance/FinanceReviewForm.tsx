@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Check, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Overlay } from "../../components/ui/Overlay";
 import "./review-form.css";
@@ -14,6 +14,8 @@ export type ReviewField = {
   helperText?: string;
   placeholder?: string;
   options?: { label: string; value: string }[];
+  dependsOn?: string[];
+  disabled?: boolean;
 };
 export function FinanceReviewForm({
   title,
@@ -24,6 +26,9 @@ export function FinanceReviewForm({
   onClose,
   accountEmail,
   confirmLabel,
+  onValuesChange,
+  notice,
+  blocked = false,
 }: {
   title: string;
   intent?: "finance" | "platform";
@@ -33,6 +38,9 @@ export function FinanceReviewForm({
   onClose: () => void;
   accountEmail?: string;
   confirmLabel?: (values: Record<string, string>) => string;
+  onValuesChange?: (values: Record<string, string>) => void;
+  notice?: ReactNode;
+  blocked?: boolean;
 }) {
   const [values, setValues] = useState(
       Object.fromEntries(fields.map((f) => [f.name, f.value || ""])),
@@ -64,7 +72,16 @@ export function FinanceReviewForm({
     else errorSummary.current?.focus();
   }, [error, invalid, review]);
   const update = (name: string, value: string) => {
-    setValues((v) => ({ ...v, [name]: value }));
+    const next = { ...values, [name]: value };
+    const changed = new Set([name]);
+    for (const field of fields) {
+      if (field.dependsOn?.some((parent) => changed.has(parent))) {
+        next[field.name] = "";
+        changed.add(field.name);
+      }
+    }
+    setValues(next);
+    onValuesChange?.(next);
     dirty.current = true;
   };
   const close = () => {
@@ -92,7 +109,7 @@ export function FinanceReviewForm({
         autoComplete="off"
         onSubmit={async (event) => {
           event.preventDefault();
-          if (busy || discard) return;
+          if (busy || discard || blocked) return;
           setError("");
           setInvalid("");
           for (const field of fields) {
@@ -114,7 +131,11 @@ export function FinanceReviewForm({
               (!field.optional && empty) ||
               (field.name === "reason" && value.trim().length < 5) ||
               invalidEmail ||
-              invalidNumber
+              invalidNumber ||
+              (!!field.options &&
+                !field.multiple &&
+                !!value &&
+                !field.options.some((option) => option.value === value))
             ) {
               setReview(false);
               setInvalid(field.name);
@@ -164,6 +185,7 @@ export function FinanceReviewForm({
             </li>
           </ol>
           <p className="review-description">{description}</p>
+          {notice}
           {error && (
             <div
               className="review-error"
@@ -245,7 +267,7 @@ export function FinanceReviewForm({
                         id={`review-${field.name}`}
                         name={field.name}
                         value={values[field.name]}
-                        disabled={busy}
+                        disabled={busy || field.disabled}
                         aria-invalid={invalid === field.name}
                         aria-describedby={
                           invalid === field.name
@@ -434,7 +456,7 @@ export function FinanceReviewForm({
                   Edit details
                 </button>
               )}
-              <button className="btn primary" disabled={busy}>
+              <button className="btn primary" disabled={busy || blocked}>
                 {busy
                   ? "Recording..."
                   : review

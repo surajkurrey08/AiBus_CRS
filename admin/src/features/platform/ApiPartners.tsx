@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, type Identity } from "../../api/client";
 import { PlatformTable } from "../../components/platform/PlatformTable";
 import { Overlay } from "../../components/ui/Overlay";
+import { SandboxInventoryGrant } from "./SandboxInventoryGrant";
 import {
   FinanceReviewForm,
   type ReviewField,
@@ -20,6 +21,8 @@ const scopes = [
 const opts = (items: string[]) =>
   items.map((value) => ({ label: value, value }));
 export function ApiPartners({ user }: { user: Identity }) {
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0),
     [selected, setSelected] = useState(""),
     [record, setRecord] = useState<any>(),
@@ -45,6 +48,10 @@ export function ApiPartners({ user }: { user: Identity }) {
     return () => abort.abort();
   }, [selected, revision]);
   const writable = user.permissions.includes("platform:partners:write");
+  useEffect(() => {
+    setGrantOpen(false);
+    setNotice("");
+  }, [selected]);
   const open = (
     title: string,
     path: string,
@@ -118,6 +125,11 @@ export function ApiPartners({ user }: { user: Identity }) {
             ) : (
               <>
                 <h3>{record.partner.name}</h3>
+                {notice && (
+                  <p role="status" className="platform-notice">
+                    {notice}
+                  </p>
+                )}
                 <p>
                   {record.partner.onboardingStatus} · Sandbox · Production
                   unavailable
@@ -190,56 +202,7 @@ export function ApiPartners({ user }: { user: Identity }) {
                     >
                       Review approval, scopes & limits
                     </button>
-                    <button
-                      className="btn"
-                      onClick={() =>
-                        open(
-                          "Manage sandbox inventory grant",
-                          "/grants",
-                          [
-                            {
-                              name: "operatorId",
-                              label: "Sandbox operator ID",
-                            },
-                            {
-                              name: "kind",
-                              label: "Resource type",
-                              options: opts([
-                                "Operator",
-                                "Route",
-                                "Service",
-                                "Trip",
-                              ]),
-                            },
-                            {
-                              name: "targetId",
-                              label: "Resource ID owned by this operator",
-                            },
-                            {
-                              name: "expiresAt",
-                              label: "Expiration date",
-                              type: "date",
-                            },
-                            {
-                              name: "active",
-                              label: "Access",
-                              value: "true",
-                              options: [
-                                { label: "Active", value: "true" },
-                                { label: "Inactive", value: "false" },
-                              ],
-                            },
-                          ],
-                          (v) => ({
-                            ...v,
-                            active: v.active === "true",
-                            expiresAt: new Date(
-                              v.expiresAt + "T23:59:59Z",
-                            ).toISOString(),
-                          }),
-                        )
-                      }
-                    >
+                    <button className="btn" onClick={() => setGrantOpen(true)}>
                       Manage inventory grant
                     </button>
                   </div>
@@ -333,6 +296,20 @@ export function ApiPartners({ user }: { user: Identity }) {
             )}
           </div>
         </Overlay>
+      )}
+      {grantOpen && record && (
+        <SandboxInventoryGrant
+          key={selected}
+          partnerId={selected}
+          partnerName={record.partner.name}
+          accountEmail={user.email}
+          grants={record.inventory?.grants || []}
+          onClose={() => setGrantOpen(false)}
+          onSaved={() => {
+            setNotice("Sandbox inventory access updated.");
+            setRevision((value) => value + 1);
+          }}
+        />
       )}
       {form && (
         <FinanceReviewForm

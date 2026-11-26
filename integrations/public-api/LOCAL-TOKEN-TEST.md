@@ -29,7 +29,7 @@ In Postman:
 2. Authorization: Bearer Token, value = the full private sandbox credential.
 3. Body: raw JSON `{}`; Content-Type: `application/json`.
 4. Disable cookie jar for this request and do not send an Origin header.
-5. Send. HTTP 200 returns `data.accessToken`, `tokenType: Bearer`, `expiresIn: 300`.
+5. Send. HTTP 200 returns `data.accessToken`, `tokenType: Bearer`, `expiresIn: 2700`.
 6. GET `http://127.0.0.1:4001/api/v1/public/cities` using the returned access
    token as Bearer authorization. Repeat the credential exchange when it expires.
 

@@ -4,7 +4,7 @@ Use the isolated non-production environment and guide in README.md. Never use re
 
 1. Run the read-only preflight; review uniqueness/conflicts. Prepare the separately named MongoDB replica set and explicit sandbox environment. An ordinary database must return PUBLIC_API_DISABLED even with valid sandbox credentials.
 2. Create the additive sandbox fixture. Keep its one-time credential on your backend. A repeat fixture run must preserve records and not print the old credential again.
-3. Exchange the credential; verify five-minute token lifetime. Revoke it, expire it or increment its version in an isolated integration fixture: the old token must fail. A dashboard JWT must not authenticate the public namespace and vice versa.
+3. Exchange the credential; verify 45-minute token lifetime. Revoke it, expire it or increment its version in an isolated integration fixture: the old token must fail. A dashboard JWT must not authenticate the public namespace and vice versa.
 4. Provision two separate partners with only explicit sandbox trip grants. Remove/expire Partner A's grant: it must not discover or sell Partner B-only inventory. Operator/agent IDs in public query/body must be rejected, never treated as authorization.
 5. Get cities, then search with returned IDs and the exact fixture date. The other date should return no trips. Compare seat/deck positions with the central sandbox inventory and verify no hold-user, booking database ID, crew contact or credential appears in JSON/JWT claims.
 6. The available fixture has green/sellable availability; the blocked fixture has zero available seats. Its unavailable seats must not be held. This is a deliberately blocked availability scenario, not invented booked passengers.

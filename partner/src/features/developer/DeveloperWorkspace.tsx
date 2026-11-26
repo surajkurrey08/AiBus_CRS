@@ -641,7 +641,7 @@ function Explorer({ spec, playground }: { spec: any; playground: boolean }) {
                 <p>
                   <strong>1. Authenticate on your backend.</strong> Exchange a
                   sandbox credential at <code>/auth/token</code>. Tokens expire
-                  after five minutes.
+                  after 45 minutes.
                 </p>
                 <p>
                   <strong>2. Use authorized references.</strong> Search cities
