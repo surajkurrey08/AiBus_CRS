@@ -96,7 +96,7 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
 
     // Modal title should appear
     await waitFor(() => {
-      expect(screen.getByText("Schedule Scheduled Car Trip")).toBeDefined();
+      expect(screen.getByText("Schedule Vehicle Trip")).toBeDefined();
     });
 
     // Check that the car dropdown has loaded the vehicle
@@ -110,9 +110,11 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
     });
   });
 
-  it("submits valid car scheduling payload with carId, routeId, journeyDate when form is submitted", async () => {
+  it.each(["once", "weekends"])("submits the correct car trips for %s scheduling", async (repeat) => {
+    const scheduled: { journeyDate: string; departureAt: string; arrivalAt: string }[] = [];
     (api as any).mockImplementation((url: string, opts?: any) => {
       if (url.includes("/operator/trips") && opts?.method === "POST") {
+        scheduled.push(JSON.parse(opts.body));
         return Promise.resolve({
           data: {
             _id: "trip-new-123",
@@ -159,14 +161,22 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
     fireEvent.click(scheduleBtns[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Schedule Scheduled Car Trip")).toBeDefined();
+      expect(screen.getByText("Schedule Vehicle Trip")).toBeDefined();
     });
+
+    if (repeat === "weekends") {
+      fireEvent.change(screen.getByLabelText("Departure Date"), { target: { value: "2030-01-04" } });
+      fireEvent.change(screen.getByLabelText("Estimated Arrival Date"), { target: { value: "2030-01-05" } });
+      fireEvent.change(screen.getByLabelText("Repeat schedule"), { target: { value: "weekends" } });
+      fireEvent.change(screen.getByLabelText("Repeat through"), { target: { value: "2030-01-07" } });
+    }
 
     // Click submit button
     const submitBtn = screen.getByRole("button", { name: /^Schedule Trip$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
+      expect(scheduled).toHaveLength(repeat === "once" ? 1 : 2);
       expect(api).toHaveBeenCalledWith(
         "/operator/trips",
         expect.objectContaining({
@@ -175,5 +185,9 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
         })
       );
     });
+    if (repeat === "weekends") {
+      expect(scheduled.map((trip) => trip.journeyDate)).toEqual(["2030-01-05", "2030-01-06"]);
+      expect(Date.parse(scheduled[1].arrivalAt) - Date.parse(scheduled[0].arrivalAt)).toBe(86_400_000);
+    }
   });
 });

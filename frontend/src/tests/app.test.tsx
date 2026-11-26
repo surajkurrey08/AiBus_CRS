@@ -47,7 +47,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("Operator workflows", () => {
-  it("provides direct car-based navigation for Car Master, Route Master, and Trip Master", async () => {
+  it("provides direct car-based navigation for Vehicle Master, Route Master, and Trip Master", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -70,11 +70,11 @@ describe("Operator workflows", () => {
       ).toBeNull();
       expect(screen.queryByRole("button", { name: "Bus Master" })).toBeNull();
 
-      // Directly accessible Car Master in navigation
+      // Directly accessible Vehicle Master in navigation
       const nav = screen.getByRole("navigation", { name: "Workspace navigation" });
-      const carMasterBtn = within(nav).getByRole("button", { name: "Car Master" });
+      const carMasterBtn = within(nav).getByRole("button", { name: "Vehicle Master" });
       await user.click(carMasterBtn);
-      expect(screen.getByText("Car Fleet Master")).toBeTruthy();
+      expect(screen.getByText("Vehicle Fleet")).toBeTruthy();
       expect(carMasterBtn.getAttribute("aria-current")).toBe("page");
 
       // Directly accessible Trip Master in navigation
@@ -147,7 +147,7 @@ describe("Operator workflows", () => {
     const user = userEvent.setup();
     render(<App demo />);
     const labels = [
-      "Car Master",
+      "Vehicle Master",
       "Route Master",
       "Trip Master",
       "Seat Layout Designer",
@@ -170,10 +170,10 @@ describe("Operator workflows", () => {
     const user = userEvent.setup();
     render(<App demo />);
     const nav = screen.getByRole("navigation", { name: "Workspace navigation" });
-    await user.click(within(nav).getByRole("button", { name: "Car Master" }));
-    await user.click(screen.getByRole("button", { name: "Add Car" }));
+    await user.click(within(nav).getByRole("button", { name: "Vehicle Master" }));
+    await user.click(screen.getByRole("button", { name: "Add Vehicle" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("Add New Car")).toBeTruthy();
+    expect(within(dialog).getByText("Add New Vehicle")).toBeTruthy();
     await user.click(
       within(dialog).getByRole("button", { name: "Save Car" }),
     );

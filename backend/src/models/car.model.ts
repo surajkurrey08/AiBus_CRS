@@ -35,6 +35,9 @@ export const Car = model(
         "7-Passenger MUV",
         "4-Passenger Hatchback",
         "6-Passenger SUV",
+        "Custom Car",
+        "Mini Bus",
+        "Bus",
       ],
       default: "4-Passenger Sedan",
     },
@@ -45,6 +48,9 @@ export const Car = model(
         "7-Passenger MUV",
         "4-Passenger Hatchback",
         "6-Passenger SUV",
+        "Custom Car",
+        "Mini Bus",
+        "Bus",
       ],
       default: function (this: any) {
         return this.vehicleCategory;
@@ -53,8 +59,8 @@ export const Car = model(
     totalPhysicalSeats: {
       type: Number,
       required: true,
-      min: 5,
-      max: 9,
+      min: 2,
+      max: 101,
     },
     driverSeatsCount: {
       type: Number,
@@ -67,7 +73,7 @@ export const Car = model(
       type: Number,
       required: true,
       min: 1,
-      max: 8,
+      max: 100,
     },
     color: { type: String, default: "" },
     status: {
@@ -80,6 +86,10 @@ export const Car = model(
         "Archived",
       ],
       default: "Active",
+    },
+    seatLayout: {
+      type: [{ _id: false, number: String, row: Number, column: Number }],
+      default: undefined,
     },
     activeLayoutId: objectId,
     schedulingRevision: { type: Number, default: 0 },

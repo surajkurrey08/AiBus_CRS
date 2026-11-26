@@ -123,14 +123,22 @@ export async function createScheduledTrip(
       const isMuv =
         (car.vehicleCategory || car.category || input.vehicleCategory) ===
         "7-Passenger MUV";
-      if (!["4-Passenger Sedan","4-Passenger Hatchback","7-Passenger MUV"].includes(car.vehicleCategory||car.category)) fail(400,"UNSUPPORTED_VEHICLE","Only configured 4-passenger and 7-passenger vehicles can be scheduled");
-      const bookableCapacity = isMuv ? 7 : 4;
-      const totalPhysicalSeats = isMuv ? 8 : 5;
+      const bookableCapacity = car.bookablePassengerCapacity;
+      const totalPhysicalSeats = car.totalPhysicalSeats;
+      const customSeats = car.seatLayout;
+      const defaultCapacity = isMuv ? 7 : 4;
+      if (customSeats?.length ? customSeats.length !== bookableCapacity + 1
+        : bookableCapacity !== defaultCapacity || ["Custom Car", "Mini Bus", "Bus", "6-Passenger SUV"].includes(car.vehicleCategory))
+        fail(409, "LAYOUT_REQUIRED", "Save a matching vehicle seat layout before scheduling");
       const baseFarePaise =
         input.baseFarePaise ||
         (input.baseFareRupees ? Math.round(input.baseFareRupees * 100) : 50000);
 
-      const seats = isMuv
+      const seats = customSeats?.length ? customSeats.map((seat: { number: string; row: number; column: number }) => ({
+        number: seat.number, row: seat.row, column: seat.column, deck: "lower", category: "seater",
+        isDriver: seat.number === "D", isBookable: seat.number !== "D",
+        state: seat.number === "D" ? "blocked" : "available", farePaise: seat.number === "D" ? 0 : baseFarePaise,
+      })) : isMuv
         ? [
             {
               number: "FP",
@@ -321,7 +329,7 @@ export async function createScheduledTrip(
             routeId: route._id,
             tripNumber,
             tripType: input.tripType || "ONE_WAY",
-            vehicleCategory: isMuv ? "7-Passenger MUV" : "4-Passenger Sedan",
+            vehicleCategory: car.vehicleCategory,
             carRegistration: car.registrationNumber || car.registration,
             routeName: `${route.source} → ${route.destination}`,
             bookableCapacity,

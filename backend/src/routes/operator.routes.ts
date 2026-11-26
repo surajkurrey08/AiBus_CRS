@@ -403,6 +403,22 @@ export function operatorRouter(config: Config) {
       "category",
     ],
     async (req, input, existing) => {
+      if (input.layoutTemplateId) {
+        if (existing) return fail(400, "LAYOUT_CREATE_ONLY", "Use Seat Layout Designer to edit an existing vehicle layout");
+        const template = await owned(M.VehicleLayout, req, input.layoutTemplateId);
+        const category = input.vehicleCategory ?? input.category;
+        const type = category === "Bus" || category === "Mini Bus" ? category : "Car";
+        if (template.vehicleType !== type)
+          return fail(400, "LAYOUT_TYPE_MISMATCH", "Choose a layout for this vehicle type");
+        input.seatLayout = template.seats.map(({ number, row, column }: { number: string; row: number; column: number }) => ({ number, row, column }));
+        input.totalPhysicalSeats = template.seats.length;
+        input.bookablePassengerCapacity = template.seats.length - 1;
+        delete input.layoutTemplateId;
+      }
+      if (input.totalPhysicalSeats !== input.bookablePassengerCapacity + 1)
+        fail(400, "INVALID_CAPACITY", "Physical seats must include one driver seat");
+      if (existing?.seatLayout?.length && existing.bookablePassengerCapacity !== input.bookablePassengerCapacity)
+        fail(409, "LAYOUT_CAPACITY_LOCKED", "Capacity cannot change while a vehicle seat layout exists");
       if (input.registrationNumber && !input.registration) {
         input.registration = input.registrationNumber.toUpperCase().replace(/[\s-]/g, "");
       }
@@ -443,6 +459,55 @@ export function operatorRouter(config: Config) {
       }
     },
   );
+  const vehicleLayoutSeats = z.array(z.object({
+          number: z.string().regex(/^(D|CS-[A-Z0-9-]{1,9})$/),
+          row: z.number().int().min(0).max(100),
+          column: z.number().int().min(0).max(5),
+        }).strict()).min(2).max(101).refine((seats) =>
+          seats.filter((seat) => seat.number === "D").length === 1 &&
+          new Set(seats.map((seat) => seat.number)).size === seats.length &&
+          new Set(seats.map((seat) => seat.row * 6 + seat.column)).size === seats.length,
+          "Use one driver seat, unique seat numbers and unique positions");
+  router.get("/vehicle-layouts", permit("read"), asyncRoute(async (req, res) => {
+    await list(M.VehicleLayout, req, res, ["name", "vehicleType"]);
+  }));
+  router.post("/vehicle-layouts", permit("fleet:write"), asyncRoute(async (req, res) => {
+    const input = z.object({
+      name: z.string().trim().min(1).max(80),
+      vehicleType: z.enum(["Car", "Mini Bus", "Bus"]),
+      seats: vehicleLayoutSeats,
+    }).strict().parse(req.body);
+    const layout = await M.VehicleLayout.create({ ...input, ...tenant(req) });
+    ok(res, layout, undefined, 201);
+  }));
+  router.delete("/vehicle-layouts/:id", permit("fleet:write"), asyncRoute(async (req, res) => {
+    const recordId = parseId(req);
+    await mongoose.connection.transaction(async (session) => {
+      const deleted = await M.VehicleLayout.deleteOne({ _id: recordId, ...tenant(req) }, { session });
+      if (!deleted.deletedCount) return fail(404, "NOT_FOUND", "Seat layout template not found");
+      await audit(req, "vehicle.layout.template.delete", recordId, session);
+    });
+    ok(res, { id: recordId });
+  }));
+  router.put(
+    "/cars/:id/layout",
+    permit("fleet:write"),
+    asyncRoute(async (req, res) => {
+      const recordId = parseId(req);
+      const { seats } = z.object({ seats: vehicleLayoutSeats }).strict().parse(req.body);
+      const vehicle = await mongoose.connection.transaction(async (session) => {
+        const updated = await M.Car.findOneAndUpdate(
+          { _id: recordId, ...tenant(req), bookablePassengerCapacity: seats.length - 1 },
+          { $set: { seatLayout: seats }, $inc: { __v: 1 } },
+          { new: true, runValidators: true, session },
+        );
+        if (!updated) return fail(409, "LAYOUT_CAPACITY_MISMATCH", "Vehicle is unavailable or the layout does not match its capacity");
+        await audit(req, "vehicle.layout.update", recordId, session);
+        return updated;
+      });
+      ok(res, vehicle);
+    }),
+  );
   router.patch(
     "/cars/:id/status",
     permit("fleet:write"),
@@ -467,6 +532,40 @@ export function operatorRouter(config: Config) {
       ok(res, car);
     }),
   );
+  for (const resource of ["cars", "routes", "trips"] as const) {
+    router.delete(
+      `/${resource}/:id`,
+      permit(resource === "cars" ? "fleet:write" : "routes:write"),
+      asyncRoute(async (req, res) => {
+        if (req.auth.role !== "operator_admin" || req.auth.agentId)
+          return fail(403, "FORBIDDEN", "Only operator admins can permanently delete records");
+        const recordId = parseId(req);
+        const target = { _id: recordId, ...tenant(req) };
+        const model: mongoose.Model<any> = resource === "cars" ? M.Car : resource === "routes" ? M.Route : M.Trip;
+        const status = resource === "trips" ? { $in: ["Draft", "Cancelled"] } : "Inactive";
+        const fields = resource === "cars" ? ["carId", "busId"] : resource === "routes" ? ["routeId", "routeIds"] : ["tripId", "fromTripId", "toTripId"];
+        await mongoose.connection.transaction(async (session) => {
+          const record = await model.findOne(target).session(session);
+          if (!record) return fail(404, "NOT_FOUND", "Record not found");
+          for (const linked of Object.values(mongoose.models)) {
+            const paths = fields.filter((field) => linked.schema.path(field));
+            if (resource !== "cars" && linked.schema.path("targetId") && linked.schema.path("kind"))
+              paths.push("targetId");
+            if (paths.length && await linked.exists({ $or: paths.map((field) => ({ [field]: record._id })) }).session(session))
+              return fail(409, "RECORD_IN_USE", "This record has linked data. Keep it inactive to preserve history.");
+          }
+          const deleted = await model.deleteOne({
+            ...target, status,
+            ...(resource === "trips" ? { carId: { $exists: true, $ne: null }, inventoryOwner: "internal" } : {}),
+          }).session(session);
+          if (!deleted.deletedCount)
+            return fail(409, "RECORD_NOT_DELETABLE", "Make the record inactive, or cancel the car trip, before deleting.");
+          await audit(req, `${resource}.delete`, recordId, session);
+        });
+        ok(res, { deleted: true });
+      }),
+    );
+  }
   router.get(
     "/buses/:id/layout",
     permit("read"),
@@ -712,6 +811,19 @@ export function operatorRouter(config: Config) {
         { new: true },
       );
       if (!trip) fail(404, "NOT_FOUND", "Trip not found");
+      ok(res, trip);
+    }),
+  );
+  router.post(
+    "/trips/:id/open-sales",
+    permit("routes:write"),
+    asyncRoute(async (req, res) => {
+      const tripId = parseId(req);
+      const trip = await M.Trip.findOneAndUpdate({
+        _id: tripId, ...tenant(req), status: "Scheduled",
+        inventoryOwner: "internal", departureAt: { $gt: new Date() },
+      }, { $set: { bookingOpen: true }, $inc: { __v: 1 } }, { new: true });
+      if (!trip) return fail(409, "TRIP_CLOSED", "Only upcoming scheduled trips can reopen sales");
       ok(res, trip);
     }),
   );

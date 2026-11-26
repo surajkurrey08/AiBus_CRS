@@ -393,6 +393,21 @@ describe("Booking Counter", () => {
       ),
     );
   });
+  it("shows a mini bus cabin at saved positions and locks the driver seat", async () => {
+    const toggle = vi.fn();
+    const user = userEvent.setup();
+    render(<SeatMap vehicleType="Mini Bus" selected={[]} onToggle={toggle} seats={[
+      { number: "D", row: 0, column: 3, deck: "lower", category: "driver", farePaise: 0, state: "blocked" },
+      { number: "CS-1", row: 1, column: 2, deck: "lower", category: "seater", farePaise: 50000, state: "available" },
+    ]} />);
+    const cabin = within(screen.getByRole("group", { name: "Mini bus seat layout" }));
+    expect((cabin.getByRole("button", { name: /^D,/ }) as HTMLButtonElement).disabled).toBe(true);
+    const seat = cabin.getByRole("button", { name: /^CS-1,/ });
+    expect(seat.parentElement?.style.gridColumn).toBe("3");
+    await user.click(seat);
+    expect(toggle).toHaveBeenCalledWith("CS-1");
+  });
+
   it("shows both decks in the CRS chart without overlapping their coordinates", async () => {
     const user = userEvent.setup(),
       toggle = vi.fn();

@@ -1,6 +1,10 @@
-﻿import { X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+
+let openOverlayCount = 0;
+let prevHtmlOverflow = "";
+let prevBodyOverflow = "";
 
 export function Overlay({
   title,
@@ -18,8 +22,22 @@ export function Overlay({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
+    if (openOverlayCount === 0) {
+      prevHtmlOverflow = document.documentElement.style.overflow;
+      prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    }
+    openOverlayCount += 1;
     const el = ref.current;
-    return () => el?.close();
+    return () => {
+      el?.close();
+      openOverlayCount = Math.max(0, openOverlayCount - 1);
+      if (openOverlayCount === 0) {
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.overflow = prevBodyOverflow;
+      }
+    };
   }, []);
   return createPortal(
     <dialog

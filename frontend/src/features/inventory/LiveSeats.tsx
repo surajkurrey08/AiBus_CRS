@@ -123,6 +123,7 @@ export function LiveSeats({ date }: { date: string }) {
       )}
       <div className="seat-page">
         <SeatMap
+          vehicleType={trip?.vehicleCategory}
           title="Berth inventory"
           seats={seats as InventorySeat[]}
           selected={selected}

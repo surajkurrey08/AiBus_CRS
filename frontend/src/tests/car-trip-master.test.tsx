@@ -45,7 +45,7 @@ it("opens schedule car trip modal with One Way and Round Trip options", async ()
   render(<CarTripMaster />);
 
   await user.click(screen.getByRole("button", { name: "Schedule Car Trip" }));
-  expect(screen.getByRole("heading", { name: "Schedule Scheduled Car Trip" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Schedule Vehicle Trip" })).toBeTruthy();
   expect(screen.getByText(/Bus-Style Individual Seat Booking Rules/)).toBeTruthy();
   expect(screen.getByText("One Way Trip")).toBeTruthy();
   expect(screen.getAllByText("Round Trip").length).toBeGreaterThan(0);

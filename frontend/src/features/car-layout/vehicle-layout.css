@@ -1,0 +1,151 @@
+.vehicle-layout-editor { padding: 20px; }
+.vehicle-layout-editor > label { max-width: 520px; }
+.vehicle-layout-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.vehicle-layout-seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr)); gap: 12px; }
+.vehicle-layout-seats > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.vehicle-layout-seats strong { grid-column: 1 / -1; }
+.vehicle-layout-seats input { width: 100%; min-width: 0; }
+.vehicle-layout-preview { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; max-width: 420px; margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 10px; }
+.vehicle-layout-preview span { padding: 8px 2px; text-align: center; background: #e3f5ed; border: 1px solid #b7d8c7; border-radius: 6px; font-size: 12px; }
+.vehicle-layout-preview .driver-position { background: #eef0f4; border-color: #cfd5df; }
+.saved-layout-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-wrap: anywhere;
+}
+
+.saved-layout-row small {
+  display: block;
+  margin-top: 4px;
+}
+
+.saved-layout-confirm {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff3eb;
+}
+
+.saved-layout-confirm button {
+  margin: 4px 8px 0 0;
+}
+
+.vehicle-layout-preview-car {
+  position: relative;
+  width: min(100%, 340px);
+  margin: 16px 0;
+}
+
+.vehicle-layout-preview-car .car-blueprint-svg {
+  position: static;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.vehicle-layout-preview-car .vehicle-layout-preview {
+  position: absolute;
+  inset: 37% 23% 24%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: auto;
+}
+
+.vehicle-layout-preview-car .vehicle-layout-preview span {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 2px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.mini-bus-designer-preview {
+  width: fit-content;
+  max-width: 100%;
+  margin: 16px 0;
+  padding-inline: 8px;
+}
+
+.mini-bus-preview-seat {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 2px;
+  border: 1px solid #b7d8c7;
+  border-radius: 7px;
+  background: #e3f5ed;
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mini-bus-preview-seat.driver-position {
+  border-color: #cfd5df;
+  background: #eef0f4;
+}
+
+.vehicle-layout-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: 12px 24px;
+}
+
+.vehicle-layout-setup { min-width: 0; }
+.vehicle-layout-setup > label { max-width: 520px; }
+
+.vehicle-layout-preview-pane,
+.vehicle-layout-workspace > .vehicle-layout-seats {
+  min-width: 0;
+  max-height: min(56vh, 520px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.vehicle-layout-preview-pane {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  justify-items: center;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.vehicle-layout-preview-pane .mini-bus-seat-grid {
+  grid-auto-rows: minmax(36px, auto);
+  gap: 4px;
+}
+
+.vehicle-layout-preview-pane .vehicle-layout-preview-car {
+  width: min(100%, 280px);
+}
+
+@media (max-width: 850px) {
+  .vehicle-layout-workspace { grid-template-columns: minmax(0, 1fr); }
+  .vehicle-layout-preview-pane { grid-column: auto; grid-row: auto; }
+}
+
+.saved-layouts-panel {
+  margin-top: 16px;
+  border: 1px solid #dbe3eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.saved-layouts-panel > summary {
+  padding: 14px 16px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.vehicle-layout-workspace { padding: clamp(12px, 2vw, 20px); }
+.vehicle-layout-preview-pane .mini-bus-seat-grid { grid-auto-rows: minmax(30px, auto); }
+.vehicle-layout-preview-pane .mini-bus-windshield { padding-block: 8px; margin-bottom: 8px; }
+.vehicle-layout-preview-pane .mini-bus-nose { height: 18px; }

@@ -77,7 +77,7 @@ import { AgentDailySettlement } from "../features/agents/AgentDailySettlement.ts
 import { TripCalendar } from "../features/trips/TripCalendar.tsx";
 import { CarMaster } from "../features/car-master/CarMaster";
 import { CarTripMaster } from "../features/car-trip-master/CarTripMaster";
-import { SeatLayoutDesigner } from "../features/car-layout/SeatLayoutDesigner";
+import { VehicleLayoutEditor } from "../features/car-layout/VehicleLayoutEditor";
 import { AreaMaster } from "../features/area/AreaMaster";
 import "../styles/base.css";
 import "../styles/theme.css";
@@ -89,7 +89,7 @@ import {
 } from "../utils/workspace-access.ts";
 const nav = [
   ["Overview", LayoutDashboard],
-  ["Car Master", Car],
+  ["Vehicle Master", Car],
   ["Route Master", Route],
   ["Trip Master", CalendarClock],
   ["Seat Layout Designer", LayoutGrid],
@@ -103,11 +103,11 @@ const nav = [
 ] as const;
 const navCaptions = [
   "Overview",
-  "Car Master",
-  "Route Master",
-  "Trip Master",
-  "Seat Layout",
-  "Availability",
+  "Vehicles",
+  "Routes",
+  "Trips",
+  "Layouts",
+  "Seats",
   "Counter",
   "Manifest",
   "Agents",
@@ -906,7 +906,7 @@ function Dashboard() {
           {page === 1 && <CarMaster />}
           {page === 2 && <AreaMaster defaultTab="routes" />}
           {page === 3 && <CarTripMaster />}
-          {page === 4 && <SeatLayoutDesigner />}
+          {page === 4 && <VehicleLayoutEditor />}
           {page === 5 && (
             <SeatInventory routes={routes} date={date} notify={notify} />
           )}
