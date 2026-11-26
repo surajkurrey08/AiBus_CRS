@@ -57,7 +57,8 @@ test("operator login, fleet and master navigation use real isolated records", as
   await expect(
     page.getByText("Browser Operator", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", {name:"Car Master",exact:true}).click();
+  const navigation = page.getByRole("navigation", { name: "Workspace navigation" });
+  await navigation.getByRole("button", { name: "Vehicle Master", exact: true }).click();
   await expect(page.getByText("MH12CR4321",{exact:true})).toBeVisible();
   await expect(page.getByText("Browser Car",{exact:false}).first()).toBeVisible();
   await page.getByRole("button",{name:"Route Master",exact:true}).click();
