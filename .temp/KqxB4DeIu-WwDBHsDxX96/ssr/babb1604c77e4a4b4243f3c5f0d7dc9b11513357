@@ -1,0 +1,14 @@
+Object.defineProperty(__vite_ssr_exports__, "VehicleDocument", { enumerable: true, configurable: true, get(){ try { return VehicleDocument } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const VehicleDocument = (0,__vite_ssr_import_0__.model)("VehicleDocument", {
+  ...__vite_ssr_import_0__.tenantFields,
+  busId: { type: __vite_ssr_import_0__.objectId, required: true },
+  kind: { type: String, required: true },
+  reference: { type: String, required: true },
+  issuedOn: String,
+  expiresOn: String,
+  notes: String
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxxQkFBa0IsNkJBQU0sbUJBQW1CO0FBQUEsRUFDdEQsR0FBRztBQUFBLEVBQ0gsT0FBTyxFQUFFLE1BQU0sZ0NBQVUsVUFBVSxLQUFLO0FBQUEsRUFDeEMsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxFQUNyQyxXQUFXLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLEVBQzFDLFVBQVU7QUFBQSxFQUNWLFdBQVc7QUFBQSxFQUNYLE9BQU87QUFDVCxDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ2ZWhpY2xlLWRvY3VtZW50Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IFZlaGljbGVEb2N1bWVudCA9IG1vZGVsKFwiVmVoaWNsZURvY3VtZW50XCIsIHtcbiAgLi4udGVuYW50RmllbGRzLFxuICBidXNJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAga2luZDogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gIHJlZmVyZW5jZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gIGlzc3VlZE9uOiBTdHJpbmcsXG4gIGV4cGlyZXNPbjogU3RyaW5nLFxuICBub3RlczogU3RyaW5nLFxufSk7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3ZlaGljbGUtZG9jdW1lbnQubW9kZWwudHMifQ==

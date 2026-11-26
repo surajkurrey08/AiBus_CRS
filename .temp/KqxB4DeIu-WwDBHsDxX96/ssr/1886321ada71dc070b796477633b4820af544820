@@ -1,0 +1,12 @@
+Object.defineProperty(__vite_ssr_exports__, "Ticket", { enumerable: true, configurable: true, get(){ try { return Ticket } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const Ticket = (0,__vite_ssr_import_0__.model)("Ticket", {
+  ...__vite_ssr_import_0__.tenantFields,
+  bookingId: { type: __vite_ssr_import_0__.objectId, required: true, unique: true },
+  pnr: { type: String, required: true, unique: true },
+  issuedAt: { type: Date, required: true },
+  status: { type: String, enum: ["valid", "cancelled"], default: "valid" }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTLDZCQUFNLFVBQVU7QUFBQSxFQUNwQyxHQUFHO0FBQUEsRUFDSCxXQUFXLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLE1BQU0sUUFBUSxLQUFLO0FBQUEsRUFDMUQsS0FBSyxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sUUFBUSxLQUFLO0FBQUEsRUFDbEQsVUFBVSxFQUFFLE1BQU0sTUFBTSxVQUFVLEtBQUs7QUFBQSxFQUN2QyxRQUFRLEVBQUUsTUFBTSxRQUFRLE1BQU0sQ0FBQyxTQUFTLFdBQVcsR0FBRyxTQUFTLFFBQVE7QUFDekUsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsidGlja2V0Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCBvYmplY3RJZCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuXG5leHBvcnQgY29uc3QgVGlja2V0ID0gbW9kZWwoXCJUaWNrZXRcIiwge1xuICAuLi50ZW5hbnRGaWVsZHMsXG4gIGJvb2tpbmdJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUsIHVuaXF1ZTogdHJ1ZSB9LFxuICBwbnI6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgdW5pcXVlOiB0cnVlIH0sXG4gIGlzc3VlZEF0OiB7IHR5cGU6IERhdGUsIHJlcXVpcmVkOiB0cnVlIH0sXG4gIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGVudW06IFtcInZhbGlkXCIsIFwiY2FuY2VsbGVkXCJdLCBkZWZhdWx0OiBcInZhbGlkXCIgfSxcbn0pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy90aWNrZXQubW9kZWwudHMifQ==

@@ -1,0 +1,62 @@
+Object.defineProperty(__vite_ssr_exports__, "OperatorDocument", { enumerable: true, configurable: true, get(){ try { return OperatorDocument } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "PlatformSettings", { enumerable: true, configurable: true, get(){ try { return PlatformSettings } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "PlatformCommand", { enumerable: true, configurable: true, get(){ try { return PlatformCommand } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const OperatorDocument = (0,__vite_ssr_import_0__.model)(
+  "OperatorDocument",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    kind: {
+      type: String,
+      enum: [
+        "Business registration",
+        "Tax registration",
+        "Operating licence",
+        "Other"
+      ],
+      required: true
+    },
+    reference: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["Submitted", "Reviewed", "Rejected", "Needs information"],
+      default: "Submitted"
+    },
+    reviewedBy: __vite_ssr_import_0__.objectId,
+    reviewedAt: Date,
+    reviewReason: String
+  },
+  [
+    {
+      keys: { operatorId: 1, kind: 1, reference: 1 },
+      options: { unique: true }
+    }
+  ]
+);
+const PlatformSettings = (0,__vite_ssr_import_0__.model)("PlatformSettings", {
+  key: { type: String, required: true, unique: true },
+  displayName: { type: String, default: "AIBUS" },
+  supportEmail: String,
+  onboardingMode: {
+    type: String,
+    enum: ["Manual review"],
+    default: "Manual review"
+  },
+  templates: { type: Map, of: String, default: {} },
+  version: { type: Number, default: 1 },
+  updatedBy: __vite_ssr_import_0__.objectId
+});
+const PlatformCommand = (0,__vite_ssr_import_0__.model)(
+  "PlatformCommand",
+  {
+    actorId: { type: __vite_ssr_import_0__.objectId, required: true },
+    key: { type: String, required: true },
+    requestHash: { type: String, required: true, select: false },
+    resourceId: { type: __vite_ssr_import_0__.objectId, required: true },
+    action: { type: String, required: true }
+  },
+  [{ keys: { actorId: 1, key: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7O0FBQ0E7QUFDTyxNQUFNLHNCQUFtQjtBQUFBLEVBQzlCO0FBQUEsRUFDQTtBQUFBLElBQ0UsR0FBRztBQUFBLElBQ0gsTUFBTTtBQUFBLE1BQ0osTUFBTTtBQUFBLE1BQ04sTUFBTTtBQUFBLFFBQ0o7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxNQUNGO0FBQUEsTUFDQSxVQUFVO0FBQUEsSUFDWjtBQUFBLElBQ0EsV0FBVyxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUMxQyxRQUFRO0FBQUEsTUFDTixNQUFNO0FBQUEsTUFDTixNQUFNLENBQUMsYUFBYSxZQUFZLFlBQVksbUJBQW1CO0FBQUEsTUFDL0QsU0FBUztBQUFBLElBQ1g7QUFBQSxJQUNBLFlBQVk7QUFBQSxJQUNaLFlBQVk7QUFBQSxJQUNaLGNBQWM7QUFBQSxFQUNoQjtBQUFBLEVBQ0E7QUFBQSxJQUNFO0FBQUEsTUFDRSxNQUFNLEVBQUUsWUFBWSxHQUFHLE1BQU0sR0FBRyxXQUFXLEVBQUU7QUFBQSxNQUM3QyxTQUFTLEVBQUUsUUFBUSxLQUFLO0FBQUEsSUFDMUI7QUFBQSxFQUNGO0FBQ0Y7QUFDTyxNQUFNLHNCQUFtQiw2QkFBTSxvQkFBb0I7QUFBQSxFQUN4RCxLQUFLLEVBQUUsTUFBTSxRQUFRLFVBQVUsTUFBTSxRQUFRLEtBQUs7QUFBQSxFQUNsRCxhQUFhLEVBQUUsTUFBTSxRQUFRLFNBQVMsUUFBUTtBQUFBLEVBQzlDLGNBQWM7QUFBQSxFQUNkLGdCQUFnQjtBQUFBLElBQ2QsTUFBTTtBQUFBLElBQ04sTUFBTSxDQUFDLGVBQWU7QUFBQSxJQUN0QixTQUFTO0FBQUEsRUFDWDtBQUFBLEVBQ0EsV0FBVyxFQUFFLE1BQU0sS0FBSyxJQUFJLFFBQVEsU0FBUyxDQUFDLEVBQUU7QUFBQSxFQUNoRCxTQUFTLEVBQUUsTUFBTSxRQUFRLFNBQVMsRUFBRTtBQUFBLEVBQ3BDLFdBQVc7QUFDYixDQUFDO0FBQ00sTUFBTSxxQkFBa0I7QUFBQSxFQUM3QjtBQUFBLEVBQ0E7QUFBQSxJQUNFLFNBQVMsRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQzFDLEtBQUssRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDcEMsYUFBYSxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sUUFBUSxNQUFNO0FBQUEsSUFDM0QsWUFBWSxFQUFFLE1BQU0sZ0NBQVUsVUFBVSxLQUFLO0FBQUEsSUFDN0MsUUFBUSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxFQUN6QztBQUFBLEVBQ0EsQ0FBQyxFQUFFLE1BQU0sRUFBRSxTQUFTLEdBQUcsS0FBSyxFQUFFLEdBQUcsU0FBUyxFQUFFLFFBQVEsS0FBSyxFQUFFLENBQUM7QUFDOUQiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInBsYXRmb3JtLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFNjaGVtYSB9IGZyb20gXCJtb25nb29zZVwiO1xuaW1wb3J0IHsgbW9kZWwsIG9iamVjdElkLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5leHBvcnQgY29uc3QgT3BlcmF0b3JEb2N1bWVudCA9IG1vZGVsKFxuICBcIk9wZXJhdG9yRG9jdW1lbnRcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICBraW5kOiB7XG4gICAgICB0eXBlOiBTdHJpbmcsXG4gICAgICBlbnVtOiBbXG4gICAgICAgIFwiQnVzaW5lc3MgcmVnaXN0cmF0aW9uXCIsXG4gICAgICAgIFwiVGF4IHJlZ2lzdHJhdGlvblwiLFxuICAgICAgICBcIk9wZXJhdGluZyBsaWNlbmNlXCIsXG4gICAgICAgIFwiT3RoZXJcIixcbiAgICAgIF0sXG4gICAgICByZXF1aXJlZDogdHJ1ZSxcbiAgICB9LFxuICAgIHJlZmVyZW5jZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgc3RhdHVzOiB7XG4gICAgICB0eXBlOiBTdHJpbmcsXG4gICAgICBlbnVtOiBbXCJTdWJtaXR0ZWRcIiwgXCJSZXZpZXdlZFwiLCBcIlJlamVjdGVkXCIsIFwiTmVlZHMgaW5mb3JtYXRpb25cIl0sXG4gICAgICBkZWZhdWx0OiBcIlN1Ym1pdHRlZFwiLFxuICAgIH0sXG4gICAgcmV2aWV3ZWRCeTogb2JqZWN0SWQsXG4gICAgcmV2aWV3ZWRBdDogRGF0ZSxcbiAgICByZXZpZXdSZWFzb246IFN0cmluZyxcbiAgfSxcbiAgW1xuICAgIHtcbiAgICAgIGtleXM6IHsgb3BlcmF0b3JJZDogMSwga2luZDogMSwgcmVmZXJlbmNlOiAxIH0sXG4gICAgICBvcHRpb25zOiB7IHVuaXF1ZTogdHJ1ZSB9LFxuICAgIH0sXG4gIF0sXG4pO1xuZXhwb3J0IGNvbnN0IFBsYXRmb3JtU2V0dGluZ3MgPSBtb2RlbChcIlBsYXRmb3JtU2V0dGluZ3NcIiwge1xuICBrZXk6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgdW5pcXVlOiB0cnVlIH0sXG4gIGRpc3BsYXlOYW1lOiB7IHR5cGU6IFN0cmluZywgZGVmYXVsdDogXCJBSUJVU1wiIH0sXG4gIHN1cHBvcnRFbWFpbDogU3RyaW5nLFxuICBvbmJvYXJkaW5nTW9kZToge1xuICAgIHR5cGU6IFN0cmluZyxcbiAgICBlbnVtOiBbXCJNYW51YWwgcmV2aWV3XCJdLFxuICAgIGRlZmF1bHQ6IFwiTWFudWFsIHJldmlld1wiLFxuICB9LFxuICB0ZW1wbGF0ZXM6IHsgdHlwZTogTWFwLCBvZjogU3RyaW5nLCBkZWZhdWx0OiB7fSB9LFxuICB2ZXJzaW9uOiB7IHR5cGU6IE51bWJlciwgZGVmYXVsdDogMSB9LFxuICB1cGRhdGVkQnk6IG9iamVjdElkLFxufSk7XG5leHBvcnQgY29uc3QgUGxhdGZvcm1Db21tYW5kID0gbW9kZWwoXG4gIFwiUGxhdGZvcm1Db21tYW5kXCIsXG4gIHtcbiAgICBhY3RvcklkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGtleTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgcmVxdWVzdEhhc2g6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgc2VsZWN0OiBmYWxzZSB9LFxuICAgIHJlc291cmNlSWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgYWN0aW9uOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgfSxcbiAgW3sga2V5czogeyBhY3RvcklkOiAxLCBrZXk6IDEgfSwgb3B0aW9uczogeyB1bmlxdWU6IHRydWUgfSB9XSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3BsYXRmb3JtLm1vZGVsLnRzIn0=

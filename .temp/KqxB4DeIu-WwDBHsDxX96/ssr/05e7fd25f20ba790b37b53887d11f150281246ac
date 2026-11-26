@@ -1,0 +1,59 @@
+Object.defineProperty(__vite_ssr_exports__, "postDuplicateCapture", { enumerable: true, configurable: true, get(){ try { return postDuplicateCapture } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/index.ts");
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/services/ledger.service.ts", {"importedNames":["postJournalInTransaction"]});
+async function postDuplicateCapture(booking, payment, eventId, session, post) {
+  const operatorId = String(booking.operatorId);
+  if (post)
+    await (0,__vite_ssr_import_1__.postJournalInTransaction)(
+      {
+        operatorId,
+        idempotencyKey: `capture:${payment._id}`,
+        currency: "INR",
+        kind: "Payment exception",
+        bookingId: String(booking._id),
+        paymentId: String(payment._id),
+        sourceEventId: eventId,
+        reason: "Distinct additional captured payment; original booking, ticket and payable preserved; reconciliation required",
+        lines: [
+          {
+            account: {
+              ownerType: "Platform",
+              ownerId: "aibus",
+              code: "payment-clearing"
+            },
+            debitPaise: payment.amountPaise,
+            creditPaise: 0
+          },
+          {
+            account: {
+              ownerType: "Platform",
+              ownerId: "aibus",
+              code: "payment-exceptions"
+            },
+            debitPaise: 0,
+            creditPaise: payment.amountPaise
+          }
+        ]
+      },
+      session
+    );
+  await __vite_ssr_import_0__.FinanceException.findOneAndUpdate(
+    { operatorId, kind: "Duplicate capture", resourceKey: String(payment._id) },
+    {
+      $setOnInsert: {
+        operatorId,
+        bookingId: booking._id,
+        paymentId: payment._id,
+        kind: "Duplicate capture",
+        resourceKey: String(payment._id),
+        status: "Open",
+        code: "ADDITIONAL_CAPTURE"
+      },
+      $set: { lastSeenAt: /* @__PURE__ */ new Date() }
+    },
+    { session, upsert: true }
+  );
+}
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUNBO0FBQ0E7QUFDQSxlQUFzQixxQkFDcEIsU0FDQSxTQUNBLFNBQ0EsU0FDQSxNQUNBO0FBQ0EsUUFBTSxhQUFhLE9BQU8sUUFBUSxVQUFVO0FBQzVDLE1BQUk7QUFDRixhQUFNO0FBQUEsTUFDSjtBQUFBLFFBQ0U7QUFBQSxRQUNBLGdCQUFnQixXQUFXLFFBQVEsR0FBRztBQUFBLFFBQ3RDLFVBQVU7QUFBQSxRQUNWLE1BQU07QUFBQSxRQUNOLFdBQVcsT0FBTyxRQUFRLEdBQUc7QUFBQSxRQUM3QixXQUFXLE9BQU8sUUFBUSxHQUFHO0FBQUEsUUFDN0IsZUFBZTtBQUFBLFFBQ2YsUUFDRTtBQUFBLFFBQ0YsT0FBTztBQUFBLFVBQ0w7QUFBQSxZQUNFLFNBQVM7QUFBQSxjQUNQLFdBQVc7QUFBQSxjQUNYLFNBQVM7QUFBQSxjQUNULE1BQU07QUFBQSxZQUNSO0FBQUEsWUFDQSxZQUFZLFFBQVE7QUFBQSxZQUNwQixhQUFhO0FBQUEsVUFDZjtBQUFBLFVBQ0E7QUFBQSxZQUNFLFNBQVM7QUFBQSxjQUNQLFdBQVc7QUFBQSxjQUNYLFNBQVM7QUFBQSxjQUNULE1BQU07QUFBQSxZQUNSO0FBQUEsWUFDQSxZQUFZO0FBQUEsWUFDWixhQUFhLFFBQVE7QUFBQSxVQUN2QjtBQUFBLFFBQ0Y7QUFBQSxNQUNGO0FBQUEsTUFDQTtBQUFBLElBQ0Y7QUFDRixRQUFNLHNCQUFFLGlCQUFpQjtBQUFBLElBQ3ZCLEVBQUUsWUFBWSxNQUFNLHFCQUFxQixhQUFhLE9BQU8sUUFBUSxHQUFHLEVBQUU7QUFBQSxJQUMxRTtBQUFBLE1BQ0UsY0FBYztBQUFBLFFBQ1o7QUFBQSxRQUNBLFdBQVcsUUFBUTtBQUFBLFFBQ25CLFdBQVcsUUFBUTtBQUFBLFFBQ25CLE1BQU07QUFBQSxRQUNOLGFBQWEsT0FBTyxRQUFRLEdBQUc7QUFBQSxRQUMvQixRQUFRO0FBQUEsUUFDUixNQUFNO0FBQUEsTUFDUjtBQUFBLE1BQ0EsTUFBTSxFQUFFLFlBQVksb0JBQUksS0FBSyxFQUFFO0FBQUEsSUFDakM7QUFBQSxJQUNBLEVBQUUsU0FBUyxRQUFRLEtBQUs7QUFBQSxFQUMxQjtBQUNGIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJwYXltZW50LWV4Y2VwdGlvbi5zZXJ2aWNlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB0eXBlIHsgQ2xpZW50U2Vzc2lvbiB9IGZyb20gXCJtb25nb29zZVwiO1xuaW1wb3J0ICogYXMgTSBmcm9tIFwiLi4vbW9kZWxzL2luZGV4LmpzXCI7XG5pbXBvcnQgeyBwb3N0Sm91cm5hbEluVHJhbnNhY3Rpb24gfSBmcm9tIFwiLi9sZWRnZXIuc2VydmljZS5qc1wiO1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIHBvc3REdXBsaWNhdGVDYXB0dXJlKFxuICBib29raW5nOiBhbnksXG4gIHBheW1lbnQ6IGFueSxcbiAgZXZlbnRJZDogc3RyaW5nLFxuICBzZXNzaW9uOiBDbGllbnRTZXNzaW9uLFxuICBwb3N0OiBib29sZWFuLFxuKSB7XG4gIGNvbnN0IG9wZXJhdG9ySWQgPSBTdHJpbmcoYm9va2luZy5vcGVyYXRvcklkKTtcbiAgaWYgKHBvc3QpXG4gICAgYXdhaXQgcG9zdEpvdXJuYWxJblRyYW5zYWN0aW9uKFxuICAgICAge1xuICAgICAgICBvcGVyYXRvcklkLFxuICAgICAgICBpZGVtcG90ZW5jeUtleTogYGNhcHR1cmU6JHtwYXltZW50Ll9pZH1gLFxuICAgICAgICBjdXJyZW5jeTogXCJJTlJcIixcbiAgICAgICAga2luZDogXCJQYXltZW50IGV4Y2VwdGlvblwiLFxuICAgICAgICBib29raW5nSWQ6IFN0cmluZyhib29raW5nLl9pZCksXG4gICAgICAgIHBheW1lbnRJZDogU3RyaW5nKHBheW1lbnQuX2lkKSxcbiAgICAgICAgc291cmNlRXZlbnRJZDogZXZlbnRJZCxcbiAgICAgICAgcmVhc29uOlxuICAgICAgICAgIFwiRGlzdGluY3QgYWRkaXRpb25hbCBjYXB0dXJlZCBwYXltZW50OyBvcmlnaW5hbCBib29raW5nLCB0aWNrZXQgYW5kIHBheWFibGUgcHJlc2VydmVkOyByZWNvbmNpbGlhdGlvbiByZXF1aXJlZFwiLFxuICAgICAgICBsaW5lczogW1xuICAgICAgICAgIHtcbiAgICAgICAgICAgIGFjY291bnQ6IHtcbiAgICAgICAgICAgICAgb3duZXJUeXBlOiBcIlBsYXRmb3JtXCIsXG4gICAgICAgICAgICAgIG93bmVySWQ6IFwiYWlidXNcIixcbiAgICAgICAgICAgICAgY29kZTogXCJwYXltZW50LWNsZWFyaW5nXCIsXG4gICAgICAgICAgICB9LFxuICAgICAgICAgICAgZGViaXRQYWlzZTogcGF5bWVudC5hbW91bnRQYWlzZSxcbiAgICAgICAgICAgIGNyZWRpdFBhaXNlOiAwLFxuICAgICAgICAgIH0sXG4gICAgICAgICAge1xuICAgICAgICAgICAgYWNjb3VudDoge1xuICAgICAgICAgICAgICBvd25lclR5cGU6IFwiUGxhdGZvcm1cIixcbiAgICAgICAgICAgICAgb3duZXJJZDogXCJhaWJ1c1wiLFxuICAgICAgICAgICAgICBjb2RlOiBcInBheW1lbnQtZXhjZXB0aW9uc1wiLFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICAgIGRlYml0UGFpc2U6IDAsXG4gICAgICAgICAgICBjcmVkaXRQYWlzZTogcGF5bWVudC5hbW91bnRQYWlzZSxcbiAgICAgICAgICB9LFxuICAgICAgICBdLFxuICAgICAgfSxcbiAgICAgIHNlc3Npb24sXG4gICAgKTtcbiAgYXdhaXQgTS5GaW5hbmNlRXhjZXB0aW9uLmZpbmRPbmVBbmRVcGRhdGUoXG4gICAgeyBvcGVyYXRvcklkLCBraW5kOiBcIkR1cGxpY2F0ZSBjYXB0dXJlXCIsIHJlc291cmNlS2V5OiBTdHJpbmcocGF5bWVudC5faWQpIH0sXG4gICAge1xuICAgICAgJHNldE9uSW5zZXJ0OiB7XG4gICAgICAgIG9wZXJhdG9ySWQsXG4gICAgICAgIGJvb2tpbmdJZDogYm9va2luZy5faWQsXG4gICAgICAgIHBheW1lbnRJZDogcGF5bWVudC5faWQsXG4gICAgICAgIGtpbmQ6IFwiRHVwbGljYXRlIGNhcHR1cmVcIixcbiAgICAgICAgcmVzb3VyY2VLZXk6IFN0cmluZyhwYXltZW50Ll9pZCksXG4gICAgICAgIHN0YXR1czogXCJPcGVuXCIsXG4gICAgICAgIGNvZGU6IFwiQURESVRJT05BTF9DQVBUVVJFXCIsXG4gICAgICB9LFxuICAgICAgJHNldDogeyBsYXN0U2VlbkF0OiBuZXcgRGF0ZSgpIH0sXG4gICAgfSxcbiAgICB7IHNlc3Npb24sIHVwc2VydDogdHJ1ZSB9LFxuICApO1xufVxuIl0sImZpbGUiOiIvc3JjL3NlcnZpY2VzL3BheW1lbnQtZXhjZXB0aW9uLnNlcnZpY2UudHMifQ==

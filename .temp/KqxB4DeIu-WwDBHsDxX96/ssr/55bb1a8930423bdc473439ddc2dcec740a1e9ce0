@@ -1,0 +1,13 @@
+Object.defineProperty(__vite_ssr_exports__, "FareHistory", { enumerable: true, configurable: true, get(){ try { return FareHistory } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("mongoose", {"importedNames":["Schema"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const FareHistory = (0,__vite_ssr_import_1__.model)("FareHistory", {
+  ...__vite_ssr_import_1__.tenantFields,
+  fareId: { type: __vite_ssr_import_1__.objectId, required: true },
+  actorId: __vite_ssr_import_1__.objectId,
+  before: __vite_ssr_import_0__.Schema.Types.Mixed,
+  after: __vite_ssr_import_0__.Schema.Types.Mixed
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ0E7QUFFTyxNQUFNLGlCQUFjLDZCQUFNLGVBQWU7QUFBQSxFQUM5QyxHQUFHO0FBQUEsRUFDSCxRQUFRLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxFQUN6QyxTQUFTO0FBQUEsRUFDVCxRQUFRLDZCQUFPLE1BQU07QUFBQSxFQUNyQixPQUFPLDZCQUFPLE1BQU07QUFDdEIsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiZmFyZS1oaXN0b3J5Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFNjaGVtYSB9IGZyb20gXCJtb25nb29zZVwiO1xuaW1wb3J0IHsgbW9kZWwsIG9iamVjdElkLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBGYXJlSGlzdG9yeSA9IG1vZGVsKFwiRmFyZUhpc3RvcnlcIiwge1xuICAuLi50ZW5hbnRGaWVsZHMsXG4gIGZhcmVJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgYWN0b3JJZDogb2JqZWN0SWQsXG4gIGJlZm9yZTogU2NoZW1hLlR5cGVzLk1peGVkLFxuICBhZnRlcjogU2NoZW1hLlR5cGVzLk1peGVkLFxufSk7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL2ZhcmUtaGlzdG9yeS5tb2RlbC50cyJ9

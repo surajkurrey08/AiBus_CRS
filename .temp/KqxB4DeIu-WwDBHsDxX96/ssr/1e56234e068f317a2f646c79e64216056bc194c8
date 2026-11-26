@@ -1,0 +1,23 @@
+Object.defineProperty(__vite_ssr_exports__, "TripLink", { enumerable: true, configurable: true, get(){ try { return TripLink } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const TripLink = (0,__vite_ssr_import_0__.model)(
+  "TripLink",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    fromTripId: { type: __vite_ssr_import_0__.objectId, required: true },
+    toTripId: { type: __vite_ssr_import_0__.objectId, required: true },
+    kind: String,
+    transferMinutes: Number,
+    notes: String,
+    status: { type: String, default: "Active" }
+  },
+  [
+    {
+      keys: { operatorId: 1, fromTripId: 1, toTripId: 1 },
+      options: { unique: true }
+    }
+  ]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxjQUFXO0FBQUEsRUFDdEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxZQUFZLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUM3QyxVQUFVLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUMzQyxNQUFNO0FBQUEsSUFDTixpQkFBaUI7QUFBQSxJQUNqQixPQUFPO0FBQUEsSUFDUCxRQUFRLEVBQUUsTUFBTSxRQUFRLFNBQVMsU0FBUztBQUFBLEVBQzVDO0FBQUEsRUFDQTtBQUFBLElBQ0U7QUFBQSxNQUNFLE1BQU0sRUFBRSxZQUFZLEdBQUcsWUFBWSxHQUFHLFVBQVUsRUFBRTtBQUFBLE1BQ2xELFNBQVMsRUFBRSxRQUFRLEtBQUs7QUFBQSxJQUMxQjtBQUFBLEVBQ0Y7QUFDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsidHJpcC1saW5rLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IFRyaXBMaW5rID0gbW9kZWwoXG4gIFwiVHJpcExpbmtcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICBmcm9tVHJpcElkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHRvVHJpcElkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGtpbmQ6IFN0cmluZyxcbiAgICB0cmFuc2Zlck1pbnV0ZXM6IE51bWJlcixcbiAgICBub3RlczogU3RyaW5nLFxuICAgIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGRlZmF1bHQ6IFwiQWN0aXZlXCIgfSxcbiAgfSxcbiAgW1xuICAgIHtcbiAgICAgIGtleXM6IHsgb3BlcmF0b3JJZDogMSwgZnJvbVRyaXBJZDogMSwgdG9UcmlwSWQ6IDEgfSxcbiAgICAgIG9wdGlvbnM6IHsgdW5pcXVlOiB0cnVlIH0sXG4gICAgfSxcbiAgXSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3RyaXAtbGluay5tb2RlbC50cyJ9

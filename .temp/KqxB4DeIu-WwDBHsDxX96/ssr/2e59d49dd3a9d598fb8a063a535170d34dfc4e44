@@ -1,0 +1,22 @@
+Object.defineProperty(__vite_ssr_exports__, "BusGps", { enumerable: true, configurable: true, get(){ try { return BusGps } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const BusGps = (0,__vite_ssr_import_0__.model)(
+  "BusGps",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    busId: { type: __vite_ssr_import_0__.objectId, required: true },
+    provider: { type: String, required: true },
+    deviceId: { type: String, required: true },
+    status: { type: String, default: "Active" }
+  },
+  [
+    { keys: { operatorId: 1, busId: 1 }, options: { unique: true } },
+    {
+      keys: { operatorId: 1, provider: 1, deviceId: 1 },
+      options: { unique: true }
+    }
+  ]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxZQUFTO0FBQUEsRUFDcEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN4QyxVQUFVLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3pDLFVBQVUsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDekMsUUFBUSxFQUFFLE1BQU0sUUFBUSxTQUFTLFNBQVM7QUFBQSxFQUM1QztBQUFBLEVBQ0E7QUFBQSxJQUNFLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxPQUFPLEVBQUUsR0FBRyxTQUFTLEVBQUUsUUFBUSxLQUFLLEVBQUU7QUFBQSxJQUMvRDtBQUFBLE1BQ0UsTUFBTSxFQUFFLFlBQVksR0FBRyxVQUFVLEdBQUcsVUFBVSxFQUFFO0FBQUEsTUFDaEQsU0FBUyxFQUFFLFFBQVEsS0FBSztBQUFBLElBQzFCO0FBQUEsRUFDRjtBQUNGIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJidXMtZ3BzLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IEJ1c0dwcyA9IG1vZGVsKFxuICBcIkJ1c0dwc1wiLFxuICB7XG4gICAgLi4udGVuYW50RmllbGRzLFxuICAgIGJ1c0lkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHByb3ZpZGVyOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBkZXZpY2VJZDogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgc3RhdHVzOiB7IHR5cGU6IFN0cmluZywgZGVmYXVsdDogXCJBY3RpdmVcIiB9LFxuICB9LFxuICBbXG4gICAgeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIGJ1c0lkOiAxIH0sIG9wdGlvbnM6IHsgdW5pcXVlOiB0cnVlIH0gfSxcbiAgICB7XG4gICAgICBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIHByb3ZpZGVyOiAxLCBkZXZpY2VJZDogMSB9LFxuICAgICAgb3B0aW9uczogeyB1bmlxdWU6IHRydWUgfSxcbiAgICB9LFxuICBdLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvYnVzLWdwcy5tb2RlbC50cyJ9

@@ -1,0 +1,13 @@
+Object.defineProperty(__vite_ssr_exports__, "FleetOwner", { enumerable: true, configurable: true, get(){ try { return FleetOwner } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields"]});
+const FleetOwner = (0,__vite_ssr_import_0__.model)("FleetOwner", {
+  ...__vite_ssr_import_0__.tenantFields,
+  name: { type: String, required: true },
+  phone: String,
+  email: String,
+  address: String,
+  status: { type: String, default: "Active" }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxnQkFBYSw2QkFBTSxjQUFjO0FBQUEsRUFDNUMsR0FBRztBQUFBLEVBQ0gsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxFQUNyQyxPQUFPO0FBQUEsRUFDUCxPQUFPO0FBQUEsRUFDUCxTQUFTO0FBQUEsRUFDVCxRQUFRLEVBQUUsTUFBTSxRQUFRLFNBQVMsU0FBUztBQUM1QyxDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJmbGVldC1vd25lci5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IEZsZWV0T3duZXIgPSBtb2RlbChcIkZsZWV0T3duZXJcIiwge1xuICAuLi50ZW5hbnRGaWVsZHMsXG4gIG5hbWU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICBwaG9uZTogU3RyaW5nLFxuICBlbWFpbDogU3RyaW5nLFxuICBhZGRyZXNzOiBTdHJpbmcsXG4gIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGRlZmF1bHQ6IFwiQWN0aXZlXCIgfSxcbn0pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9mbGVldC1vd25lci5tb2RlbC50cyJ9

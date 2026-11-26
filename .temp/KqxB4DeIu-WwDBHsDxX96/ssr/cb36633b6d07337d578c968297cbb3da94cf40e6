@@ -1,0 +1,71 @@
+Object.defineProperty(__vite_ssr_exports__, "coachInput", { enumerable: true, configurable: true, get(){ try { return coachInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "ownerInput", { enumerable: true, configurable: true, get(){ try { return ownerInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "crewInput", { enumerable: true, configurable: true, get(){ try { return crewInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "chartInput", { enumerable: true, configurable: true, get(){ try { return chartInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "vehicleDocumentInput", { enumerable: true, configurable: true, get(){ try { return vehicleDocumentInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "gpsInput", { enumerable: true, configurable: true, get(){ try { return gpsInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "busMasterAssignmentInput", { enumerable: true, configurable: true, get(){ try { return busMasterAssignmentInput } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("zod", {"importedNames":["z"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/utils/core.ts", {"importedNames":["dateOnly","id","text"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/validators/operator.schemas.ts", {"importedNames":["busInput","layoutInput","status"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/src/services/pricing.service.ts", {"importedNames":["contactInput"]});
+const coachInput = __vite_ssr_import_0__.z.object({
+  name: __vite_ssr_import_1__.text,
+  type: __vite_ssr_import_2__.busInput.shape.type,
+  arrangement: __vite_ssr_import_0__.z.enum(["2+1", "2+2"]),
+  decks: __vite_ssr_import_0__.z.coerce.number().int().min(1).max(2),
+  amenities: __vite_ssr_import_0__.z.array((0,__vite_ssr_import_1__.text)).max(30).default([]),
+  status: __vite_ssr_import_2__.status
+}).strict();
+const ownerInput = __vite_ssr_import_0__.z.object({
+  name: __vite_ssr_import_1__.text,
+  phone: __vite_ssr_import_3__.contactInput.shape.phone,
+  email: __vite_ssr_import_0__.z.string().email().optional(),
+  address: __vite_ssr_import_1__.text.optional(),
+  status: __vite_ssr_import_2__.status
+}).strict();
+const crewInput = __vite_ssr_import_0__.z.object({
+  name: __vite_ssr_import_1__.text,
+  role: __vite_ssr_import_0__.z.enum(["Driver", "Conductor", "Pickup staff"]),
+  phone: __vite_ssr_import_3__.contactInput.shape.phone,
+  licenceNumber: __vite_ssr_import_1__.text.optional(),
+  licenceExpiry: __vite_ssr_import_1__.dateOnly.optional(),
+  pickupPoint: __vite_ssr_import_1__.text.optional(),
+  status: __vite_ssr_import_2__.status
+}).strict().superRefine((v, ctx) => {
+  if (v.role === "Driver" && (!v.licenceNumber || !v.licenceExpiry))
+    ctx.addIssue({
+      code: "custom",
+      message: "Driver licence number and expiry are required"
+    });
+});
+const chartInput = __vite_ssr_import_2__.layoutInput.extend({ status: __vite_ssr_import_2__.status }).strict();
+const vehicleDocumentInput = __vite_ssr_import_0__.z.object({
+  busId: __vite_ssr_import_1__.id,
+  kind: __vite_ssr_import_0__.z.enum([
+    "Registration",
+    "Insurance",
+    "Permit",
+    "Fitness",
+    "PUC",
+    "Service"
+  ]),
+  reference: __vite_ssr_import_1__.text,
+  issuedOn: __vite_ssr_import_1__.dateOnly.optional(),
+  expiresOn: __vite_ssr_import_1__.dateOnly.optional(),
+  notes: __vite_ssr_import_1__.text.optional()
+}).strict().refine(
+  (v) => !v.issuedOn || !v.expiresOn || v.expiresOn >= v.issuedOn,
+  "Expiry must be on or after the issue date"
+);
+const gpsInput = __vite_ssr_import_0__.z.object({ busId: __vite_ssr_import_1__.id, provider: __vite_ssr_import_1__.text, deviceId: __vite_ssr_import_1__.text, status: __vite_ssr_import_2__.status }).strict();
+const busMasterAssignmentInput = __vite_ssr_import_0__.z.object({
+  coachTypeId: __vite_ssr_import_1__.id.nullable().optional(),
+  ownerId: __vite_ssr_import_1__.id.nullable().optional()
+}).strict().refine(
+  (v) => Object.keys(v).length > 0,
+  "Select an owner or coach to update"
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7Ozs7OztBQUFDO0FBQ0Q7QUFDQTtBQUNBO0FBQ08sTUFBTSxhQUFhLHdCQUN2QixPQUFPO0FBQUEsRUFDTixNQUFNO0FBQUEsRUFDTixNQUFNLCtCQUFTLE1BQU07QUFBQSxFQUNyQixhQUFhLHdCQUFFLEtBQUssQ0FBQyxPQUFPLEtBQUssQ0FBQztBQUFBLEVBQ2xDLE9BQU8sd0JBQUUsT0FBTyxPQUFPLEVBQUUsSUFBSSxFQUFFLElBQUksQ0FBQyxFQUFFLElBQUksQ0FBQztBQUFBLEVBQzNDLFdBQVcsd0JBQUUsU0FBTSwyQkFBSSxFQUFFLElBQUksRUFBRSxFQUFFLFFBQVEsQ0FBQyxDQUFDO0FBQUEsRUFDM0M7QUFDRixDQUFDLEVBQ0EsT0FBTztBQUNILE1BQU0sYUFBYSx3QkFDdkIsT0FBTztBQUFBLEVBQ04sTUFBTTtBQUFBLEVBQ04sT0FBTyxtQ0FBYSxNQUFNO0FBQUEsRUFDMUIsT0FBTyx3QkFBRSxPQUFPLEVBQUUsTUFBTSxFQUFFLFNBQVM7QUFBQSxFQUNuQyxTQUFTLDJCQUFLLFNBQVM7QUFBQSxFQUN2QjtBQUNGLENBQUMsRUFDQSxPQUFPO0FBQ0gsTUFBTSxZQUFZLHdCQUN0QixPQUFPO0FBQUEsRUFDTixNQUFNO0FBQUEsRUFDTixNQUFNLHdCQUFFLEtBQUssQ0FBQyxVQUFVLGFBQWEsY0FBYyxDQUFDO0FBQUEsRUFDcEQsT0FBTyxtQ0FBYSxNQUFNO0FBQUEsRUFDMUIsZUFBZSwyQkFBSyxTQUFTO0FBQUEsRUFDN0IsZUFBZSwrQkFBUyxTQUFTO0FBQUEsRUFDakMsYUFBYSwyQkFBSyxTQUFTO0FBQUEsRUFDM0I7QUFDRixDQUFDLEVBQ0EsT0FBTyxFQUNQLFlBQVksQ0FBQyxHQUFHLFFBQVE7QUFDdkIsTUFBSSxFQUFFLFNBQVMsYUFBYSxDQUFDLEVBQUUsaUJBQWlCLENBQUMsRUFBRTtBQUNqRCxRQUFJLFNBQVM7QUFBQSxNQUNYLE1BQU07QUFBQSxNQUNOLFNBQVM7QUFBQSxJQUNYLENBQUM7QUFDTCxDQUFDO0FBQ0ksTUFBTSxhQUFhLGtDQUFZLE9BQU8sRUFBRSxxQ0FBTyxDQUFDLEVBQUUsT0FBTztBQUN6RCxNQUFNLHVCQUF1Qix3QkFDakMsT0FBTztBQUFBLEVBQ04sT0FBTztBQUFBLEVBQ1AsTUFBTSx3QkFBRSxLQUFLO0FBQUEsSUFDWDtBQUFBLElBQ0E7QUFBQSxJQUNBO0FBQUEsSUFDQTtBQUFBLElBQ0E7QUFBQSxJQUNBO0FBQUEsRUFDRixDQUFDO0FBQUEsRUFDRCxXQUFXO0FBQUEsRUFDWCxVQUFVLCtCQUFTLFNBQVM7QUFBQSxFQUM1QixXQUFXLCtCQUFTLFNBQVM7QUFBQSxFQUM3QixPQUFPLDJCQUFLLFNBQVM7QUFDdkIsQ0FBQyxFQUNBLE9BQU8sRUFDUDtBQUFBLEVBQ0MsQ0FBQyxNQUFNLENBQUMsRUFBRSxZQUFZLENBQUMsRUFBRSxhQUFhLEVBQUUsYUFBYSxFQUFFO0FBQUEsRUFDdkQ7QUFDRjtBQUNLLE1BQU0sV0FBVyx3QkFDckIsT0FBTyxFQUFFLE9BQU8sMEJBQUksVUFBVSw0QkFBTSxVQUFVLDRCQUFNLHFDQUFPLENBQUMsRUFDNUQsT0FBTztBQUNILE1BQU0sMkJBQTJCLHdCQUNyQyxPQUFPO0FBQUEsRUFDTixhQUFhLHlCQUFHLFNBQVMsRUFBRSxTQUFTO0FBQUEsRUFDcEMsU0FBUyx5QkFBRyxTQUFTLEVBQUUsU0FBUztBQUNsQyxDQUFDLEVBQ0EsT0FBTyxFQUNQO0FBQUEsRUFDQyxDQUFDLE1BQU0sT0FBTyxLQUFLLENBQUMsRUFBRSxTQUFTO0FBQUEsRUFDL0I7QUFDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYnVzLW1hc3Rlci5zY2hlbWFzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIu+7v2ltcG9ydCB7IHogfSBmcm9tIFwiem9kXCI7XG5pbXBvcnQgeyBkYXRlT25seSwgaWQsIHRleHQgfSBmcm9tIFwiLi4vdXRpbHMvY29yZS5qc1wiO1xuaW1wb3J0IHsgYnVzSW5wdXQsIGxheW91dElucHV0LCBzdGF0dXMgfSBmcm9tIFwiLi9vcGVyYXRvci5zY2hlbWFzLmpzXCI7XG5pbXBvcnQgeyBjb250YWN0SW5wdXQgfSBmcm9tIFwiLi4vc2VydmljZXMvcHJpY2luZy5zZXJ2aWNlLmpzXCI7XG5leHBvcnQgY29uc3QgY29hY2hJbnB1dCA9IHpcbiAgLm9iamVjdCh7XG4gICAgbmFtZTogdGV4dCxcbiAgICB0eXBlOiBidXNJbnB1dC5zaGFwZS50eXBlLFxuICAgIGFycmFuZ2VtZW50OiB6LmVudW0oW1wiMisxXCIsIFwiMisyXCJdKSxcbiAgICBkZWNrczogei5jb2VyY2UubnVtYmVyKCkuaW50KCkubWluKDEpLm1heCgyKSxcbiAgICBhbWVuaXRpZXM6IHouYXJyYXkodGV4dCkubWF4KDMwKS5kZWZhdWx0KFtdKSxcbiAgICBzdGF0dXMsXG4gIH0pXG4gIC5zdHJpY3QoKTtcbmV4cG9ydCBjb25zdCBvd25lcklucHV0ID0gelxuICAub2JqZWN0KHtcbiAgICBuYW1lOiB0ZXh0LFxuICAgIHBob25lOiBjb250YWN0SW5wdXQuc2hhcGUucGhvbmUsXG4gICAgZW1haWw6IHouc3RyaW5nKCkuZW1haWwoKS5vcHRpb25hbCgpLFxuICAgIGFkZHJlc3M6IHRleHQub3B0aW9uYWwoKSxcbiAgICBzdGF0dXMsXG4gIH0pXG4gIC5zdHJpY3QoKTtcbmV4cG9ydCBjb25zdCBjcmV3SW5wdXQgPSB6XG4gIC5vYmplY3Qoe1xuICAgIG5hbWU6IHRleHQsXG4gICAgcm9sZTogei5lbnVtKFtcIkRyaXZlclwiLCBcIkNvbmR1Y3RvclwiLCBcIlBpY2t1cCBzdGFmZlwiXSksXG4gICAgcGhvbmU6IGNvbnRhY3RJbnB1dC5zaGFwZS5waG9uZSxcbiAgICBsaWNlbmNlTnVtYmVyOiB0ZXh0Lm9wdGlvbmFsKCksXG4gICAgbGljZW5jZUV4cGlyeTogZGF0ZU9ubHkub3B0aW9uYWwoKSxcbiAgICBwaWNrdXBQb2ludDogdGV4dC5vcHRpb25hbCgpLFxuICAgIHN0YXR1cyxcbiAgfSlcbiAgLnN0cmljdCgpXG4gIC5zdXBlclJlZmluZSgodiwgY3R4KSA9PiB7XG4gICAgaWYgKHYucm9sZSA9PT0gXCJEcml2ZXJcIiAmJiAoIXYubGljZW5jZU51bWJlciB8fCAhdi5saWNlbmNlRXhwaXJ5KSlcbiAgICAgIGN0eC5hZGRJc3N1ZSh7XG4gICAgICAgIGNvZGU6IFwiY3VzdG9tXCIsXG4gICAgICAgIG1lc3NhZ2U6IFwiRHJpdmVyIGxpY2VuY2UgbnVtYmVyIGFuZCBleHBpcnkgYXJlIHJlcXVpcmVkXCIsXG4gICAgICB9KTtcbiAgfSk7XG5leHBvcnQgY29uc3QgY2hhcnRJbnB1dCA9IGxheW91dElucHV0LmV4dGVuZCh7IHN0YXR1cyB9KS5zdHJpY3QoKTtcbmV4cG9ydCBjb25zdCB2ZWhpY2xlRG9jdW1lbnRJbnB1dCA9IHpcbiAgLm9iamVjdCh7XG4gICAgYnVzSWQ6IGlkLFxuICAgIGtpbmQ6IHouZW51bShbXG4gICAgICBcIlJlZ2lzdHJhdGlvblwiLFxuICAgICAgXCJJbnN1cmFuY2VcIixcbiAgICAgIFwiUGVybWl0XCIsXG4gICAgICBcIkZpdG5lc3NcIixcbiAgICAgIFwiUFVDXCIsXG4gICAgICBcIlNlcnZpY2VcIixcbiAgICBdKSxcbiAgICByZWZlcmVuY2U6IHRleHQsXG4gICAgaXNzdWVkT246IGRhdGVPbmx5Lm9wdGlvbmFsKCksXG4gICAgZXhwaXJlc09uOiBkYXRlT25seS5vcHRpb25hbCgpLFxuICAgIG5vdGVzOiB0ZXh0Lm9wdGlvbmFsKCksXG4gIH0pXG4gIC5zdHJpY3QoKVxuICAucmVmaW5lKFxuICAgICh2KSA9PiAhdi5pc3N1ZWRPbiB8fCAhdi5leHBpcmVzT24gfHwgdi5leHBpcmVzT24gPj0gdi5pc3N1ZWRPbixcbiAgICBcIkV4cGlyeSBtdXN0IGJlIG9uIG9yIGFmdGVyIHRoZSBpc3N1ZSBkYXRlXCIsXG4gICk7XG5leHBvcnQgY29uc3QgZ3BzSW5wdXQgPSB6XG4gIC5vYmplY3QoeyBidXNJZDogaWQsIHByb3ZpZGVyOiB0ZXh0LCBkZXZpY2VJZDogdGV4dCwgc3RhdHVzIH0pXG4gIC5zdHJpY3QoKTtcbmV4cG9ydCBjb25zdCBidXNNYXN0ZXJBc3NpZ25tZW50SW5wdXQgPSB6XG4gIC5vYmplY3Qoe1xuICAgIGNvYWNoVHlwZUlkOiBpZC5udWxsYWJsZSgpLm9wdGlvbmFsKCksXG4gICAgb3duZXJJZDogaWQubnVsbGFibGUoKS5vcHRpb25hbCgpLFxuICB9KVxuICAuc3RyaWN0KClcbiAgLnJlZmluZShcbiAgICAodikgPT4gT2JqZWN0LmtleXModikubGVuZ3RoID4gMCxcbiAgICBcIlNlbGVjdCBhbiBvd25lciBvciBjb2FjaCB0byB1cGRhdGVcIixcbiAgKTtcbiJdLCJmaWxlIjoiL3NyYy92YWxpZGF0b3JzL2J1cy1tYXN0ZXIuc2NoZW1hcy50cyJ9

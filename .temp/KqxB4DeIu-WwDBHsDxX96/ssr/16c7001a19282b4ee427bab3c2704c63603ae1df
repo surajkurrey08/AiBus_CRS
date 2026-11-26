@@ -1,0 +1,10 @@
+Object.defineProperty(__vite_ssr_exports__, "Notification", { enumerable: true, configurable: true, get(){ try { return Notification } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields"]});
+const Notification = (0,__vite_ssr_import_0__.model)(
+  "Notification",
+  { ...__vite_ssr_import_0__.tenantFields, title: String, message: String, readAt: Date },
+  [{ keys: { operatorId: 1, createdAt: -1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxrQkFBZTtBQUFBLEVBQzFCO0FBQUEsRUFDQSxFQUFFLEdBQUcsb0NBQWMsT0FBTyxRQUFRLFNBQVMsUUFBUSxRQUFRLEtBQUs7QUFBQSxFQUNoRSxDQUFDLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxXQUFXLEdBQUcsRUFBRSxDQUFDO0FBQzdDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJub3RpZmljYXRpb24ubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIHRlbmFudEZpZWxkcyB9IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcblxuZXhwb3J0IGNvbnN0IE5vdGlmaWNhdGlvbiA9IG1vZGVsKFxuICBcIk5vdGlmaWNhdGlvblwiLFxuICB7IC4uLnRlbmFudEZpZWxkcywgdGl0bGU6IFN0cmluZywgbWVzc2FnZTogU3RyaW5nLCByZWFkQXQ6IERhdGUgfSxcbiAgW3sga2V5czogeyBvcGVyYXRvcklkOiAxLCBjcmVhdGVkQXQ6IC0xIH0gfV0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9ub3RpZmljYXRpb24ubW9kZWwudHMifQ==

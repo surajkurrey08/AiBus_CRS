@@ -1,0 +1,10 @@
+Object.defineProperty(__vite_ssr_exports__, "Outbox", { enumerable: true, configurable: true, get(){ try { return Outbox } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields"]});
+const Outbox = (0,__vite_ssr_import_0__.model)(
+  "Outbox",
+  { ...__vite_ssr_import_0__.tenantFields, event: String, resourceId: String, deliveredAt: Date },
+  [{ keys: { deliveredAt: 1, createdAt: 1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTO0FBQUEsRUFDcEI7QUFBQSxFQUNBLEVBQUUsR0FBRyxvQ0FBYyxPQUFPLFFBQVEsWUFBWSxRQUFRLGFBQWEsS0FBSztBQUFBLEVBQ3hFLENBQUMsRUFBRSxNQUFNLEVBQUUsYUFBYSxHQUFHLFdBQVcsRUFBRSxFQUFFLENBQUM7QUFDN0MiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIm91dGJveC5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuXG5leHBvcnQgY29uc3QgT3V0Ym94ID0gbW9kZWwoXG4gIFwiT3V0Ym94XCIsXG4gIHsgLi4udGVuYW50RmllbGRzLCBldmVudDogU3RyaW5nLCByZXNvdXJjZUlkOiBTdHJpbmcsIGRlbGl2ZXJlZEF0OiBEYXRlIH0sXG4gIFt7IGtleXM6IHsgZGVsaXZlcmVkQXQ6IDEsIGNyZWF0ZWRBdDogMSB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvb3V0Ym94Lm1vZGVsLnRzIn0=

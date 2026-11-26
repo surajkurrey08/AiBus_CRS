@@ -1,0 +1,15 @@
+Object.defineProperty(__vite_ssr_exports__, "AppError", { enumerable: true, configurable: true, get(){ try { return AppError } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "fail", { enumerable: true, configurable: true, get(){ try { return fail } catch {} }});
+class AppError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+};
+const fail = (status, code, message) => {
+  throw new AppError(status, code, message);
+};
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7QUFBTyxNQUFNLGlCQUFpQixNQUFNO0FBQUEsRUFDbEMsWUFDUyxRQUNBLE1BQ1AsU0FDQTtBQUNBLFVBQU0sT0FBTztBQUpOO0FBQ0E7QUFBQSxFQUlUO0FBQ0Y7QUFFTyxNQUFNLE9BQU8sQ0FBQyxRQUFnQixNQUFjLFlBQTJCO0FBQzVFLFFBQU0sSUFBSSxTQUFTLFFBQVEsTUFBTSxPQUFPO0FBQzFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJlcnJvcnMudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGNsYXNzIEFwcEVycm9yIGV4dGVuZHMgRXJyb3Ige1xuICBjb25zdHJ1Y3RvcihcbiAgICBwdWJsaWMgc3RhdHVzOiBudW1iZXIsXG4gICAgcHVibGljIGNvZGU6IHN0cmluZyxcbiAgICBtZXNzYWdlOiBzdHJpbmcsXG4gICkge1xuICAgIHN1cGVyKG1lc3NhZ2UpO1xuICB9XG59XG5cbmV4cG9ydCBjb25zdCBmYWlsID0gKHN0YXR1czogbnVtYmVyLCBjb2RlOiBzdHJpbmcsIG1lc3NhZ2U6IHN0cmluZyk6IG5ldmVyID0+IHtcbiAgdGhyb3cgbmV3IEFwcEVycm9yKHN0YXR1cywgY29kZSwgbWVzc2FnZSk7XG59O1xuIl0sImZpbGUiOiIvc3JjL3V0aWxzL2Vycm9ycy50cyJ9

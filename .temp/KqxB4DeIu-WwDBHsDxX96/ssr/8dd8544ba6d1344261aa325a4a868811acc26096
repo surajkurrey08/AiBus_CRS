@@ -1,0 +1,16 @@
+Object.defineProperty(__vite_ssr_exports__, "Schedule", { enumerable: true, configurable: true, get(){ try { return Schedule } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["mapping","model","objectId","tenantFields"]});
+const Schedule = (0,__vite_ssr_import_0__.model)("Schedule", {
+  ...__vite_ssr_import_0__.tenantFields,
+  routeId: { type: __vite_ssr_import_0__.objectId, required: true },
+  busId: { type: __vite_ssr_import_0__.objectId, required: true },
+  daysOfWeek: [Number],
+  specialDates: [String],
+  startDate: String,
+  endDate: String,
+  status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+  ...__vite_ssr_import_0__.mapping
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxjQUFXLDZCQUFNLFlBQVk7QUFBQSxFQUN4QyxHQUFHO0FBQUEsRUFDSCxTQUFTLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxFQUMxQyxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxFQUN4QyxZQUFZLENBQUMsTUFBTTtBQUFBLEVBQ25CLGNBQWMsQ0FBQyxNQUFNO0FBQUEsRUFDckIsV0FBVztBQUFBLEVBQ1gsU0FBUztBQUFBLEVBQ1QsUUFBUSxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsVUFBVSxVQUFVLEdBQUcsU0FBUyxTQUFTO0FBQUEsRUFDeEUsR0FBRztBQUNMLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInNjaGVkdWxlLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1hcHBpbmcsIG1vZGVsLCBvYmplY3RJZCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuXG5leHBvcnQgY29uc3QgU2NoZWR1bGUgPSBtb2RlbChcIlNjaGVkdWxlXCIsIHtcbiAgLi4udGVuYW50RmllbGRzLFxuICByb3V0ZUlkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICBidXNJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgZGF5c09mV2VlazogW051bWJlcl0sXG4gIHNwZWNpYWxEYXRlczogW1N0cmluZ10sXG4gIHN0YXJ0RGF0ZTogU3RyaW5nLFxuICBlbmREYXRlOiBTdHJpbmcsXG4gIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGVudW06IFtcIkFjdGl2ZVwiLCBcIkluYWN0aXZlXCJdLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG4gIC4uLm1hcHBpbmcsXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvc2NoZWR1bGUubW9kZWwudHMifQ==

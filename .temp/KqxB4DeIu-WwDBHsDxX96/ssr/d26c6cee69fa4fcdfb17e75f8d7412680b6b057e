@@ -1,0 +1,72 @@
+Object.defineProperty(__vite_ssr_exports__, "Booking", { enumerable: true, configurable: true, get(){ try { return Booking } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("mongoose", {"importedNames":["Schema"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["mapping","model","objectId","passenger","tenantFields"]});
+
+
+
+
+
+
+const Booking = (0,__vite_ssr_import_1__.model)(
+  "Booking",
+  {
+    ...__vite_ssr_import_1__.tenantFields,
+    tripId: { type: __vite_ssr_import_1__.objectId, required: true },
+    userId: { type: __vite_ssr_import_1__.objectId, required: true },
+    createdByUserId: __vite_ssr_import_1__.objectId,
+    agentId: __vite_ssr_import_1__.objectId,
+    holdId: { type: String, required: true },
+    reference: { type: String, required: true, unique: true },
+    pnr: String,
+    source: {
+      type: String,
+      enum: ["operator", "customer", "agent", "external"],
+      default: "operator"
+    },
+    status: {
+      type: String,
+      enum: [
+        "Pending payment",
+        "Confirmed",
+        "Failed",
+        "Cancelled",
+        "Reconciliation required"
+      ],
+      default: "Pending payment"
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed", "Refund pending", "Refunded"],
+      default: "Pending"
+    },
+    paidAt: Date,
+    fundingMethod: { type: String, enum: ["gateway", "wallet", "credit"] },
+    passengers: [__vite_ssr_import_1__.passenger],
+    contact: { phone: String, email: String },
+    gst: { number: String, company: String, address: String },
+    quoteId: __vite_ssr_import_1__.objectId,
+    pricingSnapshot: __vite_ssr_import_0__.Schema.Types.Mixed,
+    taxPaise: { type: Number, default: 0 },
+    chargePaise: { type: Number, default: 0 },
+    grossPaise: { type: Number, required: true },
+    discountPaise: { type: Number, default: 0 },
+    offerId: __vite_ssr_import_1__.objectId,
+    promoCode: String,
+    salesPartnerId: __vite_ssr_import_1__.objectId,
+    commissionSnapshot: __vite_ssr_import_0__.Schema.Types.Mixed,
+    commissionPaise: { type: Number, default: 0 },
+    totalPaise: { type: Number, required: true },
+    idempotencyKey: { type: String, required: true },
+    requestHash: { type: String, required: true },
+    ...__vite_ssr_import_1__.mapping
+  },
+  [
+    { keys: { operatorId: 1, idempotencyKey: 1 }, options: { unique: true } },
+    { keys: { operatorId: 1, tripId: 1, status: 1 } },
+    { keys: { operatorId: 1, createdAt: -1 } },
+    { keys: { operatorId: 1, agentId: 1, createdAt: -1 } }
+  ]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ0E7Ozs7Ozs7QUFRTyxNQUFNLGFBQVU7QUFBQSxFQUNyQjtBQUFBLEVBQ0E7QUFBQSxJQUNFLEdBQUc7QUFBQSxJQUNILFFBQVEsRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQ3pDLFFBQVEsRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQ3pDLGlCQUFpQjtBQUFBLElBQ2pCLFNBQVM7QUFBQSxJQUNULFFBQVEsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDdkMsV0FBVyxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sUUFBUSxLQUFLO0FBQUEsSUFDeEQsS0FBSztBQUFBLElBQ0wsUUFBUTtBQUFBLE1BQ04sTUFBTTtBQUFBLE1BQ04sTUFBTSxDQUFDLFlBQVksWUFBWSxTQUFTLFVBQVU7QUFBQSxNQUNsRCxTQUFTO0FBQUEsSUFDWDtBQUFBLElBQ0EsUUFBUTtBQUFBLE1BQ04sTUFBTTtBQUFBLE1BQ04sTUFBTTtBQUFBLFFBQ0o7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxRQUNBO0FBQUEsTUFDRjtBQUFBLE1BQ0EsU0FBUztBQUFBLElBQ1g7QUFBQSxJQUNBLGVBQWU7QUFBQSxNQUNiLE1BQU07QUFBQSxNQUNOLE1BQU0sQ0FBQyxXQUFXLFFBQVEsVUFBVSxrQkFBa0IsVUFBVTtBQUFBLE1BQ2hFLFNBQVM7QUFBQSxJQUNYO0FBQUEsSUFDQSxRQUFRO0FBQUEsSUFDUixlQUFlLEVBQUUsTUFBTSxRQUFRLE1BQU0sQ0FBQyxXQUFXLFVBQVUsUUFBUSxFQUFFO0FBQUEsSUFDckUsWUFBWSxDQUFDLCtCQUFTO0FBQUEsSUFDdEIsU0FBUyxFQUFFLE9BQU8sUUFBUSxPQUFPLE9BQU87QUFBQSxJQUN4QyxLQUFLLEVBQUUsUUFBUSxRQUFRLFNBQVMsUUFBUSxTQUFTLE9BQU87QUFBQSxJQUN4RCxTQUFTO0FBQUEsSUFDVCxpQkFBaUIsNkJBQU8sTUFBTTtBQUFBLElBQzlCLFVBQVUsRUFBRSxNQUFNLFFBQVEsU0FBUyxFQUFFO0FBQUEsSUFDckMsYUFBYSxFQUFFLE1BQU0sUUFBUSxTQUFTLEVBQUU7QUFBQSxJQUN4QyxZQUFZLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzNDLGVBQWUsRUFBRSxNQUFNLFFBQVEsU0FBUyxFQUFFO0FBQUEsSUFDMUMsU0FBUztBQUFBLElBQ1QsV0FBVztBQUFBLElBQ1gsZ0JBQWdCO0FBQUEsSUFDaEIsb0JBQW9CLDZCQUFPLE1BQU07QUFBQSxJQUNqQyxpQkFBaUIsRUFBRSxNQUFNLFFBQVEsU0FBUyxFQUFFO0FBQUEsSUFDNUMsWUFBWSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUMzQyxnQkFBZ0IsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDL0MsYUFBYSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUM1QyxHQUFHO0FBQUEsRUFDTDtBQUFBLEVBQ0E7QUFBQSxJQUNFLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxnQkFBZ0IsRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRTtBQUFBLElBQ3hFLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxRQUFRLEdBQUcsUUFBUSxFQUFFLEVBQUU7QUFBQSxJQUNoRCxFQUFFLE1BQU0sRUFBRSxZQUFZLEdBQUcsV0FBVyxHQUFHLEVBQUU7QUFBQSxJQUN6QyxFQUFFLE1BQU0sRUFBRSxZQUFZLEdBQUcsU0FBUyxHQUFHLFdBQVcsR0FBRyxFQUFFO0FBQUEsRUFDdkQ7QUFDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYm9va2luZy5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBTY2hlbWEgfSBmcm9tIFwibW9uZ29vc2VcIjtcbmltcG9ydCB7XG4gIG1hcHBpbmcsXG4gIG1vZGVsLFxuICBvYmplY3RJZCxcbiAgcGFzc2VuZ2VyLFxuICB0ZW5hbnRGaWVsZHMsXG59IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcblxuZXhwb3J0IGNvbnN0IEJvb2tpbmcgPSBtb2RlbChcbiAgXCJCb29raW5nXCIsXG4gIHtcbiAgICAuLi50ZW5hbnRGaWVsZHMsXG4gICAgdHJpcElkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHVzZXJJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBjcmVhdGVkQnlVc2VySWQ6IG9iamVjdElkLFxuICAgIGFnZW50SWQ6IG9iamVjdElkLFxuICAgIGhvbGRJZDogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgcmVmZXJlbmNlOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUsIHVuaXF1ZTogdHJ1ZSB9LFxuICAgIHBucjogU3RyaW5nLFxuICAgIHNvdXJjZToge1xuICAgICAgdHlwZTogU3RyaW5nLFxuICAgICAgZW51bTogW1wib3BlcmF0b3JcIiwgXCJjdXN0b21lclwiLCBcImFnZW50XCIsIFwiZXh0ZXJuYWxcIl0sXG4gICAgICBkZWZhdWx0OiBcIm9wZXJhdG9yXCIsXG4gICAgfSxcbiAgICBzdGF0dXM6IHtcbiAgICAgIHR5cGU6IFN0cmluZyxcbiAgICAgIGVudW06IFtcbiAgICAgICAgXCJQZW5kaW5nIHBheW1lbnRcIixcbiAgICAgICAgXCJDb25maXJtZWRcIixcbiAgICAgICAgXCJGYWlsZWRcIixcbiAgICAgICAgXCJDYW5jZWxsZWRcIixcbiAgICAgICAgXCJSZWNvbmNpbGlhdGlvbiByZXF1aXJlZFwiLFxuICAgICAgXSxcbiAgICAgIGRlZmF1bHQ6IFwiUGVuZGluZyBwYXltZW50XCIsXG4gICAgfSxcbiAgICBwYXltZW50U3RhdHVzOiB7XG4gICAgICB0eXBlOiBTdHJpbmcsXG4gICAgICBlbnVtOiBbXCJQZW5kaW5nXCIsIFwiUGFpZFwiLCBcIkZhaWxlZFwiLCBcIlJlZnVuZCBwZW5kaW5nXCIsIFwiUmVmdW5kZWRcIl0sXG4gICAgICBkZWZhdWx0OiBcIlBlbmRpbmdcIixcbiAgICB9LFxuICAgIHBhaWRBdDogRGF0ZSxcbiAgICBmdW5kaW5nTWV0aG9kOiB7IHR5cGU6IFN0cmluZywgZW51bTogW1wiZ2F0ZXdheVwiLCBcIndhbGxldFwiLCBcImNyZWRpdFwiXSB9LFxuICAgIHBhc3NlbmdlcnM6IFtwYXNzZW5nZXJdLFxuICAgIGNvbnRhY3Q6IHsgcGhvbmU6IFN0cmluZywgZW1haWw6IFN0cmluZyB9LFxuICAgIGdzdDogeyBudW1iZXI6IFN0cmluZywgY29tcGFueTogU3RyaW5nLCBhZGRyZXNzOiBTdHJpbmcgfSxcbiAgICBxdW90ZUlkOiBvYmplY3RJZCxcbiAgICBwcmljaW5nU25hcHNob3Q6IFNjaGVtYS5UeXBlcy5NaXhlZCxcbiAgICB0YXhQYWlzZTogeyB0eXBlOiBOdW1iZXIsIGRlZmF1bHQ6IDAgfSxcbiAgICBjaGFyZ2VQYWlzZTogeyB0eXBlOiBOdW1iZXIsIGRlZmF1bHQ6IDAgfSxcbiAgICBncm9zc1BhaXNlOiB7IHR5cGU6IE51bWJlciwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBkaXNjb3VudFBhaXNlOiB7IHR5cGU6IE51bWJlciwgZGVmYXVsdDogMCB9LFxuICAgIG9mZmVySWQ6IG9iamVjdElkLFxuICAgIHByb21vQ29kZTogU3RyaW5nLFxuICAgIHNhbGVzUGFydG5lcklkOiBvYmplY3RJZCxcbiAgICBjb21taXNzaW9uU25hcHNob3Q6IFNjaGVtYS5UeXBlcy5NaXhlZCxcbiAgICBjb21taXNzaW9uUGFpc2U6IHsgdHlwZTogTnVtYmVyLCBkZWZhdWx0OiAwIH0sXG4gICAgdG90YWxQYWlzZTogeyB0eXBlOiBOdW1iZXIsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgaWRlbXBvdGVuY3lLZXk6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHJlcXVlc3RIYXNoOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICAuLi5tYXBwaW5nLFxuICB9LFxuICBbXG4gICAgeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIGlkZW1wb3RlbmN5S2V5OiAxIH0sIG9wdGlvbnM6IHsgdW5pcXVlOiB0cnVlIH0gfSxcbiAgICB7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgdHJpcElkOiAxLCBzdGF0dXM6IDEgfSB9LFxuICAgIHsga2V5czogeyBvcGVyYXRvcklkOiAxLCBjcmVhdGVkQXQ6IC0xIH0gfSxcbiAgICB7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgYWdlbnRJZDogMSwgY3JlYXRlZEF0OiAtMSB9IH0sXG4gIF0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9ib29raW5nLm1vZGVsLnRzIn0=

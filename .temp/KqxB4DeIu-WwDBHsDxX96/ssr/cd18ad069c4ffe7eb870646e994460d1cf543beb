@@ -1,0 +1,22 @@
+Object.defineProperty(__vite_ssr_exports__, "TripStopRecord", { enumerable: true, configurable: true, get(){ try { return TripStopRecord } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const TripStopRecord = (0,__vite_ssr_import_0__.model)(
+  "TripStopRecord",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    tripId: { type: __vite_ssr_import_0__.objectId, required: true },
+    locationId: __vite_ssr_import_0__.objectId,
+    poiId: __vite_ssr_import_0__.objectId,
+    name: String,
+    kind: String,
+    arrivedAt: Date,
+    departedAt: Date,
+    notes: String,
+    requestKey: { type: String, required: true },
+    requestHash: String
+  },
+  [{ keys: { operatorId: 1, requestKey: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxvQkFBaUI7QUFBQSxFQUM1QjtBQUFBLEVBQ0E7QUFBQSxJQUNFLEdBQUc7QUFBQSxJQUNILFFBQVEsRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQ3pDLFlBQVk7QUFBQSxJQUNaLE9BQU87QUFBQSxJQUNQLE1BQU07QUFBQSxJQUNOLE1BQU07QUFBQSxJQUNOLFdBQVc7QUFBQSxJQUNYLFlBQVk7QUFBQSxJQUNaLE9BQU87QUFBQSxJQUNQLFlBQVksRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDM0MsYUFBYTtBQUFBLEVBQ2Y7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLFlBQVksRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRSxDQUFDO0FBQ3hFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ0cmlwLXN0b3AtcmVjb3JkLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IFRyaXBTdG9wUmVjb3JkID0gbW9kZWwoXG4gIFwiVHJpcFN0b3BSZWNvcmRcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICB0cmlwSWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgbG9jYXRpb25JZDogb2JqZWN0SWQsXG4gICAgcG9pSWQ6IG9iamVjdElkLFxuICAgIG5hbWU6IFN0cmluZyxcbiAgICBraW5kOiBTdHJpbmcsXG4gICAgYXJyaXZlZEF0OiBEYXRlLFxuICAgIGRlcGFydGVkQXQ6IERhdGUsXG4gICAgbm90ZXM6IFN0cmluZyxcbiAgICByZXF1ZXN0S2V5OiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICByZXF1ZXN0SGFzaDogU3RyaW5nLFxuICB9LFxuICBbeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIHJlcXVlc3RLZXk6IDEgfSwgb3B0aW9uczogeyB1bmlxdWU6IHRydWUgfSB9XSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3RyaXAtc3RvcC1yZWNvcmQubW9kZWwudHMifQ==

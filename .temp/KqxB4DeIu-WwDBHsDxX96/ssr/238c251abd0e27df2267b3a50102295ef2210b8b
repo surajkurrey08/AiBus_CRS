@@ -1,0 +1,11 @@
+Object.defineProperty(__vite_ssr_exports__, "SeatChartTemplate", { enumerable: true, configurable: true, get(){ try { return SeatChartTemplate } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","berth"]});
+const SeatChartTemplate = (0,__vite_ssr_import_0__.model)("SeatChartTemplate", {
+  ...__vite_ssr_import_0__.tenantFields,
+  name: { type: String, required: true },
+  seats: { type: [__vite_ssr_import_0__.berth], required: true },
+  status: { type: String, default: "Active" }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSx1QkFBb0IsNkJBQU0scUJBQXFCO0FBQUEsRUFDMUQsR0FBRztBQUFBLEVBQ0gsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxFQUNyQyxPQUFPLEVBQUUsTUFBTSxDQUFDLDJCQUFLLEdBQUcsVUFBVSxLQUFLO0FBQUEsRUFDdkMsUUFBUSxFQUFFLE1BQU0sUUFBUSxTQUFTLFNBQVM7QUFDNUMsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsic2VhdC1jaGFydC10ZW1wbGF0ZS5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgdGVuYW50RmllbGRzLCBiZXJ0aCB9IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcbmV4cG9ydCBjb25zdCBTZWF0Q2hhcnRUZW1wbGF0ZSA9IG1vZGVsKFwiU2VhdENoYXJ0VGVtcGxhdGVcIiwge1xuICAuLi50ZW5hbnRGaWVsZHMsXG4gIG5hbWU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICBzZWF0czogeyB0eXBlOiBbYmVydGhdLCByZXF1aXJlZDogdHJ1ZSB9LFxuICBzdGF0dXM6IHsgdHlwZTogU3RyaW5nLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvc2VhdC1jaGFydC10ZW1wbGF0ZS5tb2RlbC50cyJ9

@@ -1,0 +1,18 @@
+Object.defineProperty(__vite_ssr_exports__, "City", { enumerable: true, configurable: true, get(){ try { return City } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const City = (0,__vite_ssr_import_0__.model)(
+  "City",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    catalogId: { type: __vite_ssr_import_0__.objectId, immutable: true },
+    name: { type: String, required: true },
+    state: { type: String, required: true },
+    country: { type: String, default: "India" },
+    key: { type: String, required: true },
+    status: { type: String, default: "Active" }
+  },
+  [{ keys: { operatorId: 1, key: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxVQUFPO0FBQUEsRUFDbEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxXQUFXLEVBQUUsTUFBTSxnQ0FBVSxXQUFXLEtBQUs7QUFBQSxJQUM3QyxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3JDLE9BQU8sRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDdEMsU0FBUyxFQUFFLE1BQU0sUUFBUSxTQUFTLFFBQVE7QUFBQSxJQUMxQyxLQUFLLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3BDLFFBQVEsRUFBRSxNQUFNLFFBQVEsU0FBUyxTQUFTO0FBQUEsRUFDNUM7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLEtBQUssRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRSxDQUFDO0FBQ2pFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJjaXR5Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCBvYmplY3RJZCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IENpdHkgPSBtb2RlbChcbiAgXCJDaXR5XCIsXG4gIHtcbiAgICAuLi50ZW5hbnRGaWVsZHMsXG4gICAgY2F0YWxvZ0lkOiB7IHR5cGU6IG9iamVjdElkLCBpbW11dGFibGU6IHRydWUgfSxcbiAgICBuYW1lOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBzdGF0ZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgY291bnRyeTogeyB0eXBlOiBTdHJpbmcsIGRlZmF1bHQ6IFwiSW5kaWFcIiB9LFxuICAgIGtleTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgc3RhdHVzOiB7IHR5cGU6IFN0cmluZywgZGVmYXVsdDogXCJBY3RpdmVcIiB9LFxuICB9LFxuICBbeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIGtleTogMSB9LCBvcHRpb25zOiB7IHVuaXF1ZTogdHJ1ZSB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvY2l0eS5tb2RlbC50cyJ9

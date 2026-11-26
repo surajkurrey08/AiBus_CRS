@@ -1,0 +1,63 @@
+Object.defineProperty(__vite_ssr_exports__, "safePaise", { enumerable: true, configurable: true, get(){ try { return safePaise } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "financialModel", { enumerable: true, configurable: true, get(){ try { return financialModel } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("mongoose", {"importedNames":["default"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/utils/errors.ts", {"importedNames":["AppError"]});
+const safePaise = {
+  type: Number,
+  required: true,
+  min: 0,
+  validate: Number.isSafeInteger
+};
+function financialModel(name, schema) {
+  schema.pre("save", function() {
+    if (!this.isNew)
+      throw new __vite_ssr_import_1__.AppError(
+        409,
+        "LEDGER_IMMUTABLE",
+        "Financial history is append-only"
+      );
+  });
+  for (const hook of [
+    "updateOne",
+    "updateMany",
+    "findOneAndUpdate",
+    "replaceOne",
+    "findOneAndReplace",
+    "deleteOne",
+    "deleteMany",
+    "findOneAndDelete"
+  ]) {
+    schema.pre(hook, function() {
+      throw new __vite_ssr_import_1__.AppError(
+        409,
+        "LEDGER_IMMUTABLE",
+        "Financial history is append-only"
+      );
+    });
+  };
+  schema.pre("deleteOne", { document: true, query: false }, function() {
+    throw new __vite_ssr_import_1__.AppError(
+      409,
+      "LEDGER_IMMUTABLE",
+      "Financial history is append-only"
+    );
+  });
+  schema.pre("bulkWrite", function() {
+    throw new __vite_ssr_import_1__.AppError(
+      409,
+      "LEDGER_IMMUTABLE",
+      "Financial history is append-only"
+    );
+  });
+  schema.pre("insertMany", function() {
+    throw new __vite_ssr_import_1__.AppError(
+      409,
+      "LEDGER_USE_SERVICE",
+      "Use validated transactional journal posting"
+    );
+  });
+  return __vite_ssr_import_0__.default.model(name, schema);
+}
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7QUFBQTtBQUNBO0FBRU8sTUFBTSxZQUFZO0FBQUEsRUFDdkIsTUFBTTtBQUFBLEVBQ04sVUFBVTtBQUFBLEVBQ1YsS0FBSztBQUFBLEVBQ0wsVUFBVSxPQUFPO0FBQ25CO0FBR08sU0FBUyxlQUFlLE1BQWMsUUFBZ0I7QUFDM0QsU0FBTyxJQUFJLFFBQVEsV0FBWTtBQUM3QixRQUFJLENBQUMsS0FBSztBQUNSLFlBQU0sSUFBSTtBQUFBLFFBQ1I7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLE1BQ0Y7QUFBQSxFQUNKLENBQUM7QUFDRCxhQUFXLFFBQVE7QUFBQSxJQUNqQjtBQUFBLElBQ0E7QUFBQSxJQUNBO0FBQUEsSUFDQTtBQUFBLElBQ0E7QUFBQSxJQUNBO0FBQUEsSUFDQTtBQUFBLElBQ0E7QUFBQSxFQUNGLEdBQVk7QUFDVixXQUFPLElBQUksTUFBYSxXQUFZO0FBQ2xDLFlBQU0sSUFBSTtBQUFBLFFBQ1I7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLE1BQ0Y7QUFBQSxJQUNGLENBQUM7QUFBQSxFQUNIO0FBQ0EsU0FBTyxJQUFJLGFBQWEsRUFBRSxVQUFVLE1BQU0sT0FBTyxNQUFNLEdBQUcsV0FBWTtBQUNwRSxVQUFNLElBQUk7QUFBQSxNQUNSO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxJQUNGO0FBQUEsRUFDRixDQUFDO0FBQ0QsU0FBTyxJQUFJLGFBQWEsV0FBWTtBQUNsQyxVQUFNLElBQUk7QUFBQSxNQUNSO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxJQUNGO0FBQUEsRUFDRixDQUFDO0FBQ0QsU0FBTyxJQUFJLGNBQWMsV0FBWTtBQUNuQyxVQUFNLElBQUk7QUFBQSxNQUNSO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxJQUNGO0FBQUEsRUFDRixDQUFDO0FBQ0QsU0FBTyw4QkFBUyxNQUFNLE1BQU0sTUFBTTtBQUNwQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiZmluYW5jaWFsLXNjaGVtYS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgbW9uZ29vc2UsIHsgU2NoZW1hIH0gZnJvbSBcIm1vbmdvb3NlXCI7XG5pbXBvcnQgeyBBcHBFcnJvciB9IGZyb20gXCIuLi8uLi91dGlscy9lcnJvcnMuanNcIjtcblxuZXhwb3J0IGNvbnN0IHNhZmVQYWlzZSA9IHtcbiAgdHlwZTogTnVtYmVyLFxuICByZXF1aXJlZDogdHJ1ZSxcbiAgbWluOiAwLFxuICB2YWxpZGF0ZTogTnVtYmVyLmlzU2FmZUludGVnZXIsXG59O1xuLy8gUG9zdGVkIGpvdXJuYWxzLCBvcGVyYXRpb24gaWRlbnRpdGllcyBhbmQgYWNjb3VudCBvd25lcnNoaXAgYXJlIGFwcGVuZC1vbmx5LlxuLy8gUmF3IE1vbmdvREIgYWNjZXNzIG11c3QgYWRkaXRpb25hbGx5IGJlIHJlc3RyaWN0ZWQgYnkgZGVwbG95bWVudCBjcmVkZW50aWFscy5cbmV4cG9ydCBmdW5jdGlvbiBmaW5hbmNpYWxNb2RlbChuYW1lOiBzdHJpbmcsIHNjaGVtYTogU2NoZW1hKSB7XG4gIHNjaGVtYS5wcmUoXCJzYXZlXCIsIGZ1bmN0aW9uICgpIHtcbiAgICBpZiAoIXRoaXMuaXNOZXcpXG4gICAgICB0aHJvdyBuZXcgQXBwRXJyb3IoXG4gICAgICAgIDQwOSxcbiAgICAgICAgXCJMRURHRVJfSU1NVVRBQkxFXCIsXG4gICAgICAgIFwiRmluYW5jaWFsIGhpc3RvcnkgaXMgYXBwZW5kLW9ubHlcIixcbiAgICAgICk7XG4gIH0pO1xuICBmb3IgKGNvbnN0IGhvb2sgb2YgW1xuICAgIFwidXBkYXRlT25lXCIsXG4gICAgXCJ1cGRhdGVNYW55XCIsXG4gICAgXCJmaW5kT25lQW5kVXBkYXRlXCIsXG4gICAgXCJyZXBsYWNlT25lXCIsXG4gICAgXCJmaW5kT25lQW5kUmVwbGFjZVwiLFxuICAgIFwiZGVsZXRlT25lXCIsXG4gICAgXCJkZWxldGVNYW55XCIsXG4gICAgXCJmaW5kT25lQW5kRGVsZXRlXCIsXG4gIF0gYXMgY29uc3QpIHtcbiAgICBzY2hlbWEucHJlKGhvb2sgYXMgYW55LCBmdW5jdGlvbiAoKSB7XG4gICAgICB0aHJvdyBuZXcgQXBwRXJyb3IoXG4gICAgICAgIDQwOSxcbiAgICAgICAgXCJMRURHRVJfSU1NVVRBQkxFXCIsXG4gICAgICAgIFwiRmluYW5jaWFsIGhpc3RvcnkgaXMgYXBwZW5kLW9ubHlcIixcbiAgICAgICk7XG4gICAgfSk7XG4gIH1cbiAgc2NoZW1hLnByZShcImRlbGV0ZU9uZVwiLCB7IGRvY3VtZW50OiB0cnVlLCBxdWVyeTogZmFsc2UgfSwgZnVuY3Rpb24gKCkge1xuICAgIHRocm93IG5ldyBBcHBFcnJvcihcbiAgICAgIDQwOSxcbiAgICAgIFwiTEVER0VSX0lNTVVUQUJMRVwiLFxuICAgICAgXCJGaW5hbmNpYWwgaGlzdG9yeSBpcyBhcHBlbmQtb25seVwiLFxuICAgICk7XG4gIH0pO1xuICBzY2hlbWEucHJlKFwiYnVsa1dyaXRlXCIsIGZ1bmN0aW9uICgpIHtcbiAgICB0aHJvdyBuZXcgQXBwRXJyb3IoXG4gICAgICA0MDksXG4gICAgICBcIkxFREdFUl9JTU1VVEFCTEVcIixcbiAgICAgIFwiRmluYW5jaWFsIGhpc3RvcnkgaXMgYXBwZW5kLW9ubHlcIixcbiAgICApO1xuICB9KTtcbiAgc2NoZW1hLnByZShcImluc2VydE1hbnlcIiwgZnVuY3Rpb24gKCkge1xuICAgIHRocm93IG5ldyBBcHBFcnJvcihcbiAgICAgIDQwOSxcbiAgICAgIFwiTEVER0VSX1VTRV9TRVJWSUNFXCIsXG4gICAgICBcIlVzZSB2YWxpZGF0ZWQgdHJhbnNhY3Rpb25hbCBqb3VybmFsIHBvc3RpbmdcIixcbiAgICApO1xuICB9KTtcbiAgcmV0dXJuIG1vbmdvb3NlLm1vZGVsKG5hbWUsIHNjaGVtYSk7XG59XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3NoYXJlZC9maW5hbmNpYWwtc2NoZW1hLnRzIn0=

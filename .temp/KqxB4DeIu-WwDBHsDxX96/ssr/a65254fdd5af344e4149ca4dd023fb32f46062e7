@@ -1,0 +1,87 @@
+Object.defineProperty(__vite_ssr_exports__, "Trip", { enumerable: true, configurable: true, get(){ try { return Trip } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["inventorySeat","mapping","model","objectId","tenantFields"]});
+
+
+
+
+
+
+const Trip = (0,__vite_ssr_import_0__.model)(
+  "Trip",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    routeId: { type: __vite_ssr_import_0__.objectId, required: true },
+    carId: { type: __vite_ssr_import_0__.objectId, ref: "Car" },
+    busId: { type: __vite_ssr_import_0__.objectId, required: false },
+    tripNumber: String,
+    tripType: {
+      type: String,
+      enum: ["ONE_WAY", "ROUND_TRIP"],
+      default: "ONE_WAY"
+    },
+    vehicleCategory: { type: String, default: "4-Passenger Sedan" },
+    carRegistration: String,
+    routeName: String,
+    bookableCapacity: { type: Number, default: 4 },
+    totalPhysicalSeats: { type: Number, default: 5 },
+    scheduleId: __vite_ssr_import_0__.objectId,
+    serviceId: __vite_ssr_import_0__.objectId,
+    serviceName: String,
+    serviceCode: String,
+    operationStage: String,
+    actualDepartureAt: Date,
+    actualArrivalAt: Date,
+    startOdometerKm: Number,
+    endOdometerKm: Number,
+    fuelConsumedMillilitres: Number,
+    crewIds: [__vite_ssr_import_0__.objectId],
+    journeyDate: { type: String, required: true },
+    departureAt: { type: Date, required: true },
+    arrivalAt: Date,
+    estimatedArrivalAt: Date,
+    baseFarePaise: Number,
+    availableSeatsCount: Number,
+    seatSideFares: {
+      type: { doublePaise: Number, singlePaise: Number },
+      default: void 0
+    },
+    bookingOpen: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: [
+        "Draft",
+        "Scheduled",
+        "Boarding",
+        "On Road",
+        "Arrived",
+        "Completed",
+        "Cancelled"
+      ],
+      default: "Scheduled"
+    },
+    inventoryOwner: {
+      type: String,
+      enum: ["internal", "external"],
+      default: "internal"
+    },
+    seats: [__vite_ssr_import_0__.inventorySeat],
+    ...__vite_ssr_import_0__.mapping
+  },
+  [
+    { keys: { operatorId: 1, journeyDate: 1 } },
+    { keys: { operatorId: 1, status: 1, departureAt: 1 } },
+    { keys: { carId: 1, departureAt: 1 } },
+    { keys: { busId: 1, departureAt: 1 }, options: { unique: true, sparse: true } },
+    {
+      keys: { operatorId: 1, serviceId: 1, journeyDate: 1 },
+      options: {
+        unique: true,
+        partialFilterExpression: { serviceId: { $type: "objectId" } }
+      }
+    },
+    { keys: { routeId: 1, journeyDate: 1, status: 1 } }
+  ]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBOzs7Ozs7O0FBUU8sTUFBTSxVQUFPO0FBQUEsRUFDbEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxTQUFTLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUMxQyxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxLQUFLLE1BQU07QUFBQSxJQUNwQyxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLE1BQU07QUFBQSxJQUN6QyxZQUFZO0FBQUEsSUFDWixVQUFVO0FBQUEsTUFDUixNQUFNO0FBQUEsTUFDTixNQUFNLENBQUMsV0FBVyxZQUFZO0FBQUEsTUFDOUIsU0FBUztBQUFBLElBQ1g7QUFBQSxJQUNBLGlCQUFpQixFQUFFLE1BQU0sUUFBUSxTQUFTLG9CQUFvQjtBQUFBLElBQzlELGlCQUFpQjtBQUFBLElBQ2pCLFdBQVc7QUFBQSxJQUNYLGtCQUFrQixFQUFFLE1BQU0sUUFBUSxTQUFTLEVBQUU7QUFBQSxJQUM3QyxvQkFBb0IsRUFBRSxNQUFNLFFBQVEsU0FBUyxFQUFFO0FBQUEsSUFDL0MsWUFBWTtBQUFBLElBQ1osV0FBVztBQUFBLElBQ1gsYUFBYTtBQUFBLElBQ2IsYUFBYTtBQUFBLElBQ2IsZ0JBQWdCO0FBQUEsSUFDaEIsbUJBQW1CO0FBQUEsSUFDbkIsaUJBQWlCO0FBQUEsSUFDakIsaUJBQWlCO0FBQUEsSUFDakIsZUFBZTtBQUFBLElBQ2YseUJBQXlCO0FBQUEsSUFDekIsU0FBUyxDQUFDLDhCQUFRO0FBQUEsSUFDbEIsYUFBYSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUM1QyxhQUFhLEVBQUUsTUFBTSxNQUFNLFVBQVUsS0FBSztBQUFBLElBQzFDLFdBQVc7QUFBQSxJQUNYLG9CQUFvQjtBQUFBLElBQ3BCLGVBQWU7QUFBQSxJQUNmLHFCQUFxQjtBQUFBLElBQ3JCLGVBQWU7QUFBQSxNQUNiLE1BQU0sRUFBRSxhQUFhLFFBQVEsYUFBYSxPQUFPO0FBQUEsTUFDakQsU0FBUztBQUFBLElBQ1g7QUFBQSxJQUNBLGFBQWEsRUFBRSxNQUFNLFNBQVMsU0FBUyxLQUFLO0FBQUEsSUFDNUMsUUFBUTtBQUFBLE1BQ04sTUFBTTtBQUFBLE1BQ04sTUFBTTtBQUFBLFFBQ0o7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxNQUNGO0FBQUEsTUFDQSxTQUFTO0FBQUEsSUFDWDtBQUFBLElBQ0EsZ0JBQWdCO0FBQUEsTUFDZCxNQUFNO0FBQUEsTUFDTixNQUFNLENBQUMsWUFBWSxVQUFVO0FBQUEsTUFDN0IsU0FBUztBQUFBLElBQ1g7QUFBQSxJQUNBLE9BQU8sQ0FBQyxtQ0FBYTtBQUFBLElBQ3JCLEdBQUc7QUFBQSxFQUNMO0FBQUEsRUFDQTtBQUFBLElBQ0UsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLGFBQWEsRUFBRSxFQUFFO0FBQUEsSUFDMUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLFFBQVEsR0FBRyxhQUFhLEVBQUUsRUFBRTtBQUFBLElBQ3JELEVBQUUsTUFBTSxFQUFFLE9BQU8sR0FBRyxhQUFhLEVBQUUsRUFBRTtBQUFBLElBQ3JDLEVBQUUsTUFBTSxFQUFFLE9BQU8sR0FBRyxhQUFhLEVBQUUsR0FBRyxTQUFTLEVBQUUsUUFBUSxNQUFNLFFBQVEsS0FBSyxFQUFFO0FBQUEsSUFDOUU7QUFBQSxNQUNFLE1BQU0sRUFBRSxZQUFZLEdBQUcsV0FBVyxHQUFHLGFBQWEsRUFBRTtBQUFBLE1BQ3BELFNBQVM7QUFBQSxRQUNQLFFBQVE7QUFBQSxRQUNSLHlCQUF5QixFQUFFLFdBQVcsRUFBRSxPQUFPLFdBQVcsRUFBRTtBQUFBLE1BQzlEO0FBQUEsSUFDRjtBQUFBLElBQ0EsRUFBRSxNQUFNLEVBQUUsU0FBUyxHQUFHLGFBQWEsR0FBRyxRQUFRLEVBQUUsRUFBRTtBQUFBLEVBQ3BEO0FBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInRyaXAubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtcbiAgaW52ZW50b3J5U2VhdCxcbiAgbWFwcGluZyxcbiAgbW9kZWwsXG4gIG9iamVjdElkLFxuICB0ZW5hbnRGaWVsZHMsXG59IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcblxuZXhwb3J0IGNvbnN0IFRyaXAgPSBtb2RlbChcbiAgXCJUcmlwXCIsXG4gIHtcbiAgICAuLi50ZW5hbnRGaWVsZHMsXG4gICAgcm91dGVJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBjYXJJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVmOiBcIkNhclwiIH0sXG4gICAgYnVzSWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiBmYWxzZSB9LFxuICAgIHRyaXBOdW1iZXI6IFN0cmluZyxcbiAgICB0cmlwVHlwZToge1xuICAgICAgdHlwZTogU3RyaW5nLFxuICAgICAgZW51bTogW1wiT05FX1dBWVwiLCBcIlJPVU5EX1RSSVBcIl0sXG4gICAgICBkZWZhdWx0OiBcIk9ORV9XQVlcIixcbiAgICB9LFxuICAgIHZlaGljbGVDYXRlZ29yeTogeyB0eXBlOiBTdHJpbmcsIGRlZmF1bHQ6IFwiNC1QYXNzZW5nZXIgU2VkYW5cIiB9LFxuICAgIGNhclJlZ2lzdHJhdGlvbjogU3RyaW5nLFxuICAgIHJvdXRlTmFtZTogU3RyaW5nLFxuICAgIGJvb2thYmxlQ2FwYWNpdHk6IHsgdHlwZTogTnVtYmVyLCBkZWZhdWx0OiA0IH0sXG4gICAgdG90YWxQaHlzaWNhbFNlYXRzOiB7IHR5cGU6IE51bWJlciwgZGVmYXVsdDogNSB9LFxuICAgIHNjaGVkdWxlSWQ6IG9iamVjdElkLFxuICAgIHNlcnZpY2VJZDogb2JqZWN0SWQsXG4gICAgc2VydmljZU5hbWU6IFN0cmluZyxcbiAgICBzZXJ2aWNlQ29kZTogU3RyaW5nLFxuICAgIG9wZXJhdGlvblN0YWdlOiBTdHJpbmcsXG4gICAgYWN0dWFsRGVwYXJ0dXJlQXQ6IERhdGUsXG4gICAgYWN0dWFsQXJyaXZhbEF0OiBEYXRlLFxuICAgIHN0YXJ0T2RvbWV0ZXJLbTogTnVtYmVyLFxuICAgIGVuZE9kb21ldGVyS206IE51bWJlcixcbiAgICBmdWVsQ29uc3VtZWRNaWxsaWxpdHJlczogTnVtYmVyLFxuICAgIGNyZXdJZHM6IFtvYmplY3RJZF0sXG4gICAgam91cm5leURhdGU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGRlcGFydHVyZUF0OiB7IHR5cGU6IERhdGUsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgYXJyaXZhbEF0OiBEYXRlLFxuICAgIGVzdGltYXRlZEFycml2YWxBdDogRGF0ZSxcbiAgICBiYXNlRmFyZVBhaXNlOiBOdW1iZXIsXG4gICAgYXZhaWxhYmxlU2VhdHNDb3VudDogTnVtYmVyLFxuICAgIHNlYXRTaWRlRmFyZXM6IHtcbiAgICAgIHR5cGU6IHsgZG91YmxlUGFpc2U6IE51bWJlciwgc2luZ2xlUGFpc2U6IE51bWJlciB9LFxuICAgICAgZGVmYXVsdDogdW5kZWZpbmVkLFxuICAgIH0sXG4gICAgYm9va2luZ09wZW46IHsgdHlwZTogQm9vbGVhbiwgZGVmYXVsdDogdHJ1ZSB9LFxuICAgIHN0YXR1czoge1xuICAgICAgdHlwZTogU3RyaW5nLFxuICAgICAgZW51bTogW1xuICAgICAgICBcIkRyYWZ0XCIsXG4gICAgICAgIFwiU2NoZWR1bGVkXCIsXG4gICAgICAgIFwiQm9hcmRpbmdcIixcbiAgICAgICAgXCJPbiBSb2FkXCIsXG4gICAgICAgIFwiQXJyaXZlZFwiLFxuICAgICAgICBcIkNvbXBsZXRlZFwiLFxuICAgICAgICBcIkNhbmNlbGxlZFwiLFxuICAgICAgXSxcbiAgICAgIGRlZmF1bHQ6IFwiU2NoZWR1bGVkXCIsXG4gICAgfSxcbiAgICBpbnZlbnRvcnlPd25lcjoge1xuICAgICAgdHlwZTogU3RyaW5nLFxuICAgICAgZW51bTogW1wiaW50ZXJuYWxcIiwgXCJleHRlcm5hbFwiXSxcbiAgICAgIGRlZmF1bHQ6IFwiaW50ZXJuYWxcIixcbiAgICB9LFxuICAgIHNlYXRzOiBbaW52ZW50b3J5U2VhdF0sXG4gICAgLi4ubWFwcGluZyxcbiAgfSxcbiAgW1xuICAgIHsga2V5czogeyBvcGVyYXRvcklkOiAxLCBqb3VybmV5RGF0ZTogMSB9IH0sXG4gICAgeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIHN0YXR1czogMSwgZGVwYXJ0dXJlQXQ6IDEgfSB9LFxuICAgIHsga2V5czogeyBjYXJJZDogMSwgZGVwYXJ0dXJlQXQ6IDEgfSB9LFxuICAgIHsga2V5czogeyBidXNJZDogMSwgZGVwYXJ0dXJlQXQ6IDEgfSwgb3B0aW9uczogeyB1bmlxdWU6IHRydWUsIHNwYXJzZTogdHJ1ZSB9IH0sXG4gICAge1xuICAgICAga2V5czogeyBvcGVyYXRvcklkOiAxLCBzZXJ2aWNlSWQ6IDEsIGpvdXJuZXlEYXRlOiAxIH0sXG4gICAgICBvcHRpb25zOiB7XG4gICAgICAgIHVuaXF1ZTogdHJ1ZSxcbiAgICAgICAgcGFydGlhbEZpbHRlckV4cHJlc3Npb246IHsgc2VydmljZUlkOiB7ICR0eXBlOiBcIm9iamVjdElkXCIgfSB9LFxuICAgICAgfSxcbiAgICB9LFxuICAgIHsga2V5czogeyByb3V0ZUlkOiAxLCBqb3VybmV5RGF0ZTogMSwgc3RhdHVzOiAxIH0gfSxcbiAgXSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3RyaXAubW9kZWwudHMifQ==

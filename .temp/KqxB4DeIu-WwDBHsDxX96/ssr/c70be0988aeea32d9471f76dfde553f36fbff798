@@ -1,0 +1,5 @@
+Object.defineProperty(__vite_ssr_exports__, "ok", { enumerable: true, configurable: true, get(){ try { return ok } catch {} }});
+const ok = (res, data, meta, status = 200) => res.status(status).json({ data, ...meta ? { meta } : {} });
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUVPLE1BQU0sS0FBSyxDQUNoQixLQUNBLE1BQ0EsTUFDQSxTQUFTLFFBQ04sSUFBSSxPQUFPLE1BQU0sRUFBRSxLQUFLLEVBQUUsTUFBTSxHQUFJLE9BQU8sRUFBRSxLQUFLLElBQUksQ0FBQyxFQUFHLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInJlc3BvbnNlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB0eXBlIHsgUmVzcG9uc2UgfSBmcm9tIFwiZXhwcmVzc1wiO1xuXG5leHBvcnQgY29uc3Qgb2sgPSAoXG4gIHJlczogUmVzcG9uc2UsXG4gIGRhdGE6IHVua25vd24sXG4gIG1ldGE/OiB1bmtub3duLFxuICBzdGF0dXMgPSAyMDAsXG4pID0+IHJlcy5zdGF0dXMoc3RhdHVzKS5qc29uKHsgZGF0YSwgLi4uKG1ldGEgPyB7IG1ldGEgfSA6IHt9KSB9KTtcbiJdLCJmaWxlIjoiL3NyYy91dGlscy9yZXNwb25zZS50cyJ9

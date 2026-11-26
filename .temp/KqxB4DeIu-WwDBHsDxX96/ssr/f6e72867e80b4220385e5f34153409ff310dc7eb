@@ -1,0 +1,77 @@
+Object.defineProperty(__vite_ssr_exports__, "RAZORPAY_PROVIDER", { enumerable: true, configurable: true, get(){ try { return RAZORPAY_PROVIDER } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "razorpayEnabled", { enumerable: true, configurable: true, get(){ try { return razorpayEnabled } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "requireRazorpay", { enumerable: true, configurable: true, get(){ try { return requireRazorpay } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "validSignature", { enumerable: true, configurable: true, get(){ try { return validSignature } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "razorpayRequest", { enumerable: true, configurable: true, get(){ try { return razorpayRequest } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("node:crypto", {"importedNames":["createHmac","timingSafeEqual"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/utils/errors.ts", {"importedNames":["AppError","fail"]});
+const RAZORPAY_PROVIDER = "razorpay_test";
+function razorpayEnabled(config) {
+  return !!(config.RAZORPAY_KEY_ID?.startsWith("rzp_test_") && config.RAZORPAY_KEY_SECRET);
+};
+function requireRazorpay(config) {
+  if (!razorpayEnabled(config))
+    (0,__vite_ssr_import_1__.fail)(
+      503,
+      "PAYMENT_UNAVAILABLE",
+      "Configure Razorpay Test Mode credentials on the backend. Live keys are not enabled by this integration."
+    );
+};
+function validSignature(message, signature, secret) {
+  if (!/^[a-f\d]{64}$/i.test(signature)) return false;
+  const expected = (0,__vite_ssr_import_0__.createHmac)("sha256", secret).update(message).digest();
+  return (0,__vite_ssr_import_0__.timingSafeEqual)(expected, Buffer.from(signature, "hex"));
+};
+async function razorpayRequest(config, endpoint, body, extraHeaders = {}) {
+  requireRazorpay(config);
+  let response;
+  try {
+    response = await fetch(`https://api.razorpay.com/v1${endpoint}`, {
+      method: body === void 0 ? "GET" : "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${config.RAZORPAY_KEY_ID}:${config.RAZORPAY_KEY_SECRET}`).toString("base64")}`,
+        "Content-Type": "application/json",
+        ...extraHeaders
+      },
+      ...body === void 0 ? {} : { body: JSON.stringify(body) },
+      signal: AbortSignal.timeout(12e3)
+    });
+  } catch {
+    throw new __vite_ssr_import_1__.AppError(
+      503,
+      "RAZORPAY_UNREACHABLE",
+      "Razorpay could not be reached. Check payment status before retrying."
+    );
+  };
+  if (!response.ok) {
+    if ([401, 403].includes(response.status))
+      throw new __vite_ssr_import_1__.AppError(
+        502,
+        "RAZORPAY_AUTH_FAILED",
+        "Razorpay rejected the backend credentials. Check the Test Mode key pair."
+      );
+    if (response.status >= 400 && response.status < 500 && response.status !== 429)
+      throw new __vite_ssr_import_1__.AppError(
+        502,
+        "RAZORPAY_REQUEST_REJECTED",
+        "Razorpay rejected the payment request. Check payment status or contact your administrator."
+      );
+    throw new __vite_ssr_import_1__.AppError(
+      503,
+      "RAZORPAY_UNAVAILABLE",
+      "Razorpay is temporarily unavailable. Check payment status before retrying."
+    );
+  };
+  try {
+    return await response.json();
+  } catch {
+    throw new __vite_ssr_import_1__.AppError(
+      503,
+      "RAZORPAY_INVALID_RESPONSE",
+      "Razorpay returned an unreadable response. Check payment status before retrying."
+    );
+  }
+}
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7Ozs7QUFBQTtBQUVBO0FBRU8sTUFBTSxvQkFBb0I7QUFDMUIsU0FBUyxnQkFBZ0IsUUFBZ0I7QUFDOUMsU0FBTyxDQUFDLEVBQ04sT0FBTyxpQkFBaUIsV0FBVyxXQUFXLEtBQzlDLE9BQU87QUFFWDtBQUNPLFNBQVMsZ0JBQWdCLFFBQWdCO0FBQzlDLE1BQUksQ0FBQyxnQkFBZ0IsTUFBTTtBQUN6QjtBQUFBLE1BQ0U7QUFBQSxNQUNBO0FBQUEsTUFDQTtBQUFBLElBQ0Y7QUFDSjtBQUNPLFNBQVMsZUFDZCxTQUNBLFdBQ0EsUUFDQTtBQUNBLE1BQUksQ0FBQyxpQkFBaUIsS0FBSyxTQUFTLEVBQUcsUUFBTztBQUM5QyxRQUFNLGNBQVcsa0NBQVcsVUFBVSxNQUFNLEVBQUUsT0FBTyxPQUFPLEVBQUUsT0FBTztBQUNyRSxZQUFPLHVDQUFnQixVQUFVLE9BQU8sS0FBSyxXQUFXLEtBQUssQ0FBQztBQUNoRTtBQUNBLGVBQXNCLGdCQUNwQixRQUNBLFVBQ0EsTUFDQSxlQUFvRCxDQUFDLEdBQ3ZDO0FBQ2Qsa0JBQWdCLE1BQU07QUFDdEIsTUFBSTtBQUNKLE1BQUk7QUFDRixlQUFXLE1BQU0sTUFBTSw4QkFBOEIsUUFBUSxJQUFJO0FBQUEsTUFDL0QsUUFBUSxTQUFTLFNBQVksUUFBUTtBQUFBLE1BQ3JDLFNBQVM7QUFBQSxRQUNQLGVBQWUsU0FBUyxPQUFPLEtBQUssR0FBRyxPQUFPLGVBQWUsSUFBSSxPQUFPLG1CQUFtQixFQUFFLEVBQUUsU0FBUyxRQUFRLENBQUM7QUFBQSxRQUNqSCxnQkFBZ0I7QUFBQSxRQUNoQixHQUFHO0FBQUEsTUFDTDtBQUFBLE1BQ0EsR0FBSSxTQUFTLFNBQVksQ0FBQyxJQUFJLEVBQUUsTUFBTSxLQUFLLFVBQVUsSUFBSSxFQUFFO0FBQUEsTUFDM0QsUUFBUSxZQUFZLFFBQVEsSUFBSztBQUFBLElBQ25DLENBQUM7QUFBQSxFQUNILFFBQVE7QUFDTixVQUFNLElBQUk7QUFBQSxNQUNSO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxJQUNGO0FBQUEsRUFDRjtBQUNBLE1BQUksQ0FBQyxTQUFTLElBQUk7QUFDaEIsUUFBSSxDQUFDLEtBQUssR0FBRyxFQUFFLFNBQVMsU0FBUyxNQUFNO0FBQ3JDLFlBQU0sSUFBSTtBQUFBLFFBQ1I7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLE1BQ0Y7QUFDRixRQUNFLFNBQVMsVUFBVSxPQUNuQixTQUFTLFNBQVMsT0FDbEIsU0FBUyxXQUFXO0FBRXBCLFlBQU0sSUFBSTtBQUFBLFFBQ1I7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLE1BQ0Y7QUFDRixVQUFNLElBQUk7QUFBQSxNQUNSO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxJQUNGO0FBQUEsRUFDRjtBQUNBLE1BQUk7QUFDRixXQUFPLE1BQU0sU0FBUyxLQUFLO0FBQUEsRUFDN0IsUUFBUTtBQUNOLFVBQU0sSUFBSTtBQUFBLE1BQ1I7QUFBQSxNQUNBO0FBQUEsTUFDQTtBQUFBLElBQ0Y7QUFBQSxFQUNGO0FBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInJhem9ycGF5LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGNyZWF0ZUhtYWMsIHRpbWluZ1NhZmVFcXVhbCB9IGZyb20gXCJub2RlOmNyeXB0b1wiO1xuaW1wb3J0IHR5cGUgeyBDb25maWcgfSBmcm9tIFwiLi4vY29uZmlnL2Vudi5qc1wiO1xuaW1wb3J0IHsgQXBwRXJyb3IsIGZhaWwgfSBmcm9tIFwiLi4vdXRpbHMvZXJyb3JzLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBSQVpPUlBBWV9QUk9WSURFUiA9IFwicmF6b3JwYXlfdGVzdFwiO1xuZXhwb3J0IGZ1bmN0aW9uIHJhem9ycGF5RW5hYmxlZChjb25maWc6IENvbmZpZykge1xuICByZXR1cm4gISEoXG4gICAgY29uZmlnLlJBWk9SUEFZX0tFWV9JRD8uc3RhcnRzV2l0aChcInJ6cF90ZXN0X1wiKSAmJlxuICAgIGNvbmZpZy5SQVpPUlBBWV9LRVlfU0VDUkVUXG4gICk7XG59XG5leHBvcnQgZnVuY3Rpb24gcmVxdWlyZVJhem9ycGF5KGNvbmZpZzogQ29uZmlnKSB7XG4gIGlmICghcmF6b3JwYXlFbmFibGVkKGNvbmZpZykpXG4gICAgZmFpbChcbiAgICAgIDUwMyxcbiAgICAgIFwiUEFZTUVOVF9VTkFWQUlMQUJMRVwiLFxuICAgICAgXCJDb25maWd1cmUgUmF6b3JwYXkgVGVzdCBNb2RlIGNyZWRlbnRpYWxzIG9uIHRoZSBiYWNrZW5kLiBMaXZlIGtleXMgYXJlIG5vdCBlbmFibGVkIGJ5IHRoaXMgaW50ZWdyYXRpb24uXCIsXG4gICAgKTtcbn1cbmV4cG9ydCBmdW5jdGlvbiB2YWxpZFNpZ25hdHVyZShcbiAgbWVzc2FnZTogc3RyaW5nIHwgQnVmZmVyLFxuICBzaWduYXR1cmU6IHN0cmluZyxcbiAgc2VjcmV0OiBzdHJpbmcsXG4pIHtcbiAgaWYgKCEvXlthLWZcXGRdezY0fSQvaS50ZXN0KHNpZ25hdHVyZSkpIHJldHVybiBmYWxzZTtcbiAgY29uc3QgZXhwZWN0ZWQgPSBjcmVhdGVIbWFjKFwic2hhMjU2XCIsIHNlY3JldCkudXBkYXRlKG1lc3NhZ2UpLmRpZ2VzdCgpO1xuICByZXR1cm4gdGltaW5nU2FmZUVxdWFsKGV4cGVjdGVkLCBCdWZmZXIuZnJvbShzaWduYXR1cmUsIFwiaGV4XCIpKTtcbn1cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiByYXpvcnBheVJlcXVlc3QoXG4gIGNvbmZpZzogQ29uZmlnLFxuICBlbmRwb2ludDogc3RyaW5nLFxuICBib2R5PzogdW5rbm93bixcbiAgZXh0cmFIZWFkZXJzOiB7IFwiWC1SZWZ1bmQtSWRlbXBvdGVuY3lcIj86IHN0cmluZyB9ID0ge30sXG4pOiBQcm9taXNlPGFueT4ge1xuICByZXF1aXJlUmF6b3JwYXkoY29uZmlnKTtcbiAgbGV0IHJlc3BvbnNlOiBSZXNwb25zZTtcbiAgdHJ5IHtcbiAgICByZXNwb25zZSA9IGF3YWl0IGZldGNoKGBodHRwczovL2FwaS5yYXpvcnBheS5jb20vdjEke2VuZHBvaW50fWAsIHtcbiAgICAgIG1ldGhvZDogYm9keSA9PT0gdW5kZWZpbmVkID8gXCJHRVRcIiA6IFwiUE9TVFwiLFxuICAgICAgaGVhZGVyczoge1xuICAgICAgICBBdXRob3JpemF0aW9uOiBgQmFzaWMgJHtCdWZmZXIuZnJvbShgJHtjb25maWcuUkFaT1JQQVlfS0VZX0lEfToke2NvbmZpZy5SQVpPUlBBWV9LRVlfU0VDUkVUfWApLnRvU3RyaW5nKFwiYmFzZTY0XCIpfWAsXG4gICAgICAgIFwiQ29udGVudC1UeXBlXCI6IFwiYXBwbGljYXRpb24vanNvblwiLFxuICAgICAgICAuLi5leHRyYUhlYWRlcnMsXG4gICAgICB9LFxuICAgICAgLi4uKGJvZHkgPT09IHVuZGVmaW5lZCA/IHt9IDogeyBib2R5OiBKU09OLnN0cmluZ2lmeShib2R5KSB9KSxcbiAgICAgIHNpZ25hbDogQWJvcnRTaWduYWwudGltZW91dCgxMjAwMCksXG4gICAgfSk7XG4gIH0gY2F0Y2gge1xuICAgIHRocm93IG5ldyBBcHBFcnJvcihcbiAgICAgIDUwMyxcbiAgICAgIFwiUkFaT1JQQVlfVU5SRUFDSEFCTEVcIixcbiAgICAgIFwiUmF6b3JwYXkgY291bGQgbm90IGJlIHJlYWNoZWQuIENoZWNrIHBheW1lbnQgc3RhdHVzIGJlZm9yZSByZXRyeWluZy5cIixcbiAgICApO1xuICB9XG4gIGlmICghcmVzcG9uc2Uub2spIHtcbiAgICBpZiAoWzQwMSwgNDAzXS5pbmNsdWRlcyhyZXNwb25zZS5zdGF0dXMpKVxuICAgICAgdGhyb3cgbmV3IEFwcEVycm9yKFxuICAgICAgICA1MDIsXG4gICAgICAgIFwiUkFaT1JQQVlfQVVUSF9GQUlMRURcIixcbiAgICAgICAgXCJSYXpvcnBheSByZWplY3RlZCB0aGUgYmFja2VuZCBjcmVkZW50aWFscy4gQ2hlY2sgdGhlIFRlc3QgTW9kZSBrZXkgcGFpci5cIixcbiAgICAgICk7XG4gICAgaWYgKFxuICAgICAgcmVzcG9uc2Uuc3RhdHVzID49IDQwMCAmJlxuICAgICAgcmVzcG9uc2Uuc3RhdHVzIDwgNTAwICYmXG4gICAgICByZXNwb25zZS5zdGF0dXMgIT09IDQyOVxuICAgIClcbiAgICAgIHRocm93IG5ldyBBcHBFcnJvcihcbiAgICAgICAgNTAyLFxuICAgICAgICBcIlJBWk9SUEFZX1JFUVVFU1RfUkVKRUNURURcIixcbiAgICAgICAgXCJSYXpvcnBheSByZWplY3RlZCB0aGUgcGF5bWVudCByZXF1ZXN0LiBDaGVjayBwYXltZW50IHN0YXR1cyBvciBjb250YWN0IHlvdXIgYWRtaW5pc3RyYXRvci5cIixcbiAgICAgICk7XG4gICAgdGhyb3cgbmV3IEFwcEVycm9yKFxuICAgICAgNTAzLFxuICAgICAgXCJSQVpPUlBBWV9VTkFWQUlMQUJMRVwiLFxuICAgICAgXCJSYXpvcnBheSBpcyB0ZW1wb3JhcmlseSB1bmF2YWlsYWJsZS4gQ2hlY2sgcGF5bWVudCBzdGF0dXMgYmVmb3JlIHJldHJ5aW5nLlwiLFxuICAgICk7XG4gIH1cbiAgdHJ5IHtcbiAgICByZXR1cm4gYXdhaXQgcmVzcG9uc2UuanNvbigpO1xuICB9IGNhdGNoIHtcbiAgICB0aHJvdyBuZXcgQXBwRXJyb3IoXG4gICAgICA1MDMsXG4gICAgICBcIlJBWk9SUEFZX0lOVkFMSURfUkVTUE9OU0VcIixcbiAgICAgIFwiUmF6b3JwYXkgcmV0dXJuZWQgYW4gdW5yZWFkYWJsZSByZXNwb25zZS4gQ2hlY2sgcGF5bWVudCBzdGF0dXMgYmVmb3JlIHJldHJ5aW5nLlwiLFxuICAgICk7XG4gIH1cbn1cbiJdLCJmaWxlIjoiL3NyYy9pbnRlZ3JhdGlvbnMvcmF6b3JwYXkudHMifQ==

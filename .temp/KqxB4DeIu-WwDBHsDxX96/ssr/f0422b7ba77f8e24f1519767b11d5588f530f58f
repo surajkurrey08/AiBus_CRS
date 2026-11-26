@@ -1,0 +1,24 @@
+Object.defineProperty(__vite_ssr_exports__, "TripFuel", { enumerable: true, configurable: true, get(){ try { return TripFuel } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const TripFuel = (0,__vite_ssr_import_0__.model)(
+  "TripFuel",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    tripId: { type: __vite_ssr_import_0__.objectId, required: true },
+    busId: { type: __vite_ssr_import_0__.objectId, required: true },
+    litresMillilitres: { type: Number, required: true },
+    amountPaise: { type: Number, required: true },
+    at: Date,
+    odometerKm: Number,
+    pump: String,
+    receipt: String,
+    requestKey: { type: String, required: true },
+    requestHash: String,
+    status: { type: String, default: "Recorded" },
+    voidReason: String
+  },
+  [{ keys: { operatorId: 1, requestKey: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxjQUFXO0FBQUEsRUFDdEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxRQUFRLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN6QyxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN4QyxtQkFBbUIsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDbEQsYUFBYSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUM1QyxJQUFJO0FBQUEsSUFDSixZQUFZO0FBQUEsSUFDWixNQUFNO0FBQUEsSUFDTixTQUFTO0FBQUEsSUFDVCxZQUFZLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzNDLGFBQWE7QUFBQSxJQUNiLFFBQVEsRUFBRSxNQUFNLFFBQVEsU0FBUyxXQUFXO0FBQUEsSUFDNUMsWUFBWTtBQUFBLEVBQ2Q7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLFlBQVksRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRSxDQUFDO0FBQ3hFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ0cmlwLWZ1ZWwubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIHRlbmFudEZpZWxkcywgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5leHBvcnQgY29uc3QgVHJpcEZ1ZWwgPSBtb2RlbChcbiAgXCJUcmlwRnVlbFwiLFxuICB7XG4gICAgLi4udGVuYW50RmllbGRzLFxuICAgIHRyaXBJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBidXNJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBsaXRyZXNNaWxsaWxpdHJlczogeyB0eXBlOiBOdW1iZXIsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgYW1vdW50UGFpc2U6IHsgdHlwZTogTnVtYmVyLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGF0OiBEYXRlLFxuICAgIG9kb21ldGVyS206IE51bWJlcixcbiAgICBwdW1wOiBTdHJpbmcsXG4gICAgcmVjZWlwdDogU3RyaW5nLFxuICAgIHJlcXVlc3RLZXk6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHJlcXVlc3RIYXNoOiBTdHJpbmcsXG4gICAgc3RhdHVzOiB7IHR5cGU6IFN0cmluZywgZGVmYXVsdDogXCJSZWNvcmRlZFwiIH0sXG4gICAgdm9pZFJlYXNvbjogU3RyaW5nLFxuICB9LFxuICBbeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIHJlcXVlc3RLZXk6IDEgfSwgb3B0aW9uczogeyB1bmlxdWU6IHRydWUgfSB9XSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3RyaXAtZnVlbC5tb2RlbC50cyJ9

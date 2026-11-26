@@ -1,0 +1,22 @@
+Object.defineProperty(__vite_ssr_exports__, "logger", { enumerable: true, configurable: true, get(){ try { return logger } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("pino", {"importedNames":["default"]});
+const logger = (0,__vite_ssr_import_0__.default)({
+  level: process.env.NODE_ENV === "test" ? "silent" : "info",
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "password",
+      "refreshToken",
+      "token",
+      "phone",
+      "email",
+      "passengers",
+      "providerSecret"
+    ],
+    censor: "[REDACTED]"
+  }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTLCtCQUFLO0FBQUEsRUFDekIsT0FBTyx5QkFBeUIsU0FBUyxXQUFXO0FBQUEsRUFDcEQsUUFBUTtBQUFBLElBQ04sT0FBTztBQUFBLE1BQ0w7QUFBQSxNQUNBO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxNQUNBO0FBQUEsTUFDQTtBQUFBLE1BQ0E7QUFBQSxNQUNBO0FBQUEsTUFDQTtBQUFBLElBQ0Y7QUFBQSxJQUNBLFFBQVE7QUFBQSxFQUNWO0FBQ0YsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsibG9nZ2VyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBwaW5vIGZyb20gXCJwaW5vXCI7XG5cbmV4cG9ydCBjb25zdCBsb2dnZXIgPSBwaW5vKHtcbiAgbGV2ZWw6IHByb2Nlc3MuZW52Lk5PREVfRU5WID09PSBcInRlc3RcIiA/IFwic2lsZW50XCIgOiBcImluZm9cIixcbiAgcmVkYWN0OiB7XG4gICAgcGF0aHM6IFtcbiAgICAgIFwicmVxLmhlYWRlcnMuYXV0aG9yaXphdGlvblwiLFxuICAgICAgXCJyZXEuaGVhZGVycy5jb29raWVcIixcbiAgICAgIFwicGFzc3dvcmRcIixcbiAgICAgIFwicmVmcmVzaFRva2VuXCIsXG4gICAgICBcInRva2VuXCIsXG4gICAgICBcInBob25lXCIsXG4gICAgICBcImVtYWlsXCIsXG4gICAgICBcInBhc3NlbmdlcnNcIixcbiAgICAgIFwicHJvdmlkZXJTZWNyZXRcIixcbiAgICBdLFxuICAgIGNlbnNvcjogXCJbUkVEQUNURURdXCIsXG4gIH0sXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9jb25maWcvbG9nZ2VyLnRzIn0=

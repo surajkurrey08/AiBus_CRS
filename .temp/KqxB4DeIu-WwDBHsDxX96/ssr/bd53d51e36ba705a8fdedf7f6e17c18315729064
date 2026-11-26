@@ -1,0 +1,25 @@
+Object.defineProperty(__vite_ssr_exports__, "Cancellation", { enumerable: true, configurable: true, get(){ try { return Cancellation } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("mongoose", {"importedNames":["Schema"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const Cancellation = (0,__vite_ssr_import_1__.model)("Cancellation", {
+  ...__vite_ssr_import_1__.tenantFields,
+  bookingId: { type: __vite_ssr_import_1__.objectId, required: true, unique: true },
+  requestedBy: __vite_ssr_import_1__.objectId,
+  reason: String,
+  status: {
+    type: String,
+    enum: ["Requested", "Provider pending", "Approved", "Rejected"],
+    default: "Requested"
+  },
+  policySnapshot: __vite_ssr_import_0__.Schema.Types.Mixed,
+  refundPaise: Number,
+  idempotencyKey: String,
+  acceptedQuoteId: __vite_ssr_import_1__.objectId,
+  accountingJournalId: __vite_ssr_import_1__.objectId,
+  reviewedBy: __vite_ssr_import_1__.objectId,
+  reviewedAt: Date,
+  reviewReason: String
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ0E7QUFFTyxNQUFNLGtCQUFlLDZCQUFNLGdCQUFnQjtBQUFBLEVBQ2hELEdBQUc7QUFBQSxFQUNILFdBQVcsRUFBRSxNQUFNLGdDQUFVLFVBQVUsTUFBTSxRQUFRLEtBQUs7QUFBQSxFQUMxRCxhQUFhO0FBQUEsRUFDYixRQUFRO0FBQUEsRUFDUixRQUFRO0FBQUEsSUFDTixNQUFNO0FBQUEsSUFDTixNQUFNLENBQUMsYUFBYSxvQkFBb0IsWUFBWSxVQUFVO0FBQUEsSUFDOUQsU0FBUztBQUFBLEVBQ1g7QUFBQSxFQUNBLGdCQUFnQiw2QkFBTyxNQUFNO0FBQUEsRUFDN0IsYUFBYTtBQUFBLEVBQ2IsZ0JBQWdCO0FBQUEsRUFDaEIsaUJBQWlCO0FBQUEsRUFDakIscUJBQXFCO0FBQUEsRUFDckIsWUFBWTtBQUFBLEVBQ1osWUFBWTtBQUFBLEVBQ1osY0FBYztBQUNoQixDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJjYW5jZWxsYXRpb24ubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgU2NoZW1hIH0gZnJvbSBcIm1vbmdvb3NlXCI7XG5pbXBvcnQgeyBtb2RlbCwgb2JqZWN0SWQsIHRlbmFudEZpZWxkcyB9IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcblxuZXhwb3J0IGNvbnN0IENhbmNlbGxhdGlvbiA9IG1vZGVsKFwiQ2FuY2VsbGF0aW9uXCIsIHtcbiAgLi4udGVuYW50RmllbGRzLFxuICBib29raW5nSWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiB0cnVlLCB1bmlxdWU6IHRydWUgfSxcbiAgcmVxdWVzdGVkQnk6IG9iamVjdElkLFxuICByZWFzb246IFN0cmluZyxcbiAgc3RhdHVzOiB7XG4gICAgdHlwZTogU3RyaW5nLFxuICAgIGVudW06IFtcIlJlcXVlc3RlZFwiLCBcIlByb3ZpZGVyIHBlbmRpbmdcIiwgXCJBcHByb3ZlZFwiLCBcIlJlamVjdGVkXCJdLFxuICAgIGRlZmF1bHQ6IFwiUmVxdWVzdGVkXCIsXG4gIH0sXG4gIHBvbGljeVNuYXBzaG90OiBTY2hlbWEuVHlwZXMuTWl4ZWQsXG4gIHJlZnVuZFBhaXNlOiBOdW1iZXIsXG4gIGlkZW1wb3RlbmN5S2V5OiBTdHJpbmcsXG4gIGFjY2VwdGVkUXVvdGVJZDogb2JqZWN0SWQsXG4gIGFjY291bnRpbmdKb3VybmFsSWQ6IG9iamVjdElkLFxuICByZXZpZXdlZEJ5OiBvYmplY3RJZCxcbiAgcmV2aWV3ZWRBdDogRGF0ZSxcbiAgcmV2aWV3UmVhc29uOiBTdHJpbmcsXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvY2FuY2VsbGF0aW9uLm1vZGVsLnRzIn0=

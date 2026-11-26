@@ -1,0 +1,14 @@
+Object.defineProperty(__vite_ssr_exports__, "CoachType", { enumerable: true, configurable: true, get(){ try { return CoachType } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields"]});
+const CoachType = (0,__vite_ssr_import_0__.model)("CoachType", {
+  ...__vite_ssr_import_0__.tenantFields,
+  name: { type: String, required: true },
+  type: { type: String, required: true },
+  arrangement: { type: String, enum: ["2+1", "2+2"], required: true },
+  decks: { type: Number, enum: [1, 2], required: true },
+  amenities: [String],
+  status: { type: String, default: "Active" }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxlQUFZLDZCQUFNLGFBQWE7QUFBQSxFQUMxQyxHQUFHO0FBQUEsRUFDSCxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLEVBQ3JDLE1BQU0sRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsRUFDckMsYUFBYSxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsT0FBTyxLQUFLLEdBQUcsVUFBVSxLQUFLO0FBQUEsRUFDbEUsT0FBTyxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsR0FBRyxDQUFDLEdBQUcsVUFBVSxLQUFLO0FBQUEsRUFDcEQsV0FBVyxDQUFDLE1BQU07QUFBQSxFQUNsQixRQUFRLEVBQUUsTUFBTSxRQUFRLFNBQVMsU0FBUztBQUM1QyxDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJjb2FjaC10eXBlLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5leHBvcnQgY29uc3QgQ29hY2hUeXBlID0gbW9kZWwoXCJDb2FjaFR5cGVcIiwge1xuICAuLi50ZW5hbnRGaWVsZHMsXG4gIG5hbWU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICB0eXBlOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgYXJyYW5nZW1lbnQ6IHsgdHlwZTogU3RyaW5nLCBlbnVtOiBbXCIyKzFcIiwgXCIyKzJcIl0sIHJlcXVpcmVkOiB0cnVlIH0sXG4gIGRlY2tzOiB7IHR5cGU6IE51bWJlciwgZW51bTogWzEsIDJdLCByZXF1aXJlZDogdHJ1ZSB9LFxuICBhbWVuaXRpZXM6IFtTdHJpbmddLFxuICBzdGF0dXM6IHsgdHlwZTogU3RyaW5nLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvY29hY2gtdHlwZS5tb2RlbC50cyJ9

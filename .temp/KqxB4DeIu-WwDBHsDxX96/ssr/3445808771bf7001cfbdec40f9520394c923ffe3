@@ -1,0 +1,31 @@
+Object.defineProperty(__vite_ssr_exports__, "LedgerAccount", { enumerable: true, configurable: true, get(){ try { return LedgerAccount } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("mongoose", {"importedNames":["Schema"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["objectId"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/models/shared/financial-schema.ts", {"importedNames":["financialModel"]});
+const schema = new __vite_ssr_import_0__.Schema(
+  {
+    operatorId: { type: __vite_ssr_import_1__.objectId, required: true },
+    ownerType: {
+      type: String,
+      enum: ["Platform", "Operator", "Agent", "ApiPartner"],
+      required: true
+    },
+    ownerId: { type: String, required: true },
+    code: { type: String, required: true },
+    accountType: {
+      type: String,
+      enum: ["Asset", "Liability", "Revenue", "Expense", "Equity"],
+      required: true
+    },
+    currency: { type: String, enum: ["INR"], required: true }
+  },
+  { strict: "throw", timestamps: { createdAt: true, updatedAt: false } }
+);
+schema.index(
+  { operatorId: 1, ownerType: 1, ownerId: 1, code: 1, currency: 1 },
+  { unique: true }
+);
+const LedgerAccount = (0,__vite_ssr_import_2__.financialModel)("LedgerAccount", schema);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ0E7QUFDQTtBQUNBLE1BQU0sU0FBUyxJQUFJO0FBQUEsRUFDakI7QUFBQSxJQUNFLFlBQVksRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQzdDLFdBQVc7QUFBQSxNQUNULE1BQU07QUFBQSxNQUNOLE1BQU0sQ0FBQyxZQUFZLFlBQVksU0FBUyxZQUFZO0FBQUEsTUFDcEQsVUFBVTtBQUFBLElBQ1o7QUFBQSxJQUNBLFNBQVMsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDeEMsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUNyQyxhQUFhO0FBQUEsTUFDWCxNQUFNO0FBQUEsTUFDTixNQUFNLENBQUMsU0FBUyxhQUFhLFdBQVcsV0FBVyxRQUFRO0FBQUEsTUFDM0QsVUFBVTtBQUFBLElBQ1o7QUFBQSxJQUNBLFVBQVUsRUFBRSxNQUFNLFFBQVEsTUFBTSxDQUFDLEtBQUssR0FBRyxVQUFVLEtBQUs7QUFBQSxFQUMxRDtBQUFBLEVBQ0EsRUFBRSxRQUFRLFNBQVMsWUFBWSxFQUFFLFdBQVcsTUFBTSxXQUFXLE1BQU0sRUFBRTtBQUN2RTtBQUNBLE9BQU87QUFBQSxFQUNMLEVBQUUsWUFBWSxHQUFHLFdBQVcsR0FBRyxTQUFTLEdBQUcsTUFBTSxHQUFHLFVBQVUsRUFBRTtBQUFBLEVBQ2hFLEVBQUUsUUFBUSxLQUFLO0FBQ2pCO0FBQ08sTUFBTSxtQkFBZ0Isc0NBQWUsaUJBQWlCLE1BQU0iLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImxlZGdlci1hY2NvdW50Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFNjaGVtYSB9IGZyb20gXCJtb25nb29zZVwiO1xuaW1wb3J0IHsgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5pbXBvcnQgeyBmaW5hbmNpYWxNb2RlbCB9IGZyb20gXCIuL3NoYXJlZC9maW5hbmNpYWwtc2NoZW1hLmpzXCI7XG5jb25zdCBzY2hlbWEgPSBuZXcgU2NoZW1hKFxuICB7XG4gICAgb3BlcmF0b3JJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBvd25lclR5cGU6IHtcbiAgICAgIHR5cGU6IFN0cmluZyxcbiAgICAgIGVudW06IFtcIlBsYXRmb3JtXCIsIFwiT3BlcmF0b3JcIiwgXCJBZ2VudFwiLCBcIkFwaVBhcnRuZXJcIl0sXG4gICAgICByZXF1aXJlZDogdHJ1ZSxcbiAgICB9LFxuICAgIG93bmVySWQ6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGNvZGU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGFjY291bnRUeXBlOiB7XG4gICAgICB0eXBlOiBTdHJpbmcsXG4gICAgICBlbnVtOiBbXCJBc3NldFwiLCBcIkxpYWJpbGl0eVwiLCBcIlJldmVudWVcIiwgXCJFeHBlbnNlXCIsIFwiRXF1aXR5XCJdLFxuICAgICAgcmVxdWlyZWQ6IHRydWUsXG4gICAgfSxcbiAgICBjdXJyZW5jeTogeyB0eXBlOiBTdHJpbmcsIGVudW06IFtcIklOUlwiXSwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgfSxcbiAgeyBzdHJpY3Q6IFwidGhyb3dcIiwgdGltZXN0YW1wczogeyBjcmVhdGVkQXQ6IHRydWUsIHVwZGF0ZWRBdDogZmFsc2UgfSB9LFxuKTtcbnNjaGVtYS5pbmRleChcbiAgeyBvcGVyYXRvcklkOiAxLCBvd25lclR5cGU6IDEsIG93bmVySWQ6IDEsIGNvZGU6IDEsIGN1cnJlbmN5OiAxIH0sXG4gIHsgdW5pcXVlOiB0cnVlIH0sXG4pO1xuZXhwb3J0IGNvbnN0IExlZGdlckFjY291bnQgPSBmaW5hbmNpYWxNb2RlbChcIkxlZGdlckFjY291bnRcIiwgc2NoZW1hKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvbGVkZ2VyLWFjY291bnQubW9kZWwudHMifQ==

@@ -1,0 +1,10 @@
+Object.defineProperty(__vite_ssr_exports__, "Policy", { enumerable: true, configurable: true, get(){ try { return Policy } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId"]});
+const Policy = (0,__vite_ssr_import_0__.model)("CancellationPolicy", {
+  operatorId: { type: __vite_ssr_import_0__.objectId, required: true, immutable: true, unique: true },
+  rules: [{ hoursBefore: Number, refundPercent: Number }],
+  version: { type: Number, default: 1 }
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTLDZCQUFNLHNCQUFzQjtBQUFBLEVBQ2hELFlBQVksRUFBRSxNQUFNLGdDQUFVLFVBQVUsTUFBTSxXQUFXLE1BQU0sUUFBUSxLQUFLO0FBQUEsRUFDNUUsT0FBTyxDQUFDLEVBQUUsYUFBYSxRQUFRLGVBQWUsT0FBTyxDQUFDO0FBQUEsRUFDdEQsU0FBUyxFQUFFLE1BQU0sUUFBUSxTQUFTLEVBQUU7QUFDdEMsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsicG9saWN5Lm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCBvYmplY3RJZCB9IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcblxuZXhwb3J0IGNvbnN0IFBvbGljeSA9IG1vZGVsKFwiQ2FuY2VsbGF0aW9uUG9saWN5XCIsIHtcbiAgb3BlcmF0b3JJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUsIGltbXV0YWJsZTogdHJ1ZSwgdW5pcXVlOiB0cnVlIH0sXG4gIHJ1bGVzOiBbeyBob3Vyc0JlZm9yZTogTnVtYmVyLCByZWZ1bmRQZXJjZW50OiBOdW1iZXIgfV0sXG4gIHZlcnNpb246IHsgdHlwZTogTnVtYmVyLCBkZWZhdWx0OiAxIH0sXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvcG9saWN5Lm1vZGVsLnRzIn0=

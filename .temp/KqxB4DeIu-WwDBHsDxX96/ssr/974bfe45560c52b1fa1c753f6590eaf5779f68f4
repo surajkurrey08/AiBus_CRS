@@ -1,0 +1,15 @@
+Object.defineProperty(__vite_ssr_exports__, "Layout", { enumerable: true, configurable: true, get(){ try { return Layout } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["berth","model","objectId","tenantFields"]});
+const Layout = (0,__vite_ssr_import_0__.model)(
+  "BusLayout",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    busId: { type: __vite_ssr_import_0__.objectId, required: true },
+    name: { type: String, required: true },
+    seats: { type: [__vite_ssr_import_0__.berth], required: true }
+  },
+  [{ keys: { operatorId: 1, busId: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTO0FBQUEsRUFDcEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxPQUFPLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN4QyxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3JDLE9BQU8sRUFBRSxNQUFNLENBQUMsMkJBQUssR0FBRyxVQUFVLEtBQUs7QUFBQSxFQUN6QztBQUFBLEVBQ0EsQ0FBQyxFQUFFLE1BQU0sRUFBRSxZQUFZLEdBQUcsT0FBTyxFQUFFLEdBQUcsU0FBUyxFQUFFLFFBQVEsS0FBSyxFQUFFLENBQUM7QUFDbkUiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImxheW91dC5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBiZXJ0aCwgbW9kZWwsIG9iamVjdElkLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBMYXlvdXQgPSBtb2RlbChcbiAgXCJCdXNMYXlvdXRcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICBidXNJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBuYW1lOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBzZWF0czogeyB0eXBlOiBbYmVydGhdLCByZXF1aXJlZDogdHJ1ZSB9LFxuICB9LFxuICBbeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIGJ1c0lkOiAxIH0sIG9wdGlvbnM6IHsgdW5pcXVlOiB0cnVlIH0gfV0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9sYXlvdXQubW9kZWwudHMifQ==

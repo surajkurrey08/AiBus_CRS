@@ -1,0 +1,48 @@
+Object.defineProperty(__vite_ssr_exports__, "cityInput", { enumerable: true, configurable: true, get(){ try { return cityInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "locationInput", { enumerable: true, configurable: true, get(){ try { return locationInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "poiInput", { enumerable: true, configurable: true, get(){ try { return poiInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "routeStopInput", { enumerable: true, configurable: true, get(){ try { return routeStopInput } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("zod", {"importedNames":["z"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/utils/core.ts", {"importedNames":["id","text"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/validators/operator.schemas.ts", {"importedNames":["status","time"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/src/services/pricing.service.ts", {"importedNames":["contactInput"]});
+const coordinates = {
+  latitude: __vite_ssr_import_0__.z.coerce.number().min(-90).max(90).optional(),
+  longitude: __vite_ssr_import_0__.z.coerce.number().min(-180).max(180).optional()
+};
+const coordinatePair = (value) => value.latitude === void 0 === (value.longitude === void 0);
+const cityInput = __vite_ssr_import_0__.z.object({ name: __vite_ssr_import_1__.text, state: __vite_ssr_import_1__.text, country: __vite_ssr_import_1__.text.default("India"), status: __vite_ssr_import_2__.status, catalogId: __vite_ssr_import_1__.id.optional() }).strict();
+const locationInput = __vite_ssr_import_0__.z.object({
+  cityId: __vite_ssr_import_1__.id,
+  name: __vite_ssr_import_1__.text,
+  usage: __vite_ssr_import_0__.z.enum(["Pickup", "Drop", "Both"]),
+  address: __vite_ssr_import_1__.text.optional(),
+  landmarkId: __vite_ssr_import_1__.id.optional(),
+  phone: __vite_ssr_import_3__.contactInput.shape.phone.optional(),
+  ...coordinates,
+  status: __vite_ssr_import_2__.status
+}).strict().refine(coordinatePair, "Enter both latitude and longitude");
+const poiInput = __vite_ssr_import_0__.z.object({
+  cityId: __vite_ssr_import_1__.id,
+  name: __vite_ssr_import_1__.text,
+  category: __vite_ssr_import_0__.z.enum(["Bus stand", "Railway station", "Landmark", "Other"]),
+  address: __vite_ssr_import_1__.text.optional(),
+  ...coordinates,
+  status: __vite_ssr_import_2__.status
+}).strict().refine(coordinatePair, "Enter both latitude and longitude");
+const mappedStop = __vite_ssr_import_0__.z.object({ locationId: __vite_ssr_import_1__.id, time: __vite_ssr_import_2__.time.optional() }).strict();
+const routeStopInput = __vite_ssr_import_0__.z.object({
+  sourceCityId: __vite_ssr_import_1__.id,
+  destinationCityId: __vite_ssr_import_1__.id,
+  boarding: __vite_ssr_import_0__.z.array(mappedStop).min(1).max(40),
+  dropping: __vite_ssr_import_0__.z.array(mappedStop).min(1).max(40),
+  expectedVersion: __vite_ssr_import_0__.z.number().int().min(0)
+}).strict().refine(
+  (v) => [v.boarding, v.dropping].every(
+    (stops) => new Set(stops.map((stop) => stop.locationId)).size === stops.length
+  ),
+  "Each stop can appear only once in a list"
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7OztBQUFDO0FBQ0Q7QUFDQTtBQUNBO0FBQ0EsTUFBTSxjQUFjO0FBQUEsRUFDbEIsVUFBVSx3QkFBRSxPQUFPLE9BQU8sRUFBRSxJQUFJLEdBQUcsRUFBRSxJQUFJLEVBQUUsRUFBRSxTQUFTO0FBQUEsRUFDdEQsV0FBVyx3QkFBRSxPQUFPLE9BQU8sRUFBRSxJQUFJLElBQUksRUFBRSxJQUFJLEdBQUcsRUFBRSxTQUFTO0FBQzNEO0FBQ0EsTUFBTSxpQkFBaUIsQ0FBQyxVQUNyQixNQUFNLGFBQWEsWUFBZ0IsTUFBTSxjQUFjO0FBQ25ELE1BQU0sWUFBWSx3QkFDdEIsT0FBTyxFQUFFLE1BQU0sNEJBQU0sT0FBTyw0QkFBTSxTQUFTLDJCQUFLLFFBQVEsT0FBTyxHQUFHLHNDQUFRLFdBQVcseUJBQUcsU0FBUyxFQUFFLENBQUMsRUFDcEcsT0FBTztBQUNILE1BQU0sZ0JBQWdCLHdCQUMxQixPQUFPO0FBQUEsRUFDTixRQUFRO0FBQUEsRUFDUixNQUFNO0FBQUEsRUFDTixPQUFPLHdCQUFFLEtBQUssQ0FBQyxVQUFVLFFBQVEsTUFBTSxDQUFDO0FBQUEsRUFDeEMsU0FBUywyQkFBSyxTQUFTO0FBQUEsRUFDdkIsWUFBWSx5QkFBRyxTQUFTO0FBQUEsRUFDeEIsT0FBTyxtQ0FBYSxNQUFNLE1BQU0sU0FBUztBQUFBLEVBQ3pDLEdBQUc7QUFBQSxFQUNIO0FBQ0YsQ0FBQyxFQUNBLE9BQU8sRUFDUCxPQUFPLGdCQUFnQixtQ0FBbUM7QUFDdEQsTUFBTSxXQUFXLHdCQUNyQixPQUFPO0FBQUEsRUFDTixRQUFRO0FBQUEsRUFDUixNQUFNO0FBQUEsRUFDTixVQUFVLHdCQUFFLEtBQUssQ0FBQyxhQUFhLG1CQUFtQixZQUFZLE9BQU8sQ0FBQztBQUFBLEVBQ3RFLFNBQVMsMkJBQUssU0FBUztBQUFBLEVBQ3ZCLEdBQUc7QUFBQSxFQUNIO0FBQ0YsQ0FBQyxFQUNBLE9BQU8sRUFDUCxPQUFPLGdCQUFnQixtQ0FBbUM7QUFDN0QsTUFBTSxhQUFhLHdCQUFFLE9BQU8sRUFBRSxZQUFZLDBCQUFJLE1BQU0sMkJBQUssU0FBUyxFQUFFLENBQUMsRUFBRSxPQUFPO0FBQ3ZFLE1BQU0saUJBQWlCLHdCQUMzQixPQUFPO0FBQUEsRUFDTixjQUFjO0FBQUEsRUFDZCxtQkFBbUI7QUFBQSxFQUNuQixVQUFVLHdCQUFFLE1BQU0sVUFBVSxFQUFFLElBQUksQ0FBQyxFQUFFLElBQUksRUFBRTtBQUFBLEVBQzNDLFVBQVUsd0JBQUUsTUFBTSxVQUFVLEVBQUUsSUFBSSxDQUFDLEVBQUUsSUFBSSxFQUFFO0FBQUEsRUFDM0MsaUJBQWlCLHdCQUFFLE9BQU8sRUFBRSxJQUFJLEVBQUUsSUFBSSxDQUFDO0FBQ3pDLENBQUMsRUFDQSxPQUFPLEVBQ1A7QUFBQSxFQUNDLENBQUMsTUFDQyxDQUFDLEVBQUUsVUFBVSxFQUFFLFFBQVEsRUFBRTtBQUFBLElBQ3ZCLENBQUMsVUFDQyxJQUFJLElBQUksTUFBTSxJQUFJLENBQUMsU0FBUyxLQUFLLFVBQVUsQ0FBQyxFQUFFLFNBQVMsTUFBTTtBQUFBLEVBQ2pFO0FBQUEsRUFDRjtBQUNGIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJhcmVhLW1hc3Rlci5zY2hlbWFzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIu+7v2ltcG9ydCB7IHogfSBmcm9tIFwiem9kXCI7XG5pbXBvcnQgeyBpZCwgdGV4dCB9IGZyb20gXCIuLi91dGlscy9jb3JlLmpzXCI7XG5pbXBvcnQgeyBzdGF0dXMsIHRpbWUgfSBmcm9tIFwiLi9vcGVyYXRvci5zY2hlbWFzLmpzXCI7XG5pbXBvcnQgeyBjb250YWN0SW5wdXQgfSBmcm9tIFwiLi4vc2VydmljZXMvcHJpY2luZy5zZXJ2aWNlLmpzXCI7XG5jb25zdCBjb29yZGluYXRlcyA9IHtcbiAgbGF0aXR1ZGU6IHouY29lcmNlLm51bWJlcigpLm1pbigtOTApLm1heCg5MCkub3B0aW9uYWwoKSxcbiAgbG9uZ2l0dWRlOiB6LmNvZXJjZS5udW1iZXIoKS5taW4oLTE4MCkubWF4KDE4MCkub3B0aW9uYWwoKSxcbn07XG5jb25zdCBjb29yZGluYXRlUGFpciA9ICh2YWx1ZTogeyBsYXRpdHVkZT86IG51bWJlcjsgbG9uZ2l0dWRlPzogbnVtYmVyIH0pID0+XG4gICh2YWx1ZS5sYXRpdHVkZSA9PT0gdW5kZWZpbmVkKSA9PT0gKHZhbHVlLmxvbmdpdHVkZSA9PT0gdW5kZWZpbmVkKTtcbmV4cG9ydCBjb25zdCBjaXR5SW5wdXQgPSB6XG4gIC5vYmplY3QoeyBuYW1lOiB0ZXh0LCBzdGF0ZTogdGV4dCwgY291bnRyeTogdGV4dC5kZWZhdWx0KFwiSW5kaWFcIiksIHN0YXR1cywgY2F0YWxvZ0lkOiBpZC5vcHRpb25hbCgpIH0pXG4gIC5zdHJpY3QoKTtcbmV4cG9ydCBjb25zdCBsb2NhdGlvbklucHV0ID0gelxuICAub2JqZWN0KHtcbiAgICBjaXR5SWQ6IGlkLFxuICAgIG5hbWU6IHRleHQsXG4gICAgdXNhZ2U6IHouZW51bShbXCJQaWNrdXBcIiwgXCJEcm9wXCIsIFwiQm90aFwiXSksXG4gICAgYWRkcmVzczogdGV4dC5vcHRpb25hbCgpLFxuICAgIGxhbmRtYXJrSWQ6IGlkLm9wdGlvbmFsKCksXG4gICAgcGhvbmU6IGNvbnRhY3RJbnB1dC5zaGFwZS5waG9uZS5vcHRpb25hbCgpLFxuICAgIC4uLmNvb3JkaW5hdGVzLFxuICAgIHN0YXR1cyxcbiAgfSlcbiAgLnN0cmljdCgpXG4gIC5yZWZpbmUoY29vcmRpbmF0ZVBhaXIsIFwiRW50ZXIgYm90aCBsYXRpdHVkZSBhbmQgbG9uZ2l0dWRlXCIpO1xuZXhwb3J0IGNvbnN0IHBvaUlucHV0ID0gelxuICAub2JqZWN0KHtcbiAgICBjaXR5SWQ6IGlkLFxuICAgIG5hbWU6IHRleHQsXG4gICAgY2F0ZWdvcnk6IHouZW51bShbXCJCdXMgc3RhbmRcIiwgXCJSYWlsd2F5IHN0YXRpb25cIiwgXCJMYW5kbWFya1wiLCBcIk90aGVyXCJdKSxcbiAgICBhZGRyZXNzOiB0ZXh0Lm9wdGlvbmFsKCksXG4gICAgLi4uY29vcmRpbmF0ZXMsXG4gICAgc3RhdHVzLFxuICB9KVxuICAuc3RyaWN0KClcbiAgLnJlZmluZShjb29yZGluYXRlUGFpciwgXCJFbnRlciBib3RoIGxhdGl0dWRlIGFuZCBsb25naXR1ZGVcIik7XG5jb25zdCBtYXBwZWRTdG9wID0gei5vYmplY3QoeyBsb2NhdGlvbklkOiBpZCwgdGltZTogdGltZS5vcHRpb25hbCgpIH0pLnN0cmljdCgpO1xuZXhwb3J0IGNvbnN0IHJvdXRlU3RvcElucHV0ID0gelxuICAub2JqZWN0KHtcbiAgICBzb3VyY2VDaXR5SWQ6IGlkLFxuICAgIGRlc3RpbmF0aW9uQ2l0eUlkOiBpZCxcbiAgICBib2FyZGluZzogei5hcnJheShtYXBwZWRTdG9wKS5taW4oMSkubWF4KDQwKSxcbiAgICBkcm9wcGluZzogei5hcnJheShtYXBwZWRTdG9wKS5taW4oMSkubWF4KDQwKSxcbiAgICBleHBlY3RlZFZlcnNpb246IHoubnVtYmVyKCkuaW50KCkubWluKDApLFxuICB9KVxuICAuc3RyaWN0KClcbiAgLnJlZmluZShcbiAgICAodikgPT5cbiAgICAgIFt2LmJvYXJkaW5nLCB2LmRyb3BwaW5nXS5ldmVyeShcbiAgICAgICAgKHN0b3BzKSA9PlxuICAgICAgICAgIG5ldyBTZXQoc3RvcHMubWFwKChzdG9wKSA9PiBzdG9wLmxvY2F0aW9uSWQpKS5zaXplID09PSBzdG9wcy5sZW5ndGgsXG4gICAgICApLFxuICAgIFwiRWFjaCBzdG9wIGNhbiBhcHBlYXIgb25seSBvbmNlIGluIGEgbGlzdFwiLFxuICApO1xuIl0sImZpbGUiOiIvc3JjL3ZhbGlkYXRvcnMvYXJlYS1tYXN0ZXIuc2NoZW1hcy50cyJ9

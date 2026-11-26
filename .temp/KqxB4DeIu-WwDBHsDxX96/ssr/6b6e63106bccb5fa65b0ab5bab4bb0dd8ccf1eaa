@@ -1,0 +1,7 @@
+Object.defineProperty(__vite_ssr_exports__, "asyncRoute", { enumerable: true, configurable: true, get(){ try { return asyncRoute } catch {} }});
+const asyncRoute = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUVPLE1BQU0sYUFDWCxDQUNFLE9BRUYsQ0FBQyxLQUFLLEtBQUssU0FBUztBQUNsQixVQUFRLFFBQVEsR0FBRyxLQUFLLEtBQUssSUFBSSxDQUFDLEVBQUUsTUFBTSxJQUFJO0FBQ2hEIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJhc3luYy1oYW5kbGVyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB0eXBlIHsgTmV4dEZ1bmN0aW9uLCBSZXF1ZXN0LCBSZXF1ZXN0SGFuZGxlciwgUmVzcG9uc2UgfSBmcm9tIFwiZXhwcmVzc1wiO1xuXG5leHBvcnQgY29uc3QgYXN5bmNSb3V0ZSA9XG4gIChcbiAgICBmbjogKHJlcTogUmVxdWVzdCwgcmVzOiBSZXNwb25zZSwgbmV4dDogTmV4dEZ1bmN0aW9uKSA9PiBQcm9taXNlPHVua25vd24+LFxuICApOiBSZXF1ZXN0SGFuZGxlciA9PlxuICAocmVxLCByZXMsIG5leHQpID0+IHtcbiAgICBQcm9taXNlLnJlc29sdmUoZm4ocmVxLCByZXMsIG5leHQpKS5jYXRjaChuZXh0KTtcbiAgfTtcbiJdLCJmaWxlIjoiL3NyYy9taWRkbGV3YXJlL2FzeW5jLWhhbmRsZXIudHMifQ==

@@ -1,0 +1,26 @@
+Object.defineProperty(__vite_ssr_exports__, "AccountBalanceProjection", { enumerable: true, configurable: true, get(){ try { return AccountBalanceProjection } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/models/shared/financial-schema.ts", {"importedNames":["safePaise"]});
+const AccountBalanceProjection = (0,__vite_ssr_import_0__.model)(
+  "AccountBalanceProjection",
+  {
+    operatorId: { type: __vite_ssr_import_0__.objectId, required: true },
+    accountId: { type: __vite_ssr_import_0__.objectId, required: true },
+    currency: { type: String, enum: ["INR"], required: true },
+    debitPaise: __vite_ssr_import_1__.safePaise,
+    creditPaise: __vite_ssr_import_1__.safePaise,
+    version: {
+      type: Number,
+      required: true,
+      min: 1,
+      validate: Number.isSafeInteger
+    }
+  },
+  [
+    { keys: { accountId: 1 }, options: { unique: true } },
+    { keys: { operatorId: 1 } }
+  ]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ0E7QUFDTyxNQUFNLDhCQUEyQjtBQUFBLEVBQ3RDO0FBQUEsRUFDQTtBQUFBLElBQ0UsWUFBWSxFQUFFLE1BQU0sZ0NBQVUsVUFBVSxLQUFLO0FBQUEsSUFDN0MsV0FBVyxFQUFFLE1BQU0sZ0NBQVUsVUFBVSxLQUFLO0FBQUEsSUFDNUMsVUFBVSxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsS0FBSyxHQUFHLFVBQVUsS0FBSztBQUFBLElBQ3hELFlBQVk7QUFBQSxJQUNaLGFBQWE7QUFBQSxJQUNiLFNBQVM7QUFBQSxNQUNQLE1BQU07QUFBQSxNQUNOLFVBQVU7QUFBQSxNQUNWLEtBQUs7QUFBQSxNQUNMLFVBQVUsT0FBTztBQUFBLElBQ25CO0FBQUEsRUFDRjtBQUFBLEVBQ0E7QUFBQSxJQUNFLEVBQUUsTUFBTSxFQUFFLFdBQVcsRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRTtBQUFBLElBQ3BELEVBQUUsTUFBTSxFQUFFLFlBQVksRUFBRSxFQUFFO0FBQUEsRUFDNUI7QUFDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYWNjb3VudC1iYWxhbmNlLXByb2plY3Rpb24ubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuaW1wb3J0IHsgc2FmZVBhaXNlIH0gZnJvbSBcIi4vc2hhcmVkL2ZpbmFuY2lhbC1zY2hlbWEuanNcIjtcbmV4cG9ydCBjb25zdCBBY2NvdW50QmFsYW5jZVByb2plY3Rpb24gPSBtb2RlbChcbiAgXCJBY2NvdW50QmFsYW5jZVByb2plY3Rpb25cIixcbiAge1xuICAgIG9wZXJhdG9ySWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgYWNjb3VudElkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGN1cnJlbmN5OiB7IHR5cGU6IFN0cmluZywgZW51bTogW1wiSU5SXCJdLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGRlYml0UGFpc2U6IHNhZmVQYWlzZSxcbiAgICBjcmVkaXRQYWlzZTogc2FmZVBhaXNlLFxuICAgIHZlcnNpb246IHtcbiAgICAgIHR5cGU6IE51bWJlcixcbiAgICAgIHJlcXVpcmVkOiB0cnVlLFxuICAgICAgbWluOiAxLFxuICAgICAgdmFsaWRhdGU6IE51bWJlci5pc1NhZmVJbnRlZ2VyLFxuICAgIH0sXG4gIH0sXG4gIFtcbiAgICB7IGtleXM6IHsgYWNjb3VudElkOiAxIH0sIG9wdGlvbnM6IHsgdW5pcXVlOiB0cnVlIH0gfSxcbiAgICB7IGtleXM6IHsgb3BlcmF0b3JJZDogMSB9IH0sXG4gIF0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9hY2NvdW50LWJhbGFuY2UtcHJvamVjdGlvbi5tb2RlbC50cyJ9

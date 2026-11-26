@@ -1,0 +1,10 @@
+Object.defineProperty(__vite_ssr_exports__, "requestContext", { enumerable: true, configurable: true, get(){ try { return requestContext } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("node:crypto", {"importedNames":["randomUUID"]});
+const requestContext = (req, res, next) => {
+  req.requestId = (0,__vite_ssr_import_0__.randomUUID)();
+  res.setHeader("X-Request-ID", req.requestId);
+  next();
+};
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUNBO0FBRU8sTUFBTSxpQkFBaUMsQ0FBQyxLQUFLLEtBQUssU0FBUztBQUNoRSxNQUFJLGVBQVksa0NBQVc7QUFDM0IsTUFBSSxVQUFVLGdCQUFnQixJQUFJLFNBQVM7QUFDM0MsT0FBSztBQUNQIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJyZXF1ZXN0LWNvbnRleHQudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHR5cGUgeyBSZXF1ZXN0SGFuZGxlciB9IGZyb20gXCJleHByZXNzXCI7XG5pbXBvcnQgeyByYW5kb21VVUlEIH0gZnJvbSBcIm5vZGU6Y3J5cHRvXCI7XG5cbmV4cG9ydCBjb25zdCByZXF1ZXN0Q29udGV4dDogUmVxdWVzdEhhbmRsZXIgPSAocmVxLCByZXMsIG5leHQpID0+IHtcbiAgcmVxLnJlcXVlc3RJZCA9IHJhbmRvbVVVSUQoKTtcbiAgcmVzLnNldEhlYWRlcihcIlgtUmVxdWVzdC1JRFwiLCByZXEucmVxdWVzdElkKTtcbiAgbmV4dCgpO1xufTtcbiJdLCJmaWxlIjoiL3NyYy9taWRkbGV3YXJlL3JlcXVlc3QtY29udGV4dC50cyJ9

@@ -1,0 +1,30 @@
+Object.defineProperty(__vite_ssr_exports__, "Route", { enumerable: true, configurable: true, get(){ try { return Route } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["mapping","model","objectId","stop","tenantFields"]});
+
+
+
+
+
+
+const Route = (0,__vite_ssr_import_0__.model)(
+  "Route",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    source: { type: String, required: true },
+    destination: { type: String, required: true },
+    sourceCityId: __vite_ssr_import_0__.objectId,
+    destinationCityId: __vite_ssr_import_0__.objectId,
+    boarding: { type: [__vite_ssr_import_0__.stop], required: true },
+    dropping: { type: [__vite_ssr_import_0__.stop], required: true },
+    departure: { type: String, required: true },
+    arrival: { type: String, required: true },
+    durationMinutes: { type: Number, required: true },
+    distanceKm: Number,
+    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+    ...__vite_ssr_import_0__.mapping
+  },
+  [{ keys: { operatorId: 1, status: 1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBOzs7Ozs7O0FBUU8sTUFBTSxXQUFRO0FBQUEsRUFDbkI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxRQUFRLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3ZDLGFBQWEsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDNUMsY0FBYztBQUFBLElBQ2QsbUJBQW1CO0FBQUEsSUFDbkIsVUFBVSxFQUFFLE1BQU0sQ0FBQywwQkFBSSxHQUFHLFVBQVUsS0FBSztBQUFBLElBQ3pDLFVBQVUsRUFBRSxNQUFNLENBQUMsMEJBQUksR0FBRyxVQUFVLEtBQUs7QUFBQSxJQUN6QyxXQUFXLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzFDLFNBQVMsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDeEMsaUJBQWlCLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ2hELFlBQVk7QUFBQSxJQUNaLFFBQVEsRUFBRSxNQUFNLFFBQVEsTUFBTSxDQUFDLFVBQVUsVUFBVSxHQUFHLFNBQVMsU0FBUztBQUFBLElBQ3hFLEdBQUc7QUFBQSxFQUNMO0FBQUEsRUFDQSxDQUFDLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxRQUFRLEVBQUUsRUFBRSxDQUFDO0FBQ3pDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJyb3V0ZS5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xuICBtYXBwaW5nLFxuICBtb2RlbCxcbiAgb2JqZWN0SWQsXG4gIHN0b3AsXG4gIHRlbmFudEZpZWxkcyxcbn0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuXG5leHBvcnQgY29uc3QgUm91dGUgPSBtb2RlbChcbiAgXCJSb3V0ZVwiLFxuICB7XG4gICAgLi4udGVuYW50RmllbGRzLFxuICAgIHNvdXJjZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgZGVzdGluYXRpb246IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHNvdXJjZUNpdHlJZDogb2JqZWN0SWQsXG4gICAgZGVzdGluYXRpb25DaXR5SWQ6IG9iamVjdElkLFxuICAgIGJvYXJkaW5nOiB7IHR5cGU6IFtzdG9wXSwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBkcm9wcGluZzogeyB0eXBlOiBbc3RvcF0sIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgZGVwYXJ0dXJlOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBhcnJpdmFsOiB7IHR5cGU6IFN0cmluZywgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBkdXJhdGlvbk1pbnV0ZXM6IHsgdHlwZTogTnVtYmVyLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGRpc3RhbmNlS206IE51bWJlcixcbiAgICBzdGF0dXM6IHsgdHlwZTogU3RyaW5nLCBlbnVtOiBbXCJBY3RpdmVcIiwgXCJJbmFjdGl2ZVwiXSwgZGVmYXVsdDogXCJBY3RpdmVcIiB9LFxuICAgIC4uLm1hcHBpbmcsXG4gIH0sXG4gIFt7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgc3RhdHVzOiAxIH0gfV0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9yb3V0ZS5tb2RlbC50cyJ9

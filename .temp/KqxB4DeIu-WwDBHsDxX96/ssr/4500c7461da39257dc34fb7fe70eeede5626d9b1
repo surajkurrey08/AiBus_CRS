@@ -1,0 +1,15 @@
+Object.defineProperty(__vite_ssr_exports__, "TripTablet", { enumerable: true, configurable: true, get(){ try { return TripTablet } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields"]});
+const TripTablet = (0,__vite_ssr_import_0__.model)(
+  "TripTablet",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    name: { type: String, required: true },
+    serialNumber: { type: String, required: true },
+    status: { type: String, default: "Active" }
+  },
+  [{ keys: { operatorId: 1, serialNumber: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxnQkFBYTtBQUFBLEVBQ3hCO0FBQUEsRUFDQTtBQUFBLElBQ0UsR0FBRztBQUFBLElBQ0gsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUNyQyxjQUFjLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzdDLFFBQVEsRUFBRSxNQUFNLFFBQVEsU0FBUyxTQUFTO0FBQUEsRUFDNUM7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLGNBQWMsRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRSxDQUFDO0FBQzFFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ0cmlwLXRhYmxldC5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgdGVuYW50RmllbGRzLCBvYmplY3RJZCB9IGZyb20gXCIuL3NoYXJlZC9zY2hlbWEuanNcIjtcbmV4cG9ydCBjb25zdCBUcmlwVGFibGV0ID0gbW9kZWwoXG4gIFwiVHJpcFRhYmxldFwiLFxuICB7XG4gICAgLi4udGVuYW50RmllbGRzLFxuICAgIG5hbWU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHNlcmlhbE51bWJlcjogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgc3RhdHVzOiB7IHR5cGU6IFN0cmluZywgZGVmYXVsdDogXCJBY3RpdmVcIiB9LFxuICB9LFxuICBbeyBrZXlzOiB7IG9wZXJhdG9ySWQ6IDEsIHNlcmlhbE51bWJlcjogMSB9LCBvcHRpb25zOiB7IHVuaXF1ZTogdHJ1ZSB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvdHJpcC10YWJsZXQubW9kZWwudHMifQ==

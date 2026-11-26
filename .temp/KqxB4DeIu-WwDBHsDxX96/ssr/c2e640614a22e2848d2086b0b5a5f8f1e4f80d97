@@ -1,0 +1,19 @@
+Object.defineProperty(__vite_ssr_exports__, "AreaPoi", { enumerable: true, configurable: true, get(){ try { return AreaPoi } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const AreaPoi = (0,__vite_ssr_import_0__.model)(
+  "AreaPoi",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    cityId: { type: __vite_ssr_import_0__.objectId, required: true },
+    name: { type: String, required: true },
+    category: { type: String, required: true },
+    address: String,
+    latitude: Number,
+    longitude: Number,
+    status: { type: String, default: "Active" }
+  },
+  [{ keys: { operatorId: 1, cityId: 1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxhQUFVO0FBQUEsRUFDckI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxRQUFRLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN6QyxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3JDLFVBQVUsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDekMsU0FBUztBQUFBLElBQ1QsVUFBVTtBQUFBLElBQ1YsV0FBVztBQUFBLElBQ1gsUUFBUSxFQUFFLE1BQU0sUUFBUSxTQUFTLFNBQVM7QUFBQSxFQUM1QztBQUFBLEVBQ0EsQ0FBQyxFQUFFLE1BQU0sRUFBRSxZQUFZLEdBQUcsUUFBUSxFQUFFLEVBQUUsQ0FBQztBQUN6QyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYXJlYS1wb2kubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIHRlbmFudEZpZWxkcywgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5leHBvcnQgY29uc3QgQXJlYVBvaSA9IG1vZGVsKFxuICBcIkFyZWFQb2lcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICBjaXR5SWQ6IHsgdHlwZTogb2JqZWN0SWQsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgbmFtZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgY2F0ZWdvcnk6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGFkZHJlc3M6IFN0cmluZyxcbiAgICBsYXRpdHVkZTogTnVtYmVyLFxuICAgIGxvbmdpdHVkZTogTnVtYmVyLFxuICAgIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGRlZmF1bHQ6IFwiQWN0aXZlXCIgfSxcbiAgfSxcbiAgW3sga2V5czogeyBvcGVyYXRvcklkOiAxLCBjaXR5SWQ6IDEgfSB9XSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL2FyZWEtcG9pLm1vZGVsLnRzIn0=

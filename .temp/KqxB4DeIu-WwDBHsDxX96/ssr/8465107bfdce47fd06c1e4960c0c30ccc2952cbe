@@ -1,0 +1,22 @@
+Object.defineProperty(__vite_ssr_exports__, "BusService", { enumerable: true, configurable: true, get(){ try { return BusService } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const BusService = (0,__vite_ssr_import_0__.model)(
+  "BusService",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    name: { type: String, required: true },
+    code: { type: String, required: true },
+    routeId: { type: __vite_ssr_import_0__.objectId, required: true },
+    busId: { type: __vite_ssr_import_0__.objectId, required: true },
+    departure: { type: String, required: true },
+    daysOfWeek: [Number],
+    crewIds: [__vite_ssr_import_0__.objectId],
+    doublePaise: { type: Number, required: true },
+    singlePaise: { type: Number, required: true },
+    status: { type: String, default: "Active" }
+  },
+  [{ keys: { operatorId: 1, code: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxnQkFBYTtBQUFBLEVBQ3hCO0FBQUEsRUFDQTtBQUFBLElBQ0UsR0FBRztBQUFBLElBQ0gsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUNyQyxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3JDLFNBQVMsRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQzFDLE9BQU8sRUFBRSxNQUFNLGdDQUFVLFVBQVUsS0FBSztBQUFBLElBQ3hDLFdBQVcsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDMUMsWUFBWSxDQUFDLE1BQU07QUFBQSxJQUNuQixTQUFTLENBQUMsOEJBQVE7QUFBQSxJQUNsQixhQUFhLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzVDLGFBQWEsRUFBRSxNQUFNLFFBQVEsVUFBVSxLQUFLO0FBQUEsSUFDNUMsUUFBUSxFQUFFLE1BQU0sUUFBUSxTQUFTLFNBQVM7QUFBQSxFQUM1QztBQUFBLEVBQ0EsQ0FBQyxFQUFFLE1BQU0sRUFBRSxZQUFZLEdBQUcsTUFBTSxFQUFFLEdBQUcsU0FBUyxFQUFFLFFBQVEsS0FBSyxFQUFFLENBQUM7QUFDbEUiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImJ1cy1zZXJ2aWNlLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCB0ZW5hbnRGaWVsZHMsIG9iamVjdElkIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuZXhwb3J0IGNvbnN0IEJ1c1NlcnZpY2UgPSBtb2RlbChcbiAgXCJCdXNTZXJ2aWNlXCIsXG4gIHtcbiAgICAuLi50ZW5hbnRGaWVsZHMsXG4gICAgbmFtZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgY29kZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgcm91dGVJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBidXNJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBkZXBhcnR1cmU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGRheXNPZldlZWs6IFtOdW1iZXJdLFxuICAgIGNyZXdJZHM6IFtvYmplY3RJZF0sXG4gICAgZG91YmxlUGFpc2U6IHsgdHlwZTogTnVtYmVyLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHNpbmdsZVBhaXNlOiB7IHR5cGU6IE51bWJlciwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICBzdGF0dXM6IHsgdHlwZTogU3RyaW5nLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG4gIH0sXG4gIFt7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgY29kZTogMSB9LCBvcHRpb25zOiB7IHVuaXF1ZTogdHJ1ZSB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvYnVzLXNlcnZpY2UubW9kZWwudHMifQ==

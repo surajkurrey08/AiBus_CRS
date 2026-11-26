@@ -1,0 +1,36 @@
+Object.defineProperty(__vite_ssr_exports__, "operatorStaffOnly", { enumerable: true, configurable: true, get(){ try { return operatorStaffOnly } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "permit", { enumerable: true, configurable: true, get(){ try { return permit } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "tenant", { enumerable: true, configurable: true, get(){ try { return tenant } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/utils/errors.ts", {"importedNames":["AppError","fail"]});
+const operatorStaffOnly = (req, _res, next) => {
+  if (req.auth.agentId || req.auth.role === "agent" || req.auth.partnerId || req.auth.role === "partner")
+    return next(
+      new __vite_ssr_import_0__.AppError(
+        403,
+        "OPERATOR_STAFF_REQUIRED",
+        "Use the agency API for agent operations"
+      )
+    );
+  next();
+};
+function permit(permission) {
+  return (req, _res, next) => {
+    if (!req.auth?.permissions.includes(permission))
+      return next(
+        new __vite_ssr_import_0__.AppError(
+          403,
+          "FORBIDDEN",
+          "You do not have permission for this action"
+        )
+      );
+    next();
+  };
+};
+function tenant(req) {
+  if (!req.auth.operatorId)
+    (0,__vite_ssr_import_0__.fail)(403, "OPERATOR_CONTEXT_REQUIRED", "An operator account is required");
+  return { operatorId: req.auth.operatorId };
+}
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7O0FBRUE7QUFDTyxNQUFNLG9CQUFvQyxDQUFDLEtBQUssTUFBTSxTQUFTO0FBQ3BFLE1BQUksSUFBSSxLQUFLLFdBQVcsSUFBSSxLQUFLLFNBQVMsV0FBVyxJQUFJLEtBQUssYUFBYSxJQUFJLEtBQUssU0FBUztBQUMzRixXQUFPO0FBQUEsTUFDTCxJQUFJO0FBQUEsUUFDRjtBQUFBLFFBQ0E7QUFBQSxRQUNBO0FBQUEsTUFDRjtBQUFBLElBQ0Y7QUFDRixPQUFLO0FBQ1A7QUFFTyxTQUFTLE9BQU8sWUFBd0M7QUFDN0QsU0FBTyxDQUFDLEtBQUssTUFBTSxTQUFTO0FBQzFCLFFBQUksQ0FBQyxJQUFJLE1BQU0sWUFBWSxTQUFTLFVBQVU7QUFDNUMsYUFBTztBQUFBLFFBQ0wsSUFBSTtBQUFBLFVBQ0Y7QUFBQSxVQUNBO0FBQUEsVUFDQTtBQUFBLFFBQ0Y7QUFBQSxNQUNGO0FBQ0YsU0FBSztBQUFBLEVBQ1A7QUFDRjtBQUVPLFNBQVMsT0FBTyxLQUFjO0FBQ25DLE1BQUksQ0FBQyxJQUFJLEtBQUs7QUFDWixtQ0FBSyxLQUFLLDZCQUE2QixpQ0FBaUM7QUFDMUUsU0FBTyxFQUFFLFlBQVksSUFBSSxLQUFLLFdBQVk7QUFDNUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImF1dGhvcml6YXRpb24udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHR5cGUgeyBSZXF1ZXN0LCBSZXF1ZXN0SGFuZGxlciB9IGZyb20gXCJleHByZXNzXCI7XG5pbXBvcnQgeyBQZXJtaXNzaW9uIH0gZnJvbSBcIi4uL3R5cGVzL3Blcm1pc3Npb25zLmpzXCI7XG5pbXBvcnQgeyBBcHBFcnJvciwgZmFpbCB9IGZyb20gXCIuLi91dGlscy9lcnJvcnMuanNcIjtcbmV4cG9ydCBjb25zdCBvcGVyYXRvclN0YWZmT25seTogUmVxdWVzdEhhbmRsZXIgPSAocmVxLCBfcmVzLCBuZXh0KSA9PiB7XG4gIGlmIChyZXEuYXV0aC5hZ2VudElkIHx8IHJlcS5hdXRoLnJvbGUgPT09IFwiYWdlbnRcIiB8fCByZXEuYXV0aC5wYXJ0bmVySWQgfHwgcmVxLmF1dGgucm9sZSA9PT0gXCJwYXJ0bmVyXCIpXG4gICAgcmV0dXJuIG5leHQoXG4gICAgICBuZXcgQXBwRXJyb3IoXG4gICAgICAgIDQwMyxcbiAgICAgICAgXCJPUEVSQVRPUl9TVEFGRl9SRVFVSVJFRFwiLFxuICAgICAgICBcIlVzZSB0aGUgYWdlbmN5IEFQSSBmb3IgYWdlbnQgb3BlcmF0aW9uc1wiLFxuICAgICAgKSxcbiAgICApO1xuICBuZXh0KCk7XG59O1xuXG5leHBvcnQgZnVuY3Rpb24gcGVybWl0KHBlcm1pc3Npb246IFBlcm1pc3Npb24pOiBSZXF1ZXN0SGFuZGxlciB7XG4gIHJldHVybiAocmVxLCBfcmVzLCBuZXh0KSA9PiB7XG4gICAgaWYgKCFyZXEuYXV0aD8ucGVybWlzc2lvbnMuaW5jbHVkZXMocGVybWlzc2lvbikpXG4gICAgICByZXR1cm4gbmV4dChcbiAgICAgICAgbmV3IEFwcEVycm9yKFxuICAgICAgICAgIDQwMyxcbiAgICAgICAgICBcIkZPUkJJRERFTlwiLFxuICAgICAgICAgIFwiWW91IGRvIG5vdCBoYXZlIHBlcm1pc3Npb24gZm9yIHRoaXMgYWN0aW9uXCIsXG4gICAgICAgICksXG4gICAgICApO1xuICAgIG5leHQoKTtcbiAgfTtcbn1cblxuZXhwb3J0IGZ1bmN0aW9uIHRlbmFudChyZXE6IFJlcXVlc3QpIHtcbiAgaWYgKCFyZXEuYXV0aC5vcGVyYXRvcklkKVxuICAgIGZhaWwoNDAzLCBcIk9QRVJBVE9SX0NPTlRFWFRfUkVRVUlSRURcIiwgXCJBbiBvcGVyYXRvciBhY2NvdW50IGlzIHJlcXVpcmVkXCIpO1xuICByZXR1cm4geyBvcGVyYXRvcklkOiByZXEuYXV0aC5vcGVyYXRvcklkISB9O1xufVxuIl0sImZpbGUiOiIvc3JjL21pZGRsZXdhcmUvYXV0aG9yaXphdGlvbi50cyJ9

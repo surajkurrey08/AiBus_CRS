@@ -1,0 +1,15 @@
+Object.defineProperty(__vite_ssr_exports__, "Reset", { enumerable: true, configurable: true, get(){ try { return Reset } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId"]});
+const Reset = (0,__vite_ssr_import_0__.model)(
+  "PasswordReset",
+  {
+    userId: { type: __vite_ssr_import_0__.objectId, required: true },
+    tokenHash: { type: String, required: true, unique: true },
+    expiresAt: Date,
+    usedAt: Date
+  },
+  [{ keys: { expiresAt: 1 }, options: { expireAfterSeconds: 0 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxXQUFRO0FBQUEsRUFDbkI7QUFBQSxFQUNBO0FBQUEsSUFDRSxRQUFRLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUN6QyxXQUFXLEVBQUUsTUFBTSxRQUFRLFVBQVUsTUFBTSxRQUFRLEtBQUs7QUFBQSxJQUN4RCxXQUFXO0FBQUEsSUFDWCxRQUFRO0FBQUEsRUFDVjtBQUFBLEVBQ0EsQ0FBQyxFQUFFLE1BQU0sRUFBRSxXQUFXLEVBQUUsR0FBRyxTQUFTLEVBQUUsb0JBQW9CLEVBQUUsRUFBRSxDQUFDO0FBQ2pFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJyZXNldC5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBSZXNldCA9IG1vZGVsKFxuICBcIlBhc3N3b3JkUmVzZXRcIixcbiAge1xuICAgIHVzZXJJZDogeyB0eXBlOiBvYmplY3RJZCwgcmVxdWlyZWQ6IHRydWUgfSxcbiAgICB0b2tlbkhhc2g6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgdW5pcXVlOiB0cnVlIH0sXG4gICAgZXhwaXJlc0F0OiBEYXRlLFxuICAgIHVzZWRBdDogRGF0ZSxcbiAgfSxcbiAgW3sga2V5czogeyBleHBpcmVzQXQ6IDEgfSwgb3B0aW9uczogeyBleHBpcmVBZnRlclNlY29uZHM6IDAgfSB9XSxcbik7XG4iXSwiZmlsZSI6Ii9zcmMvbW9kZWxzL3Jlc2V0Lm1vZGVsLnRzIn0=

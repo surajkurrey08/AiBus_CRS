@@ -1,0 +1,20 @@
+Object.defineProperty(__vite_ssr_exports__, "Fare", { enumerable: true, configurable: true, get(){ try { return Fare } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const Fare = (0,__vite_ssr_import_0__.model)(
+  "Fare",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    routeId: { type: __vite_ssr_import_0__.objectId, required: true },
+    basePaise: { type: Number, required: true },
+    weekendPaise: Number,
+    singlePaise: Number,
+    singleWeekendPaise: Number,
+    specialDates: [{ date: String, amountPaise: Number }],
+    seatFares: [{ number: String, amountPaise: Number }],
+    version: { type: Number, default: 1 }
+  },
+  [{ keys: { operatorId: 1, routeId: 1 }, options: { unique: true } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxVQUFPO0FBQUEsRUFDbEI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxTQUFTLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLEtBQUs7QUFBQSxJQUMxQyxXQUFXLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQzFDLGNBQWM7QUFBQSxJQUNkLGFBQWE7QUFBQSxJQUNiLG9CQUFvQjtBQUFBLElBQ3BCLGNBQWMsQ0FBQyxFQUFFLE1BQU0sUUFBUSxhQUFhLE9BQU8sQ0FBQztBQUFBLElBQ3BELFdBQVcsQ0FBQyxFQUFFLFFBQVEsUUFBUSxhQUFhLE9BQU8sQ0FBQztBQUFBLElBQ25ELFNBQVMsRUFBRSxNQUFNLFFBQVEsU0FBUyxFQUFFO0FBQUEsRUFDdEM7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLFNBQVMsRUFBRSxHQUFHLFNBQVMsRUFBRSxRQUFRLEtBQUssRUFBRSxDQUFDO0FBQ3JFIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJmYXJlLm1vZGVsLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG1vZGVsLCBvYmplY3RJZCwgdGVuYW50RmllbGRzIH0gZnJvbSBcIi4vc2hhcmVkL3NjaGVtYS5qc1wiO1xuXG5leHBvcnQgY29uc3QgRmFyZSA9IG1vZGVsKFxuICBcIkZhcmVcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICByb3V0ZUlkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIGJhc2VQYWlzZTogeyB0eXBlOiBOdW1iZXIsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgd2Vla2VuZFBhaXNlOiBOdW1iZXIsXG4gICAgc2luZ2xlUGFpc2U6IE51bWJlcixcbiAgICBzaW5nbGVXZWVrZW5kUGFpc2U6IE51bWJlcixcbiAgICBzcGVjaWFsRGF0ZXM6IFt7IGRhdGU6IFN0cmluZywgYW1vdW50UGFpc2U6IE51bWJlciB9XSxcbiAgICBzZWF0RmFyZXM6IFt7IG51bWJlcjogU3RyaW5nLCBhbW91bnRQYWlzZTogTnVtYmVyIH1dLFxuICAgIHZlcnNpb246IHsgdHlwZTogTnVtYmVyLCBkZWZhdWx0OiAxIH0sXG4gIH0sXG4gIFt7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgcm91dGVJZDogMSB9LCBvcHRpb25zOiB7IHVuaXF1ZTogdHJ1ZSB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvZmFyZS5tb2RlbC50cyJ9

@@ -1,0 +1,17 @@
+Object.defineProperty(__vite_ssr_exports__, "Session", { enumerable: true, configurable: true, get(){ try { return Session } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId"]});
+const Session = (0,__vite_ssr_import_0__.model)(
+  "Session",
+  {
+    userId: { type: __vite_ssr_import_0__.objectId, required: true, index: true },
+    family: { type: String, required: true, index: true },
+    client: { type: String, enum: ["operator", "admin", "agent", "partner"] },
+    refreshHash: { type: String, required: true, unique: true, select: false },
+    expiresAt: { type: Date, required: true },
+    revokedAt: Date
+  },
+  [{ keys: { expiresAt: 1 }, options: { expireAfterSeconds: 0 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxhQUFVO0FBQUEsRUFDckI7QUFBQSxFQUNBO0FBQUEsSUFDRSxRQUFRLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLE1BQU0sT0FBTyxLQUFLO0FBQUEsSUFDdEQsUUFBUSxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sT0FBTyxLQUFLO0FBQUEsSUFDcEQsUUFBUSxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsWUFBWSxTQUFTLFNBQVMsU0FBUyxFQUFFO0FBQUEsSUFDeEUsYUFBYSxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sUUFBUSxNQUFNLFFBQVEsTUFBTTtBQUFBLElBQ3pFLFdBQVcsRUFBRSxNQUFNLE1BQU0sVUFBVSxLQUFLO0FBQUEsSUFDeEMsV0FBVztBQUFBLEVBQ2I7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsV0FBVyxFQUFFLEdBQUcsU0FBUyxFQUFFLG9CQUFvQixFQUFFLEVBQUUsQ0FBQztBQUNqRSIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsic2Vzc2lvbi5tb2RlbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtb2RlbCwgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBTZXNzaW9uID0gbW9kZWwoXG4gIFwiU2Vzc2lvblwiLFxuICB7XG4gICAgdXNlcklkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSwgaW5kZXg6IHRydWUgfSxcbiAgICBmYW1pbHk6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgaW5kZXg6IHRydWUgfSxcbiAgICBjbGllbnQ6IHsgdHlwZTogU3RyaW5nLCBlbnVtOiBbXCJvcGVyYXRvclwiLCBcImFkbWluXCIsIFwiYWdlbnRcIiwgXCJwYXJ0bmVyXCJdIH0sXG4gICAgcmVmcmVzaEhhc2g6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSwgdW5pcXVlOiB0cnVlLCBzZWxlY3Q6IGZhbHNlIH0sXG4gICAgZXhwaXJlc0F0OiB7IHR5cGU6IERhdGUsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgcmV2b2tlZEF0OiBEYXRlLFxuICB9LFxuICBbeyBrZXlzOiB7IGV4cGlyZXNBdDogMSB9LCBvcHRpb25zOiB7IGV4cGlyZUFmdGVyU2Vjb25kczogMCB9IH1dLFxuKTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvc2Vzc2lvbi5tb2RlbC50cyJ9

@@ -1,0 +1,42 @@
+Object.defineProperty(__vite_ssr_exports__, "Bus", { enumerable: true, configurable: true, get(){ try { return Bus } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["mapping","model","objectId","tenantFields"]});
+const Bus = (0,__vite_ssr_import_0__.model)(
+  "Bus",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    registration: {
+      type: String,
+      required: true,
+      unique: true,
+      set: (v) => v.toUpperCase().replace(/[\s-]/g, "")
+    },
+    name: { type: String, required: true },
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        "AC Sleeper",
+        "Non-AC Sleeper",
+        "AC Seater",
+        "Non-AC Seater",
+        "Semi Sleeper",
+        "Mixed Seater/Sleeper"
+      ]
+    },
+    capacity: { type: Number, required: true, min: 1, max: 100 },
+    amenities: [String],
+    coachTypeId: __vite_ssr_import_0__.objectId,
+    ownerId: __vite_ssr_import_0__.objectId,
+    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+    insuranceExpiry: Date,
+    permitExpiry: Date,
+    insuranceNumber: String,
+    permitNumber: String,
+    images: [String],
+    ...__vite_ssr_import_0__.mapping
+  },
+  [{ keys: { operatorId: 1, status: 1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxTQUFNO0FBQUEsRUFDakI7QUFBQSxFQUNBO0FBQUEsSUFDRSxHQUFHO0FBQUEsSUFDSCxjQUFjO0FBQUEsTUFDWixNQUFNO0FBQUEsTUFDTixVQUFVO0FBQUEsTUFDVixRQUFRO0FBQUEsTUFDUixLQUFLLENBQUMsTUFBYyxFQUFFLFlBQVksRUFBRSxRQUFRLFVBQVUsRUFBRTtBQUFBLElBQzFEO0FBQUEsSUFDQSxNQUFNLEVBQUUsTUFBTSxRQUFRLFVBQVUsS0FBSztBQUFBLElBQ3JDLE1BQU07QUFBQSxNQUNKLE1BQU07QUFBQSxNQUNOLFVBQVU7QUFBQSxNQUNWLE1BQU07QUFBQSxRQUNKO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxNQUNGO0FBQUEsSUFDRjtBQUFBLElBQ0EsVUFBVSxFQUFFLE1BQU0sUUFBUSxVQUFVLE1BQU0sS0FBSyxHQUFHLEtBQUssSUFBSTtBQUFBLElBQzNELFdBQVcsQ0FBQyxNQUFNO0FBQUEsSUFDbEIsYUFBYTtBQUFBLElBQ2IsU0FBUztBQUFBLElBQ1QsUUFBUSxFQUFFLE1BQU0sUUFBUSxNQUFNLENBQUMsVUFBVSxVQUFVLEdBQUcsU0FBUyxTQUFTO0FBQUEsSUFDeEUsaUJBQWlCO0FBQUEsSUFDakIsY0FBYztBQUFBLElBQ2QsaUJBQWlCO0FBQUEsSUFDakIsY0FBYztBQUFBLElBQ2QsUUFBUSxDQUFDLE1BQU07QUFBQSxJQUNmLEdBQUc7QUFBQSxFQUNMO0FBQUEsRUFDQSxDQUFDLEVBQUUsTUFBTSxFQUFFLFlBQVksR0FBRyxRQUFRLEVBQUUsRUFBRSxDQUFDO0FBQ3pDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJidXMubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbWFwcGluZywgbW9kZWwsIG9iamVjdElkLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBCdXMgPSBtb2RlbChcbiAgXCJCdXNcIixcbiAge1xuICAgIC4uLnRlbmFudEZpZWxkcyxcbiAgICByZWdpc3RyYXRpb246IHtcbiAgICAgIHR5cGU6IFN0cmluZyxcbiAgICAgIHJlcXVpcmVkOiB0cnVlLFxuICAgICAgdW5pcXVlOiB0cnVlLFxuICAgICAgc2V0OiAodjogc3RyaW5nKSA9PiB2LnRvVXBwZXJDYXNlKCkucmVwbGFjZSgvW1xccy1dL2csIFwiXCIpLFxuICAgIH0sXG4gICAgbmFtZTogeyB0eXBlOiBTdHJpbmcsIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgdHlwZToge1xuICAgICAgdHlwZTogU3RyaW5nLFxuICAgICAgcmVxdWlyZWQ6IHRydWUsXG4gICAgICBlbnVtOiBbXG4gICAgICAgIFwiQUMgU2xlZXBlclwiLFxuICAgICAgICBcIk5vbi1BQyBTbGVlcGVyXCIsXG4gICAgICAgIFwiQUMgU2VhdGVyXCIsXG4gICAgICAgIFwiTm9uLUFDIFNlYXRlclwiLFxuICAgICAgICBcIlNlbWkgU2xlZXBlclwiLFxuICAgICAgICBcIk1peGVkIFNlYXRlci9TbGVlcGVyXCIsXG4gICAgICBdLFxuICAgIH0sXG4gICAgY2FwYWNpdHk6IHsgdHlwZTogTnVtYmVyLCByZXF1aXJlZDogdHJ1ZSwgbWluOiAxLCBtYXg6IDEwMCB9LFxuICAgIGFtZW5pdGllczogW1N0cmluZ10sXG4gICAgY29hY2hUeXBlSWQ6IG9iamVjdElkLFxuICAgIG93bmVySWQ6IG9iamVjdElkLFxuICAgIHN0YXR1czogeyB0eXBlOiBTdHJpbmcsIGVudW06IFtcIkFjdGl2ZVwiLCBcIkluYWN0aXZlXCJdLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG4gICAgaW5zdXJhbmNlRXhwaXJ5OiBEYXRlLFxuICAgIHBlcm1pdEV4cGlyeTogRGF0ZSxcbiAgICBpbnN1cmFuY2VOdW1iZXI6IFN0cmluZyxcbiAgICBwZXJtaXROdW1iZXI6IFN0cmluZyxcbiAgICBpbWFnZXM6IFtTdHJpbmddLFxuICAgIC4uLm1hcHBpbmcsXG4gIH0sXG4gIFt7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgc3RhdHVzOiAxIH0gfV0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9idXMubW9kZWwudHMifQ==

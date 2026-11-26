@@ -1,0 +1,21 @@
+Object.defineProperty(__vite_ssr_exports__, "Refund", { enumerable: true, configurable: true, get(){ try { return Refund } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","objectId","tenantFields"]});
+const Refund = (0,__vite_ssr_import_0__.model)("Refund", {
+  ...__vite_ssr_import_0__.tenantFields,
+  bookingId: { type: __vite_ssr_import_0__.objectId, required: true, unique: true },
+  cancellationId: __vite_ssr_import_0__.objectId,
+  paymentId: __vite_ssr_import_0__.objectId,
+  amountPaise: Number,
+  status: {
+    type: String,
+    enum: ["Requested", "Provider pending", "Refunded", "Failed", "Not due"],
+    default: "Requested"
+  },
+  externalId: String,
+  workflowIntentId: __vite_ssr_import_0__.objectId,
+  liabilityJournalId: __vite_ssr_import_0__.objectId,
+  confirmedAt: Date
+});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBRU8sTUFBTSxZQUFTLDZCQUFNLFVBQVU7QUFBQSxFQUNwQyxHQUFHO0FBQUEsRUFDSCxXQUFXLEVBQUUsTUFBTSxnQ0FBVSxVQUFVLE1BQU0sUUFBUSxLQUFLO0FBQUEsRUFDMUQsZ0JBQWdCO0FBQUEsRUFDaEIsV0FBVztBQUFBLEVBQ1gsYUFBYTtBQUFBLEVBQ2IsUUFBUTtBQUFBLElBQ04sTUFBTTtBQUFBLElBQ04sTUFBTSxDQUFDLGFBQWEsb0JBQW9CLFlBQVksVUFBVSxTQUFTO0FBQUEsSUFDdkUsU0FBUztBQUFBLEVBQ1g7QUFBQSxFQUNBLFlBQVk7QUFBQSxFQUNaLGtCQUFrQjtBQUFBLEVBQ2xCLG9CQUFvQjtBQUFBLEVBQ3BCLGFBQWE7QUFDZixDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJyZWZ1bmQubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIG9iamVjdElkLCB0ZW5hbnRGaWVsZHMgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5cbmV4cG9ydCBjb25zdCBSZWZ1bmQgPSBtb2RlbChcIlJlZnVuZFwiLCB7XG4gIC4uLnRlbmFudEZpZWxkcyxcbiAgYm9va2luZ0lkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSwgdW5pcXVlOiB0cnVlIH0sXG4gIGNhbmNlbGxhdGlvbklkOiBvYmplY3RJZCxcbiAgcGF5bWVudElkOiBvYmplY3RJZCxcbiAgYW1vdW50UGFpc2U6IE51bWJlcixcbiAgc3RhdHVzOiB7XG4gICAgdHlwZTogU3RyaW5nLFxuICAgIGVudW06IFtcIlJlcXVlc3RlZFwiLCBcIlByb3ZpZGVyIHBlbmRpbmdcIiwgXCJSZWZ1bmRlZFwiLCBcIkZhaWxlZFwiLCBcIk5vdCBkdWVcIl0sXG4gICAgZGVmYXVsdDogXCJSZXF1ZXN0ZWRcIixcbiAgfSxcbiAgZXh0ZXJuYWxJZDogU3RyaW5nLFxuICB3b3JrZmxvd0ludGVudElkOiBvYmplY3RJZCxcbiAgbGlhYmlsaXR5Sm91cm5hbElkOiBvYmplY3RJZCxcbiAgY29uZmlybWVkQXQ6IERhdGUsXG59KTtcbiJdLCJmaWxlIjoiL3NyYy9tb2RlbHMvcmVmdW5kLm1vZGVsLnRzIn0=

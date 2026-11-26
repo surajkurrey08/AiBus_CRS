@@ -1,0 +1,36 @@
+Object.defineProperty(__vite_ssr_exports__, "commissionConfig", { enumerable: true, configurable: true, get(){ try { return commissionConfig } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "agentInput", { enumerable: true, configurable: true, get(){ try { return agentInput } catch {} }});
+Object.defineProperty(__vite_ssr_exports__, "agentUserInput", { enumerable: true, configurable: true, get(){ try { return agentUserInput } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("zod", {"importedNames":["z"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/validators/common.schemas.ts", {"importedNames":["amount","id","text"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/types/agent.ts", {"importedNames":["agentCapabilities"]});
+const commissionConfig = __vite_ssr_import_0__.z.object({
+  commissionType: __vite_ssr_import_0__.z.enum(["Percent", "Fixed"]),
+  commissionRate: __vite_ssr_import_1__.amount
+}).strict().refine(
+  (v) => v.commissionType !== "Percent" || v.commissionRate <= 1e4,
+  "Percentage commission must be between 0 and 10000 basis points (0–100%)"
+);
+const agentInput = __vite_ssr_import_0__.z.object({
+  name: __vite_ssr_import_1__.text,
+  email: __vite_ssr_import_0__.z.string().email().max(254).transform((v) => v.toLowerCase()).optional(),
+  phone: __vite_ssr_import_0__.z.string().trim().max(20).optional(),
+  status: __vite_ssr_import_0__.z.enum(["Active", "Inactive"]).default("Active"),
+  permissions: __vite_ssr_import_0__.z.array(__vite_ssr_import_0__.z.enum((0,__vite_ssr_import_2__.agentCapabilities))).max(__vite_ssr_import_2__.agentCapabilities.length).default(
+    __vite_ssr_import_2__.agentCapabilities.filter((p) => !["wallet", "credit"].includes(p))
+  ),
+  allowedBusIds: __vite_ssr_import_0__.z.array((0,__vite_ssr_import_1__.id)).max(200).default([]),
+  commissionType: __vite_ssr_import_0__.z.enum(["Percent", "Fixed"]).default("Percent"),
+  commissionRate: __vite_ssr_import_1__.amount.default(500)
+}).strict();
+const agentUserInput = __vite_ssr_import_0__.z.union([
+  __vite_ssr_import_0__.z.object({ userId: __vite_ssr_import_1__.id }).strict(),
+  __vite_ssr_import_0__.z.object({
+    name: __vite_ssr_import_1__.text,
+    email: __vite_ssr_import_0__.z.string().email().max(254).transform((v) => v.toLowerCase()),
+    password: __vite_ssr_import_0__.z.string().min(12).max(128)
+  }).strict()
+]);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6Ijs7O0FBQUE7QUFDQTtBQUNBO0FBQ08sTUFBTSxtQkFBbUIsd0JBQzdCLE9BQU87QUFBQSxFQUNOLGdCQUFnQix3QkFBRSxLQUFLLENBQUMsV0FBVyxPQUFPLENBQUM7QUFBQSxFQUMzQyxnQkFBZ0I7QUFDbEIsQ0FBQyxFQUNBLE9BQU8sRUFDUDtBQUFBLEVBQ0MsQ0FBQyxNQUFNLEVBQUUsbUJBQW1CLGFBQWEsRUFBRSxrQkFBa0I7QUFBQSxFQUM3RDtBQUNGO0FBQ0ssTUFBTSxhQUFhLHdCQUN2QixPQUFPO0FBQUEsRUFDTixNQUFNO0FBQUEsRUFDTixPQUFPLHdCQUNKLE9BQU8sRUFDUCxNQUFNLEVBQ04sSUFBSSxHQUFHLEVBQ1AsVUFBVSxDQUFDLE1BQU0sRUFBRSxZQUFZLENBQUMsRUFDaEMsU0FBUztBQUFBLEVBQ1osT0FBTyx3QkFBRSxPQUFPLEVBQUUsS0FBSyxFQUFFLElBQUksRUFBRSxFQUFFLFNBQVM7QUFBQSxFQUMxQyxRQUFRLHdCQUFFLEtBQUssQ0FBQyxVQUFVLFVBQVUsQ0FBQyxFQUFFLFFBQVEsUUFBUTtBQUFBLEVBQ3ZELGFBQWEsd0JBQ1YsTUFBTSx3QkFBRSxRQUFLLHdDQUFpQixDQUFDLEVBQy9CLElBQUksd0NBQWtCLE1BQU0sRUFDNUI7QUFBQSxJQUNDLHdDQUFrQixPQUFPLENBQUMsTUFBTSxDQUFDLENBQUMsVUFBVSxRQUFRLEVBQUUsU0FBUyxDQUFDLENBQUM7QUFBQSxFQUNuRTtBQUFBLEVBQ0YsZUFBZSx3QkFBRSxTQUFNLHlCQUFFLEVBQUUsSUFBSSxHQUFHLEVBQUUsUUFBUSxDQUFDLENBQUM7QUFBQSxFQUM5QyxnQkFBZ0Isd0JBQUUsS0FBSyxDQUFDLFdBQVcsT0FBTyxDQUFDLEVBQUUsUUFBUSxTQUFTO0FBQUEsRUFDOUQsZ0JBQWdCLDZCQUFPLFFBQVEsR0FBRztBQUNwQyxDQUFDLEVBQ0EsT0FBTztBQUNILE1BQU0saUJBQWlCLHdCQUFFLE1BQU07QUFBQSxFQUNwQyx3QkFBRSxPQUFPLEVBQUUsUUFBUSx5QkFBRyxDQUFDLEVBQUUsT0FBTztBQUFBLEVBQ2hDLHdCQUNHLE9BQU87QUFBQSxJQUNOLE1BQU07QUFBQSxJQUNOLE9BQU8sd0JBQ0osT0FBTyxFQUNQLE1BQU0sRUFDTixJQUFJLEdBQUcsRUFDUCxVQUFVLENBQUMsTUFBTSxFQUFFLFlBQVksQ0FBQztBQUFBLElBQ25DLFVBQVUsd0JBQUUsT0FBTyxFQUFFLElBQUksRUFBRSxFQUFFLElBQUksR0FBRztBQUFBLEVBQ3RDLENBQUMsRUFDQSxPQUFPO0FBQ1osQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYWdlbnQuc2NoZW1hcy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB6IH0gZnJvbSBcInpvZFwiO1xuaW1wb3J0IHsgYW1vdW50LCBpZCwgdGV4dCB9IGZyb20gXCIuL2NvbW1vbi5zY2hlbWFzLmpzXCI7XG5pbXBvcnQgeyBhZ2VudENhcGFiaWxpdGllcyB9IGZyb20gXCIuLi90eXBlcy9hZ2VudC5qc1wiO1xuZXhwb3J0IGNvbnN0IGNvbW1pc3Npb25Db25maWcgPSB6XG4gIC5vYmplY3Qoe1xuICAgIGNvbW1pc3Npb25UeXBlOiB6LmVudW0oW1wiUGVyY2VudFwiLCBcIkZpeGVkXCJdKSxcbiAgICBjb21taXNzaW9uUmF0ZTogYW1vdW50LFxuICB9KVxuICAuc3RyaWN0KClcbiAgLnJlZmluZShcbiAgICAodikgPT4gdi5jb21taXNzaW9uVHlwZSAhPT0gXCJQZXJjZW50XCIgfHwgdi5jb21taXNzaW9uUmF0ZSA8PSAxMDAwMCxcbiAgICBcIlBlcmNlbnRhZ2UgY29tbWlzc2lvbiBtdXN0IGJlIGJldHdlZW4gMCBhbmQgMTAwMDAgYmFzaXMgcG9pbnRzICgw4oCTMTAwJSlcIixcbiAgKTtcbmV4cG9ydCBjb25zdCBhZ2VudElucHV0ID0gelxuICAub2JqZWN0KHtcbiAgICBuYW1lOiB0ZXh0LFxuICAgIGVtYWlsOiB6XG4gICAgICAuc3RyaW5nKClcbiAgICAgIC5lbWFpbCgpXG4gICAgICAubWF4KDI1NClcbiAgICAgIC50cmFuc2Zvcm0oKHYpID0+IHYudG9Mb3dlckNhc2UoKSlcbiAgICAgIC5vcHRpb25hbCgpLFxuICAgIHBob25lOiB6LnN0cmluZygpLnRyaW0oKS5tYXgoMjApLm9wdGlvbmFsKCksXG4gICAgc3RhdHVzOiB6LmVudW0oW1wiQWN0aXZlXCIsIFwiSW5hY3RpdmVcIl0pLmRlZmF1bHQoXCJBY3RpdmVcIiksXG4gICAgcGVybWlzc2lvbnM6IHpcbiAgICAgIC5hcnJheSh6LmVudW0oYWdlbnRDYXBhYmlsaXRpZXMpKVxuICAgICAgLm1heChhZ2VudENhcGFiaWxpdGllcy5sZW5ndGgpXG4gICAgICAuZGVmYXVsdChcbiAgICAgICAgYWdlbnRDYXBhYmlsaXRpZXMuZmlsdGVyKChwKSA9PiAhW1wid2FsbGV0XCIsIFwiY3JlZGl0XCJdLmluY2x1ZGVzKHApKSxcbiAgICAgICksXG4gICAgYWxsb3dlZEJ1c0lkczogei5hcnJheShpZCkubWF4KDIwMCkuZGVmYXVsdChbXSksXG4gICAgY29tbWlzc2lvblR5cGU6IHouZW51bShbXCJQZXJjZW50XCIsIFwiRml4ZWRcIl0pLmRlZmF1bHQoXCJQZXJjZW50XCIpLFxuICAgIGNvbW1pc3Npb25SYXRlOiBhbW91bnQuZGVmYXVsdCg1MDApLFxuICB9KVxuICAuc3RyaWN0KCk7XG5leHBvcnQgY29uc3QgYWdlbnRVc2VySW5wdXQgPSB6LnVuaW9uKFtcbiAgei5vYmplY3QoeyB1c2VySWQ6IGlkIH0pLnN0cmljdCgpLFxuICB6XG4gICAgLm9iamVjdCh7XG4gICAgICBuYW1lOiB0ZXh0LFxuICAgICAgZW1haWw6IHpcbiAgICAgICAgLnN0cmluZygpXG4gICAgICAgIC5lbWFpbCgpXG4gICAgICAgIC5tYXgoMjU0KVxuICAgICAgICAudHJhbnNmb3JtKCh2KSA9PiB2LnRvTG93ZXJDYXNlKCkpLFxuICAgICAgcGFzc3dvcmQ6IHouc3RyaW5nKCkubWluKDEyKS5tYXgoMTI4KSxcbiAgICB9KVxuICAgIC5zdHJpY3QoKSxcbl0pO1xuIl0sImZpbGUiOiIvc3JjL3ZhbGlkYXRvcnMvYWdlbnQuc2NoZW1hcy50cyJ9

@@ -1,0 +1,21 @@
+Object.defineProperty(__vite_ssr_exports__, "AreaLocation", { enumerable: true, configurable: true, get(){ try { return AreaLocation } catch {} }});
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/models/shared/schema.ts", {"importedNames":["model","tenantFields","objectId"]});
+const AreaLocation = (0,__vite_ssr_import_0__.model)(
+  "AreaLocation",
+  {
+    ...__vite_ssr_import_0__.tenantFields,
+    cityId: { type: __vite_ssr_import_0__.objectId, required: true },
+    name: { type: String, required: true },
+    usage: { type: String, enum: ["Pickup", "Drop", "Both"], required: true },
+    address: String,
+    landmarkId: __vite_ssr_import_0__.objectId,
+    phone: String,
+    latitude: Number,
+    longitude: Number,
+    status: { type: String, default: "Active" }
+  },
+  [{ keys: { operatorId: 1, cityId: 1 } }]
+);
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFBO0FBQ08sTUFBTSxrQkFBZTtBQUFBLEVBQzFCO0FBQUEsRUFDQTtBQUFBLElBQ0UsR0FBRztBQUFBLElBQ0gsUUFBUSxFQUFFLE1BQU0sZ0NBQVUsVUFBVSxLQUFLO0FBQUEsSUFDekMsTUFBTSxFQUFFLE1BQU0sUUFBUSxVQUFVLEtBQUs7QUFBQSxJQUNyQyxPQUFPLEVBQUUsTUFBTSxRQUFRLE1BQU0sQ0FBQyxVQUFVLFFBQVEsTUFBTSxHQUFHLFVBQVUsS0FBSztBQUFBLElBQ3hFLFNBQVM7QUFBQSxJQUNULFlBQVk7QUFBQSxJQUNaLE9BQU87QUFBQSxJQUNQLFVBQVU7QUFBQSxJQUNWLFdBQVc7QUFBQSxJQUNYLFFBQVEsRUFBRSxNQUFNLFFBQVEsU0FBUyxTQUFTO0FBQUEsRUFDNUM7QUFBQSxFQUNBLENBQUMsRUFBRSxNQUFNLEVBQUUsWUFBWSxHQUFHLFFBQVEsRUFBRSxFQUFFLENBQUM7QUFDekMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImFyZWEtbG9jYXRpb24ubW9kZWwudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbW9kZWwsIHRlbmFudEZpZWxkcywgb2JqZWN0SWQgfSBmcm9tIFwiLi9zaGFyZWQvc2NoZW1hLmpzXCI7XG5leHBvcnQgY29uc3QgQXJlYUxvY2F0aW9uID0gbW9kZWwoXG4gIFwiQXJlYUxvY2F0aW9uXCIsXG4gIHtcbiAgICAuLi50ZW5hbnRGaWVsZHMsXG4gICAgY2l0eUlkOiB7IHR5cGU6IG9iamVjdElkLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIG5hbWU6IHsgdHlwZTogU3RyaW5nLCByZXF1aXJlZDogdHJ1ZSB9LFxuICAgIHVzYWdlOiB7IHR5cGU6IFN0cmluZywgZW51bTogW1wiUGlja3VwXCIsIFwiRHJvcFwiLCBcIkJvdGhcIl0sIHJlcXVpcmVkOiB0cnVlIH0sXG4gICAgYWRkcmVzczogU3RyaW5nLFxuICAgIGxhbmRtYXJrSWQ6IG9iamVjdElkLFxuICAgIHBob25lOiBTdHJpbmcsXG4gICAgbGF0aXR1ZGU6IE51bWJlcixcbiAgICBsb25naXR1ZGU6IE51bWJlcixcbiAgICBzdGF0dXM6IHsgdHlwZTogU3RyaW5nLCBkZWZhdWx0OiBcIkFjdGl2ZVwiIH0sXG4gIH0sXG4gIFt7IGtleXM6IHsgb3BlcmF0b3JJZDogMSwgY2l0eUlkOiAxIH0gfV0sXG4pO1xuIl0sImZpbGUiOiIvc3JjL21vZGVscy9hcmVhLWxvY2F0aW9uLm1vZGVsLnRzIn0=

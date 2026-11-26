@@ -1,0 +1,16 @@
+Object.defineProperty(__vite_ssr_exports__, "agentCapabilities", { enumerable: true, configurable: true, get(){ try { return agentCapabilities } catch {} }});
+const agentCapabilities = [
+  "search",
+  "inventory",
+  "book",
+  "bookings",
+  "tickets",
+  "cancel",
+  "commissions",
+  "settlements",
+  "wallet",
+  "credit"
+];
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IjtBQUFPLE1BQU0sb0JBQW9CO0FBQUEsRUFDL0I7QUFBQSxFQUNBO0FBQUEsRUFDQTtBQUFBLEVBQ0E7QUFBQSxFQUNBO0FBQUEsRUFDQTtBQUFBLEVBQ0E7QUFBQSxFQUNBO0FBQUEsRUFDQTtBQUFBLEVBQ0E7QUFDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiYWdlbnQudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGNvbnN0IGFnZW50Q2FwYWJpbGl0aWVzID0gW1xuICBcInNlYXJjaFwiLFxuICBcImludmVudG9yeVwiLFxuICBcImJvb2tcIixcbiAgXCJib29raW5nc1wiLFxuICBcInRpY2tldHNcIixcbiAgXCJjYW5jZWxcIixcbiAgXCJjb21taXNzaW9uc1wiLFxuICBcInNldHRsZW1lbnRzXCIsXG4gIFwid2FsbGV0XCIsXG4gIFwiY3JlZGl0XCIsXG5dIGFzIGNvbnN0O1xuZXhwb3J0IHR5cGUgQWdlbnRDYXBhYmlsaXR5ID0gKHR5cGVvZiBhZ2VudENhcGFiaWxpdGllcylbbnVtYmVyXTtcbiJdLCJmaWxlIjoiL3NyYy90eXBlcy9hZ2VudC50cyJ9
