@@ -135,7 +135,7 @@ describe("live API workspace", () => {
         name: "Workspace navigation",
       });
       for (const name of [
-        "Car Master",
+        "Vehicle Master",
         "Route Master",
         "Trip Master",
         "Seat Layout Designer",
@@ -302,8 +302,8 @@ describe("live API workspace", () => {
     const nav = screen.getByRole("navigation", {
       name: "Workspace navigation",
     });
-    await user.click(within(nav).getByRole("button", { name: "Car Master" }));
-    expect(screen.queryByRole("button", { name: "Add Car" })).toBeNull();
+    await user.click(within(nav).getByRole("button", { name: "Vehicle Master" }));
+    expect(screen.queryByRole("button", { name: "Add Vehicle" })).toBeNull();
     expect(authState().accessToken).toBe("test-memory-token");
     expect(localStorage.length).toBe(0);
     expect(
