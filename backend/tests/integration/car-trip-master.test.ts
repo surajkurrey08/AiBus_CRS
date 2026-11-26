@@ -102,6 +102,56 @@ describe("Operator Car Trip Master Scheduling Integration", () => {
     await mongo.stop();
   });
 
+  it("saves and schedules a 12-passenger mini bus using its own seat layout", async () => {
+    const auth = `Bearer ${token}`;
+    const vehicle = await request(app).post("/api/v1/operator/cars").set("Authorization", auth).send({
+      registrationNumber: "CG04MB1200", make: "Force", model: "Traveller",
+      vehicleCategory: "Mini Bus", totalPhysicalSeats: 13, bookablePassengerCapacity: 12,
+    });
+    expect(vehicle.status).toBe(201);
+    const carId = vehicle.body.data._id;
+    const payload = {
+      carId, routeId: String(route._id), journeyDate: "2030-12-02",
+      departureAt: "2030-12-02T08:00:00+05:30", arrivalAt: "2030-12-02T12:00:00+05:30",
+      baseFarePaise: 45000,
+    };
+    expect((await request(app).post("/api/v1/operator/trips").set("Authorization", auth).send(payload)).body.error.code).toBe("LAYOUT_REQUIRED");
+    const seats = [{ number: "D", row: 0, column: 3 }, ...Array.from({ length: 12 }, (_, index) => ({
+      number: `CS-${index + 1}`, row: 1 + Math.floor(index / 4), column: index % 4,
+    }))];
+    const saved = await request(app).put(`/api/v1/operator/cars/${carId}/layout`).set("Authorization", auth).send({ seats });
+    expect(saved.status).toBe(200);
+    expect(saved.body.data.seatLayout).toEqual(seats);
+    const template = await request(app).post("/api/v1/operator/vehicle-layouts").set("Authorization", auth)
+      .send({ name: "Traveller 12", vehicleType: "Mini Bus", seats });
+    expect(template.status).toBe(201);
+    const fromTemplate = {
+      registrationNumber: "CG04MB1201", make: "Force", model: "Traveller", layoutTemplateId: template.body.data._id,
+      totalPhysicalSeats: 5, bookablePassengerCapacity: 4,
+    };
+    const mismatch = await request(app).post("/api/v1/operator/cars").set("Authorization", auth)
+      .send({ ...fromTemplate, vehicleCategory: "Bus" });
+    expect(mismatch.body.error.code).toBe("LAYOUT_TYPE_MISMATCH");
+    const assigned = await request(app).post("/api/v1/operator/cars").set("Authorization", auth)
+      .send({ ...fromTemplate, vehicleCategory: "Mini Bus" });
+    expect(assigned.status).toBe(201);
+    expect(assigned.body.data).toMatchObject({ seatLayout: seats, totalPhysicalSeats: 13, bookablePassengerCapacity: 12 });
+    const templatePath = `/api/v1/operator/vehicle-layouts/${template.body.data._id}`;
+    expect((await request(app).delete(templatePath).set("Authorization", auth)).status).toBe(200);
+    const remaining = await request(app).get("/api/v1/operator/vehicle-layouts").set("Authorization", auth);
+    expect(remaining.body.data.map((layout: { _id: string }) => layout._id)).not.toContain(template.body.data._id);
+    expect(await M.Car.findById(assigned.body.data._id).lean()).toMatchObject({ seatLayout: seats });
+    const trip = await request(app).post("/api/v1/operator/trips").set("Authorization", auth).send(payload);
+    expect(trip.status).toBe(201);
+    const stored = await M.Trip.findById(trip.body.data._id).lean();
+    expect(stored).toMatchObject({ vehicleCategory: "Mini Bus", bookableCapacity: 12, totalPhysicalSeats: 13 });
+    expect(stored?.seats).toHaveLength(13);
+    expect(stored?.seats).toEqual(expect.arrayContaining([
+      expect.objectContaining({ number: "D", state: "blocked", isBookable: false }),
+      expect.objectContaining({ number: "CS-12", row: 3, column: 3, farePaise: 45000, state: "available" }),
+    ]));
+  });
+
   it("should successfully schedule a 4-Passenger Sedan car trip with 5 physical seats (1 driver + 4 pax)", async () => {
     const journeyDate = "2030-11-28";
     const departureAt = "2030-11-28T08:00:00+05:30";

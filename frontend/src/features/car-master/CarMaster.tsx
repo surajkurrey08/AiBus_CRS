@@ -12,7 +12,7 @@ export interface CarRecord {
   make: string;
   model: string;
   year: number;
-  vehicleCategory: "4-Passenger Sedan" | "7-Passenger MUV";
+  vehicleCategory: "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus";
   totalPhysicalSeats: number;
   bookablePassengerCapacity: number;
   color?: string;
@@ -77,7 +77,7 @@ export function CarMaster() {
   const [cars, setCars] = useState<CarRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<"ALL" | "4-Passenger Sedan" | "7-Passenger MUV">("ALL");
+  const [filter, setFilter] = useState<"ALL" | "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus">("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCar, setEditingCar] = useState<CarRecord | null>(null);
   const [formData, setFormData] = useState({
@@ -85,11 +85,17 @@ export function CarMaster() {
     make: "",
     model: "",
     year: new Date().getFullYear(),
-    vehicleCategory: "4-Passenger Sedan" as "4-Passenger Sedan" | "7-Passenger MUV",
+    vehicleCategory: "4-Passenger Sedan" as "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus",
     color: "",
     status: "Active" as "Active" | "Inactive" | "Maintenance",
   });
   const [formError, setFormError] = useState("");
+  const [layouts, setLayouts] = useState<{ _id: string; name: string; vehicleType: string; seats: unknown[] }[]>([]);
+  const [layoutId, setLayoutId] = useState("");
+  const selectedLayout = layouts.find((layout) => layout._id === layoutId);
+  const category = formData.vehicleCategory;
+  const vehicleType = category === "Bus" || category === "Mini Bus" ? category : "Car";
+  const custom = ["Custom Car", "Mini Bus", "Bus"].includes(formData.vehicleCategory);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -117,8 +123,21 @@ export function CarMaster() {
     loadCars();
   }, [ws.revision]);
 
+  async function loadLayouts() {
+    try {
+      const first = await api<typeof layouts>("/operator/vehicle-layouts?limit=100");
+      const remaining = await Promise.all(Array.from({ length: (first.meta?.pages ?? 1) - 1 }, (_, index) =>
+        api<typeof layouts>(`/operator/vehicle-layouts?limit=100&page=${index + 2}`)));
+      setLayouts([...first.data, ...remaining.flatMap(({ data }) => data)]);
+    } catch (error) {
+      setFormError((error as Error).message);
+    }
+  }
+
   const handleOpenAdd = () => {
     setEditingCar(null);
+    setLayoutId("");
+    if (!ws.demo) void loadLayouts();
     setFormData({
       registrationNumber: "",
       make: "",
@@ -147,11 +166,18 @@ export function CarMaster() {
       return;
     }
 
-    const totalPhysicalSeats = formData.vehicleCategory === "4-Passenger Sedan" ? 5 : 8;
-    const bookablePassengerCapacity = formData.vehicleCategory === "4-Passenger Sedan" ? 4 : 7;
+    if (!editingCar && custom && !selectedLayout) {
+      setFormError(`Select a saved ${vehicleType} layout.`);
+      return;
+    }
+    const totalPhysicalSeats = selectedLayout?.seats.length ?? editingCar?.totalPhysicalSeats ?? (category === "4-Passenger Sedan" ? 5 : 8);
+    const bookablePassengerCapacity = totalPhysicalSeats - 1;
 
     const payload = {
       ...formData,
+      vehicleCategory: selectedLayout && vehicleType === "Car" &&
+        bookablePassengerCapacity !== (category === "4-Passenger Sedan" ? 4 : 7) ? "Custom Car" as const : category,
+      ...(selectedLayout ? { layoutTemplateId: selectedLayout._id } : {}),
       registrationNumber: formData.registrationNumber.trim().toUpperCase(),
       totalPhysicalSeats,
       bookablePassengerCapacity,
@@ -197,6 +223,27 @@ export function CarMaster() {
     }
   };
 
+  async function manageCar(car: CarRecord, remove = false) {
+    const id = car._id || car.id;
+    if (!id || saving) return;
+    if (remove && !window.confirm("Permanently delete car " + car.registrationNumber + "?")) return;
+    setSaving(true);
+    setError("");
+    const status = car.status === "Active" ? "Inactive" : "Active";
+    try {
+      if (ws.demo) setCars((rows) => remove ? rows.filter((item) => item !== car) : rows.map((item) => item === car ? { ...item, status } : item));
+      else {
+        await api("/operator/cars/" + id + (remove ? "" : "/status"), {
+          method: remove ? "DELETE" : "PATCH",
+          ...(remove ? {} : { body: JSON.stringify({ status }) }),
+        });
+        await loadCars();
+      }
+    } catch (error) {
+      setError((error as Error).message);
+    } finally { setSaving(false); }
+  }
+
   const filteredCars = cars.filter(
     (c) => filter === "ALL" || (c.vehicleCategory || (c as any).category) === filter
   );
@@ -209,15 +256,15 @@ export function CarMaster() {
     <div className="car-master-page">
       <MiniStats
         items={[
-          [String(cars.length), "Total Fleet Cars"],
-          [String(activeCount), "Active Cars"],
+          [String(cars.length), "Total Vehicles"],
+          [String(activeCount), "Active Vehicles"],
           [String(sedanCount), "4-Passenger Sedans (5 Physical Seats)"],
           [String(muvCount), "7-Passenger MUVs (8 Physical Seats)"],
         ]}
       />
 
       <Panel
-        title="Car Fleet Master"
+        title="Vehicle Fleet"
         aside={
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button className="text-btn" onClick={loadCars} disabled={loading}>
@@ -227,24 +274,25 @@ export function CarMaster() {
             {canWrite && (
               <button className="btn primary" onClick={handleOpenAdd}>
                 <Plus size={15} />
-                Add Car
+                Add Vehicle
               </button>
             )}
           </div>
         }
       >
         <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-          {(["ALL", "4-Passenger Sedan", "7-Passenger MUV"] as const).map((cat) => (
+          {(["ALL", "4-Passenger Sedan", "7-Passenger MUV", "Custom Car", "Mini Bus", "Bus"] as const).map((cat) => (
             <button
               key={cat}
               className={`btn ${filter === cat ? "primary" : "secondary"}`}
               onClick={() => setFilter(cat)}
             >
-              {cat === "ALL" ? "All Cars" : cat}
+              {cat === "ALL" ? "All Vehicles" : cat}
             </button>
           ))}
         </div>
 
+        {error && <p className="error" role="alert">{error}</p>}
         {notice && (
           <div className="info-banner" style={{ marginBottom: "16px" }}>
             <CheckCircle2 size={18} />
@@ -260,17 +308,18 @@ export function CarMaster() {
               <tr>
                 <th>Registration</th>
                 <th>Make & Model</th>
-                <th>Category</th>
+                <th>Vehicle type / Category</th>
                 <th>Physical Seats</th>
                 <th>Passenger Capacity</th>
                 <th>Year</th>
                 <th>Status</th>
+                {canWrite && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filteredCars.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px" }}>
+                  <td colSpan={canWrite ? 8 : 7} style={{ textAlign: "center", padding: "24px" }}>
                     No cars found matching category filter.
                   </td>
                 </tr>
@@ -284,7 +333,8 @@ export function CarMaster() {
                       {car.make} {car.model || (car as any).modelName}
                     </td>
                     <td>
-                      <span className="badge">{car.vehicleCategory || (car as any).category}</span>
+                      <strong>{car.vehicleCategory === "Bus" || car.vehicleCategory === "Mini Bus" ? car.vehicleCategory : "Car"}</strong><br />
+                      <small>{car.vehicleCategory || (car as any).category}</small>
                     </td>
                     <td>{car.totalPhysicalSeats} (1 Driver + {car.bookablePassengerCapacity} Pax)</td>
                     <td>
@@ -298,6 +348,16 @@ export function CarMaster() {
                         {car.status}
                       </span>
                     </td>
+                    {canWrite && (
+                      <td>
+                        <button className="btn secondary" disabled={saving} onClick={() => void manageCar(car)}>
+                          {car.status === "Active" ? "Deactivate" : "Activate"}
+                        </button>
+                        {ws.user.role === "operator_admin" && car.status === "Inactive" && (
+                          <button className="btn danger" disabled={saving} onClick={() => void manageCar(car, true)}>Hard Delete</button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -308,127 +368,157 @@ export function CarMaster() {
 
       {dialogOpen && (
         <Overlay
-          className="car-editor-dialog"
-          title={editingCar ? "Edit Car" : "Add New Car"}
+          title={editingCar ? "Edit Car" : "Add New Vehicle"}
           onClose={() => setDialogOpen(false)}
+          className="car-editor-dialog"
         >
           <form onSubmit={handleSave} noValidate className="car-editor-form">
             <div className="car-editor-body">
-            <p className="car-editor-intro">Add your vehicle details. Passenger seats are configured automatically for the selected category.</p>
-            {formError && (
-              <div className="counter-alert error" role="alert">
-                <AlertTriangle size={16} />
-                <span>{formError}</span>
-              </div>
-            )}
+              <p className="car-editor-intro">
+                Choose a vehicle type to see its registration and seating fields.
+              </p>
+              <fieldset className="vehicle-type-picker">
+                <legend>Vehicle type</legend>
+                {(["Car", "Mini Bus", "Bus"] as const).map((type) => (
+                  <label key={type}>
+                    <input type="radio" name="vehicle-type" checked={vehicleType === type} disabled={saving}
+                      onChange={() => {
+                        setFormData((data) => ({ ...data, vehicleCategory: type === "Car" ? "4-Passenger Sedan" : type }));
+                        setLayoutId("");
+                      }} />
+                    {type}
+                  </label>
+                ))}
+              </fieldset>
+              {!editingCar && <label>
+                Seat layout
+                <select value={layoutId} required={custom} onChange={(event) => setLayoutId(event.target.value)}>
+                  <option value="">{custom ? "Select a saved layout" : "Use standard car layout"}</option>
+                  {layouts.filter((layout) => layout.vehicleType === vehicleType).map((layout) => (
+                    <option value={layout._id} key={layout._id}>{layout.name} ({layout.seats.length - 1} passengers)</option>
+                  ))}
+                </select>
+                {selectedLayout ? <small>{selectedLayout.seats.length - 1} passenger seats + 1 driver seat</small>
+                  : !layouts.some((layout) => layout.vehicleType === vehicleType) &&
+                    <small>Create a {vehicleType} template in Seat Layout Designer first.</small>}
+              </label>}
 
-            <label>
-              Vehicle Registration Number
-              <input
-                type="text"
-                required
-                placeholder="e.g. DL-01-AB-1234"
-                value={formData.registrationNumber}
-                onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
-              />
-            </label>
+              {formError && (
+                <div className="counter-alert error" role="alert">
+                  <AlertTriangle size={16} />
+                  <span>{formError}</span>
+                </div>
+              )}
 
-            <div className="car-editor-row">
               <label>
-                Car Make
+                Vehicle Registration Number
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Maruti Suzuki, Toyota"
-                  value={formData.make}
-                  onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+                  placeholder="e.g. DL-01-AB-1234"
+                  value={formData.registrationNumber}
+                  onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value.toUpperCase() })}
                 />
               </label>
-              <label>
-                Car Model
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dzire, Innova Crysta"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                />
-              </label>
-            </div>
 
-            <div className="car-editor-row">
-              <label>
-                Vehicle Category
-                <select
-                  value={formData.vehicleCategory}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vehicleCategory: e.target.value as "4-Passenger Sedan" | "7-Passenger MUV",
-                    })
-                  }
-                >
-                  <option value="4-Passenger Sedan">Sedan · 4 passengers</option>
-                  <option value="7-Passenger MUV">MUV · 7 passengers</option>
-                </select>
-              </label>
-              <label>
-                Model Year
-                <input
-                  type="number"
-                  min="2010"
-                  max="2030"
-                  value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-                />
-              </label>
-            </div>
+              <div className="car-editor-row">
+                <label>
+                  {vehicleType} Make
+                  <input
+                    type="text"
+                    required
+                    placeholder={vehicleType === "Car" ? "e.g. Maruti Suzuki, Toyota" : "e.g. Tata, Force"}
+                    value={formData.make}
+                    onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+                  />
+                </label>
+                <label>
+                  {vehicleType} Model
+                  <input
+                    type="text"
+                    required
+                    placeholder={vehicleType === "Car" ? "e.g. Dzire, Innova Crysta" : vehicleType === "Mini Bus" ? "e.g. Traveller" : "e.g. Starbus"}
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  />
+                </label>
+              </div>
 
-            <div className="car-editor-row">
-              <label>
-                Color (Optional)
-                <input
-                  type="text"
-                  placeholder="e.g. White, Silver"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      status: e.target.value as "Active" | "Inactive" | "Maintenance",
-                    })
-                  }
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Maintenance">Maintenance</option>
-                </select>
-              </label>
-            </div>
+              <div className="car-editor-row">
+                {vehicleType === "Car" && <label>
+                  Car Category
+                  <select
+                    value={formData.vehicleCategory}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vehicleCategory: e.target.value as "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus",
+                      })
+                    }
+                  >
+                    <option value="4-Passenger Sedan">4-Passenger Sedan (5 Physical = 1 Driver + 4 Pax)</option>
+                    <option value="7-Passenger MUV">7-Passenger MUV (8 Physical = 1 Driver + 7 Pax)</option>
+                    <option value="Custom Car">Car with custom capacity</option>
+                  </select>
+                </label>}
+                <label>
+                  Model Year
+                  <input
+                    type="number"
+                    min="2010"
+                    max="2030"
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
+                  />
+                </label>
+              </div>
 
-            <div className="car-editor-capacity" role="status">
-              <ShieldCheck size={16} />
-              <div>
-                <strong>Passenger capacity</strong><br />Driver seat is reserved and cannot be booked.
-                {formData.vehicleCategory === "4-Passenger Sedan"
-                  ? " Exactly 4 passenger seats will be bookable."
-                  : " Exactly 7 passenger seats will be bookable."}
+              <div className="car-editor-row">
+                <label>
+                  Color (Optional)
+                  <input
+                    type="text"
+                    placeholder="e.g. White, Silver"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        status: e.target.value as "Active" | "Inactive" | "Maintenance",
+                      })
+                    }
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </label>
+              </div>
+
+
+              <div className="car-editor-capacity">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Strict Physical Capacity Invariant:</strong> Driver seat is always non-bookable.
+                  {selectedLayout ? " Its seat positions come from the selected layout." : custom ? " Select a saved layout above." : formData.vehicleCategory === "4-Passenger Sedan"
+                    ? " Exactly 4 passenger seats will be bookable."
+                    : " Exactly 7 passenger seats will be bookable."}
+                </div>
               </div>
             </div>
 
-            </div>
             <div className="car-editor-footer">
               <button type="button" className="btn secondary" onClick={() => setDialogOpen(false)}>
                 Cancel
               </button>
               <button type="submit" className="btn primary" disabled={saving}>
-                {saving ? "Saving…" : "Save Car"}
+                {saving ? "Saving…" : "Save " + vehicleType}
               </button>
             </div>
           </form>

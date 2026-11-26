@@ -77,6 +77,19 @@ export function AreaMaster({ defaultTab = "cities" }: { defaultTab?: string }) {
       ws.notify((e as Error).message);
     }
   }
+  async function manageRoute(remove = false) {
+    if (!details || (remove && !window.confirm("Permanently delete this route?"))) return;
+    try {
+      await api("/operator/routes/" + (details._id || details.id), remove
+        ? { method: "DELETE" }
+        : { method: "PATCH", body: JSON.stringify({ status: details.status === "Active" ? "Inactive" : "Active" }) });
+      setDetails(null);
+      reload();
+    } catch (error) {
+      ws.notify((error as Error).message);
+    }
+  }
+
   const recordName =
     tab === "routes"
       ? "route"
@@ -273,6 +286,14 @@ export function AreaMaster({ defaultTab = "cities" }: { defaultTab?: string }) {
                   )}
                 </dl>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                  {canWrite && (
+                    <button className="btn secondary" onClick={() => void manageRoute()}>
+                      {details.status === "Active" ? "Deactivate" : "Activate"}
+                    </button>
+                  )}
+                  {canWrite && ws.user.role === "operator_admin" && details.status === "Inactive" && (
+                    <button className="btn danger" onClick={() => void manageRoute(true)}>Hard Delete</button>
+                  )}
                   <button
                     className="btn primary"
                     onClick={() => {

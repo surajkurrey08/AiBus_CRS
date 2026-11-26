@@ -1791,6 +1791,15 @@ main > .panel + .panel {
   color: #203d4b;
   box-shadow: 0 20px 80px #152c4433;
   background: white;
+  overscroll-behavior: contain;
+}
+html:has(dialog[open]),
+body:has(dialog[open]) {
+  overflow: hidden !important;
+}
+body:has(dialog[open]) main,
+body:has(dialog[open]) .workspace-main {
+  overflow: hidden !important;
 }
 .modal {
   margin: auto;

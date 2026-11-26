@@ -38,14 +38,15 @@ export const carInput = z
     modelName: text.optional(),
     year: z.coerce.number().int().min(1900).max(2100).optional().default(() => new Date().getFullYear()),
     vehicleCategory: z
-      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV", "Custom Car", "Mini Bus", "Bus"])
       .optional()
       .default("4-Passenger Sedan"),
     category: z
-      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV", "Custom Car", "Mini Bus", "Bus"])
       .optional(),
-    totalPhysicalSeats: z.coerce.number().int().min(5).max(9),
-    bookablePassengerCapacity: z.coerce.number().int().min(1).max(8),
+    totalPhysicalSeats: z.coerce.number().int().min(2).max(101),
+    bookablePassengerCapacity: z.coerce.number().int().min(1).max(100),
+    layoutTemplateId: id.optional(),
     color: z.string().optional().default(""),
     status: z
       .enum(["Active", "Inactive", "Maintenance", "Under Maintenance", "Archived"])
@@ -123,7 +124,7 @@ export const tripInput = z
     tripNumber: z.string().optional(),
     tripType: z.enum(["ONE_WAY", "ROUND_TRIP"]).default("ONE_WAY"),
     vehicleCategory: z
-      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV"])
+      .enum(["4-Passenger Sedan", "7-Passenger MUV", "4-Passenger Hatchback", "6-Passenger SUV", "Custom Car", "Mini Bus", "Bus"])
       .optional(),
     carRegistration: z.string().optional(),
     routeName: z.string().optional(),

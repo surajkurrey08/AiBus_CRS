@@ -1,15 +1,24 @@
 .car-editor-dialog.modal {
-  width: 680px;
+  width: min(680px, calc(100vw - 32px));
+  padding: 0;
   border-radius: 18px;
+  overflow: hidden;
 }
 .car-editor-dialog .dialog-head {
   padding: 20px 24px;
   background: #fffdf9;
+  border-bottom: 1px solid #eef1f4;
+}
+.car-editor-form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 100px);
 }
 .car-editor-body {
-  padding: 24px;
+  padding: 22px 24px;
   display: grid;
-  gap: 20px;
+  gap: 18px;
+  overflow-y: auto;
 }
 .car-editor-intro {
   margin: 0;
@@ -27,17 +36,27 @@
   color: #334854;
 }
 .car-editor-body input,
-.car-editor-body select {
+.car-editor-body select,
+.car-editor-body textarea {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: 12px 14px;
-  font-size: 15px;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 14px;
   font-weight: 400;
-  border: 1px solid #dce2e8;
+  color: #16232c;
+  border: 1px solid #d5dce3;
   border-radius: 10px;
   background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.car-editor-body input:focus,
+.car-editor-body select:focus,
+.car-editor-body textarea:focus {
+  outline: none;
+  border-color: #c8561e;
+  box-shadow: 0 0 0 3px rgba(200, 86, 30, 0.12);
 }
 .car-editor-row {
   display: grid;
@@ -108,4 +127,34 @@
   .car-editor-footer .btn {
     flex: 1;
   }
+}
+.car-editor-body .vehicle-type-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.vehicle-type-picker legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+.car-editor-body .vehicle-type-picker label {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.car-editor-body .vehicle-type-picker input[type="radio"] {
+  width: 15px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--brand-accent);
+}
+.vehicle-type-picker label:has(input:checked) {
+  border-color: var(--brand-accent);
+  background: var(--brand-soft);
 }

@@ -15,6 +15,8 @@ import {
 import { api } from "../../api/client";
 import { DataTable, MiniStats, Overlay, Panel } from "../../components/index";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import "../car-master/car-master.css";
+import "./car-trip-master.css";
 
 export interface CarTripRecord {
   _id: string;
@@ -22,7 +24,7 @@ export interface CarTripRecord {
   tripType: "ONE_WAY" | "ROUND_TRIP";
   carId: string;
   carRegistration?: string;
-  vehicleCategory: "4-Passenger Sedan" | "7-Passenger MUV";
+  vehicleCategory: "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus";
   bookableCapacity: number;
   totalPhysicalSeats: number;
   routeId: string;
@@ -107,6 +109,8 @@ export function CarTripMaster() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [repeat, setRepeat] = useState<"once" | "daily" | "weekdays" | "weekends">("once");
+  const [repeatEnd, setRepeatEnd] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<CarTripRecord | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -114,11 +118,13 @@ export function CarTripMaster() {
   const [cars, setCars] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [selectedCarId, setSelectedCarId] = useState("");
+  const assignedVehicle = cars.find((car) => car._id === selectedCarId);
+  const assignedLayout = assignedVehicle?.seatLayout as { number: string; row: number; column: number }[] | undefined;
   const [selectedRouteId, setSelectedRouteId] = useState("");
 
   const [formData, setFormData] = useState({
     tripType: "ONE_WAY" as "ONE_WAY" | "ROUND_TRIP",
-    vehicleCategory: "4-Passenger Sedan" as "4-Passenger Sedan" | "7-Passenger MUV",
+    vehicleCategory: "4-Passenger Sedan" as "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus",
     carRegistration: "DL-01-AB-1234",
     routeName: "Pune → Mumbai",
     departureDate: new Intl.DateTimeFormat("en-CA", {
@@ -209,7 +215,7 @@ export function CarTripMaster() {
     }
     try {
       const res = await api("/operator/trips?limit=100");
-      setTrips(res.data || []);
+      setTrips((res.data || []).filter((trip: CarTripRecord) => trip.carId));
     } catch (e: any) {
       setTrips([]);
       setError(e.message || "Failed to load car trips");
@@ -265,6 +271,24 @@ export function CarTripMaster() {
     }
   };
 
+  async function manageTrip(trip: CarTripRecord, remove: boolean) {
+    if (busy) return;
+    if (remove && !window.confirm("Permanently delete trip " + trip.tripNumber + "—")) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (ws.demo) setTrips((rows) => remove ? rows.filter((item) => item !== trip) : rows.map((item) => item === trip ? { ...item, bookingOpen: true } : item));
+      else {
+        await api("/operator/trips/" + trip._id + (remove ? "" : "/open-sales"), { method: remove ? "DELETE" : "POST" });
+        await loadTrips();
+      }
+    } catch (error) {
+      setError((error as Error).message === "Endpoint not found"
+        ? "This action is unavailable on the connected API. Restart the local backend with the latest code and try again."
+        : (error as Error).message);
+    } finally { setBusy(false); }
+  }
+
   const handleCancel = async () => {
     if (!selectedTrip || !cancelReason.trim()) {
       setError("Cancellation reason is required.");
@@ -305,21 +329,21 @@ export function CarTripMaster() {
     const dep = new Date(`${formData.departureDate}T${formData.departureTime}:00+05:30`);
     const arr = new Date(`${formData.arrivalDate}T${formData.arrivalTime}:00+05:30`);
 
-    if (arr <= dep) {
+    if (!Number.isFinite(dep.getTime()) || !Number.isFinite(arr.getTime()) || arr <= dep) {
       setFormError("Arrival time must be after departure time.");
       return;
     }
 
-    const bookableCapacity = formData.vehicleCategory === "4-Passenger Sedan" ? 4 : 7;
-    const totalPhysicalSeats = formData.vehicleCategory === "4-Passenger Sedan" ? 5 : 8;
+    const bookableCapacity = assignedVehicle?.bookablePassengerCapacity ?? (formData.vehicleCategory === "4-Passenger Sedan" ? 4 : 7);
+    const totalPhysicalSeats = bookableCapacity + 1;
 
     if (!ws.demo) {
       if (cars.length > 0 && !selectedCarId) {
-        setFormError("Please select an assigned vehicle from Car Master.");
+        setFormError("Please select an assigned vehicle from Vehicle Master.");
         return;
       }
       if (cars.length === 0 && !formData.carRegistration.trim()) {
-        setFormError("Please register a vehicle in Car Master first.");
+        setFormError("Please register a vehicle in Vehicle Master first.");
         return;
       }
       if (!formData.routeName.trim()) {
@@ -347,42 +371,72 @@ export function CarTripMaster() {
       availableSeatsCount: bookableCapacity,
     };
 
+    const dayMs = 86_400_000;
+    const first = Date.parse(formData.departureDate);
+    const last = repeat === "once" ? first : Date.parse(repeatEnd);
+    if (!Number.isFinite(last) || last < first || last - first >= 31 * dayMs) {
+      setFormError("Choose an end date within 31 days of the first departure, inclusive.");
+      return;
+    }
+    const departures = [];
+    for (let day = first; day <= last; day += dayMs) {
+      const weekday = new Date(day).getUTCDay();
+      const weekend = weekday === 0 || weekday === 6;
+      if ((repeat === "weekdays" && weekend) || (repeat === "weekends" && !weekend)) continue;
+      departures.push({
+        date: new Date(day).toISOString().slice(0, 10),
+        departureAt: new Date(dep.getTime() + day - first).toISOString(),
+        arrivalAt: new Date(arr.getTime() + day - first).toISOString(),
+      });
+    }
+    if (!departures.length) {
+      setFormError("No departures match the repeat rule in this date range.");
+      return;
+    }
+
     setBusy(true);
+    setNotice("");
+    const failures: string[] = [];
+    let created = 0;
     try {
       if (ws.demo) {
-        setTrips((prev) => [newTrip, ...prev]);
-        setNotice("New car trip scheduled successfully in demo workspace.");
-        setDialogOpen(false);
+        const demoTrips = departures.map(({ date, departureAt, arrivalAt }) => ({
+          ...newTrip,
+          _id: newTrip._id + "-" + date,
+          tripNumber: newTrip.tripNumber + "-" + date,
+          departureAt,
+          estimatedArrivalAt: arrivalAt,
+        }));
+        setTrips((prev) => [...demoTrips, ...prev]);
+        created = demoTrips.length;
       } else {
-        await api("/operator/trips", {
-          method: "POST",
-          body: JSON.stringify({
-            ...(selectedCarId
-              ? { carId: selectedCarId, busId: selectedCarId }
-              : {}),
-            ...(selectedRouteId ? { routeId: selectedRouteId } : {}),
-            journeyDate: formData.departureDate,
-            departureAt: dep.toISOString(),
-            estimatedArrivalAt: arr.toISOString(),
-            arrivalAt: arr.toISOString(),
-            tripType: formData.tripType,
-            vehicleCategory: formData.vehicleCategory,
-            carRegistration: formData.carRegistration,
-            routeName: formData.routeName,
-            baseFarePaise: Math.round(formData.baseFareRupees * 100),
-            baseFareRupees: formData.baseFareRupees,
-            bookableCapacity,
-            totalPhysicalSeats,
-            status: "Scheduled",
-            bookingOpen: true,
-          }),
-        });
-        setNotice("Car trip created successfully.");
-        setDialogOpen(false);
-        loadTrips();
+        for (const { date, departureAt, arrivalAt } of departures) {
+          try {
+            await api("/operator/trips", {
+              method: "POST",
+              body: JSON.stringify({
+                ...(selectedCarId ? { carId: selectedCarId, busId: selectedCarId } : {}),
+                ...(selectedRouteId ? { routeId: selectedRouteId } : {}),
+                journeyDate: date, departureAt, estimatedArrivalAt: arrivalAt, arrivalAt,
+                tripType: formData.tripType, vehicleCategory: formData.vehicleCategory,
+                carRegistration: formData.carRegistration, routeName: formData.routeName,
+                baseFarePaise: newTrip.baseFarePaise, baseFareRupees: formData.baseFareRupees,
+                bookableCapacity, totalPhysicalSeats, status: "Scheduled", bookingOpen: true,
+              }),
+            });
+            created++;
+          } catch (error) {
+            failures.push(date + ": " + (error instanceof Error ? error.message : "Could not schedule trip"));
+          }
+        }
       }
-    } catch (err: any) {
-      setFormError(err.message || "Failed to schedule trip");
+      if (failures.length) {
+        setFormError(created + " of " + departures.length + " trips scheduled. " + failures.join(" | "));
+      } else {
+        setNotice(created === 1 ? "Car trip created successfully." : created + " car trips scheduled successfully.");
+        setDialogOpen(false);
+      }
+      if (!ws.demo) await loadTrips();
     } finally {
       setBusy(false);
     }
@@ -394,7 +448,7 @@ export function CarTripMaster() {
         items={[
           [String(trips.length), "Total Car Trips"],
           [
-            String(trips.filter((t) => t.status === "Scheduled").length),
+            String(trips.filter((t) => t.status === "Scheduled" && t.bookingOpen && Date.parse(t.departureAt) > Date.now()).length),
             "Scheduled & Open",
           ],
           [
@@ -422,6 +476,8 @@ export function CarTripMaster() {
                 onClick={() => {
                   setFormError("");
                   loadFleetAndRoutes();
+                  setRepeat("once");
+                  setRepeatEnd("");
                   setDialogOpen(true);
                 }}
               >
@@ -448,7 +504,7 @@ export function CarTripMaster() {
           </div>
         )}
 
-        <div className="table-responsive">
+        <div className="car-trips-table">
           <table className="data-table">
             <thead>
               <tr>
@@ -474,20 +530,21 @@ export function CarTripMaster() {
               ) : (
                 trips.map((trip) => (
                   <tr key={trip._id}>
-                    <td>
-                      <strong>{trip.tripNumber}</strong>
+                    <td data-label="Trip">
+                      <strong>{trip.tripNumber || "—"}</strong>
                     </td>
-                    <td>
+                    <td data-label="Type">
                       <span className="badge">
-                        {trip.tripType === "ONE_WAY" ? "One Way" : "Round Trip"}
+                        {trip.tripType === "ONE_WAY" ? "One Way" : trip.tripType === "ROUND_TRIP" ? "Round Trip" : "—"}
                       </span>
                     </td>
-                    <td>
-                      <div>{trip.carRegistration}</div>
+                    <td data-label="Car">
+                      <div>{trip.carRegistration || "—"}</div>
                       <small className="muted">{trip.vehicleCategory}</small>
                     </td>
-                    <td>{trip.routeName}</td>
-                    <td>
+                    <td data-label="Route">{trip.routeName || "—"}</td>
+                    <td data-label="Departure (IST)">
+                      {Number.isFinite(Date.parse(trip.departureAt)) ? <>
                       {new Date(trip.departureAt).toLocaleTimeString("en-IN", {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -497,22 +554,28 @@ export function CarTripMaster() {
                         {new Date(trip.departureAt).toLocaleDateString("en-IN", {
                           timeZone: "Asia/Kolkata",
                         })}
-                      </small>
+                      </small></> : "—"}
                     </td>
-                    <td>
-                      {new Date(trip.estimatedArrivalAt).toLocaleTimeString("en-IN", {
+                    <td data-label="Arrival (IST)">
+                      {Number.isFinite(Date.parse(trip.estimatedArrivalAt)) ? new Date(trip.estimatedArrivalAt).toLocaleTimeString("en-IN", {
                         hour: "2-digit",
                         minute: "2-digit",
                         timeZone: "Asia/Kolkata",
-                      })}
+                      }) : "—"}
                     </td>
-                    <td>₹{(trip.baseFarePaise / 100).toLocaleString("en-IN")}</td>
-                    <td>
+                    <td data-label="Base fare">
+                      {Number.isFinite(trip.baseFarePaise)
+                        ? "₹" + (trip.baseFarePaise / 100).toLocaleString("en-IN")
+                        : "—"}
+                    </td>
+                    <td data-label="Available seats">
                       <strong>
-                        {trip.availableSeatsCount} / {trip.bookableCapacity} Seats
+                        {Number.isFinite(trip.bookableCapacity) && Number.isFinite(trip.availableSeatsCount)
+                          ? `${trip.availableSeatsCount} / ${trip.bookableCapacity} Seats`
+                          : "—"}
                       </strong>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span
                         className={`status-pill ${
                           trip.status === "Scheduled"
@@ -522,11 +585,11 @@ export function CarTripMaster() {
                               : "pending"
                         }`}
                       >
-                        {trip.status}
+                        {trip.status === "Scheduled" && Date.parse(trip.departureAt) <= Date.now() ? "Departed" : trip.status === "Scheduled" && !trip.bookingOpen ? "Sales closed" : trip.status}
                       </span>
                     </td>
-                    <td>
-                      <div style={{ display: "flex", gap: "6px" }}>
+                    <td data-label="Actions">
+                      <div className="car-trip-actions">
                         {trip.status === "Draft" && canWrite && (
                           <button
                             className="btn primary small"
@@ -536,7 +599,7 @@ export function CarTripMaster() {
                             <Play size={12} /> Publish
                           </button>
                         )}
-                        {trip.status === "Scheduled" && trip.bookingOpen && canWrite && (
+                        {trip.status === "Scheduled" && trip.bookingOpen && Date.parse(trip.departureAt) > Date.now() && canWrite && (
                           <button
                             className="btn secondary small"
                             onClick={() => handleCloseSales(trip._id)}
@@ -544,6 +607,12 @@ export function CarTripMaster() {
                           >
                             <Pause size={12} /> Close Sales
                           </button>
+                        )}
+                        {canWrite && trip.status === "Scheduled" && !trip.bookingOpen && new Date(trip.departureAt).getTime() > Date.now() && (
+                          <button className="btn secondary" disabled={busy} onClick={() => void manageTrip(trip, false)}>Open Sales</button>
+                        )}
+                        {canWrite && ws.user.role === "operator_admin" && (trip.status === "Draft" || trip.status === "Cancelled") && (
+                          <button className="btn danger" disabled={busy} onClick={() => void manageTrip(trip, true)}>Hard Delete</button>
                         )}
                         {trip.status !== "Cancelled" && canWrite && (
                           <button
@@ -569,200 +638,237 @@ export function CarTripMaster() {
       </Panel>
 
       {dialogOpen && (
-        <Overlay title="Schedule Scheduled Car Trip" onClose={() => setDialogOpen(false)}>
-          <form onSubmit={handleScheduleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            {formError && (
-              <div className="counter-alert error" role="alert">
-                <AlertTriangle size={16} />
-                <span>{formError}</span>
-              </div>
-            )}
+        <Overlay
+          title="Schedule Vehicle Trip"
+          onClose={() => { if (!busy) setDialogOpen(false); }}
+          className="car-editor-dialog"
+        >
+          <form onSubmit={handleScheduleSubmit} className="car-editor-form">
+            <div className="car-editor-body">
+              {formError && (
+                <div className="counter-alert error" role="alert">
+                  <AlertTriangle size={16} />
+                  <span>{formError}</span>
+                </div>
+              )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <label>
-                Trip Type
-                <select
-                  value={formData.tripType}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      tripType: e.target.value as "ONE_WAY" | "ROUND_TRIP",
-                    })
-                  }
-                >
-                  <option value="ONE_WAY">One Way Trip</option>
-                  <option value="ROUND_TRIP">Round Trip</option>
-                </select>
-              </label>
-
-              <label>
-                Car Category
-                <select
-                  value={formData.vehicleCategory}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vehicleCategory: e.target.value as "4-Passenger Sedan" | "7-Passenger MUV",
-                    })
-                  }
-                >
-                  <option value="4-Passenger Sedan">4-Passenger Sedan (4 Bookable Seats)</option>
-                  <option value="7-Passenger MUV">7-Passenger MUV (7 Bookable Seats)</option>
-                </select>
-              </label>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <label>
-                Assigned Vehicle Registration
-                {cars.length > 0 ? (
+              <div className="car-editor-row">
+                <label>
+                  Trip Type
                   <select
-                    required
-                    value={selectedCarId}
-                    onChange={(e) => {
-                      const cid = e.target.value;
-                      setSelectedCarId(cid);
-                      const c = cars.find((car) => String(car._id) === cid);
-                      if (c) {
-                        const reg = c.registrationNumber || c.registration || "";
-                        const cat =
-                          c.vehicleCategory || c.category || "4-Passenger Sedan";
-                        setFormData((f) => ({
-                          ...f,
-                          carRegistration: reg,
-                          vehicleCategory: cat,
-                        }));
-                      }
-                    }}
-                  >
-                    <option value="">Select Registered Car…</option>
-                    {cars.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.registrationNumber || c.registration} ({c.make}{" "}
-                        {c.model || c.modelName}) —{" "}
-                        {c.vehicleCategory || c.category}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. CG-04-MG-2001"
-                    value={formData.carRegistration}
+                    value={formData.tripType}
                     onChange={(e) =>
-                      setFormData({ ...formData, carRegistration: e.target.value })
+                      setFormData({
+                        ...formData,
+                        tripType: e.target.value as "ONE_WAY" | "ROUND_TRIP",
+                      })
                     }
-                  />
-                )}
-              </label>
-              <label>
-                Route (City Pair)
-                {routes.length > 0 ? (
+                  >
+                    <option value="ONE_WAY">One Way Trip</option>
+                    <option value="ROUND_TRIP">Round Trip</option>
+                  </select>
+                </label>
+
+                {assignedVehicle ? <div>
+                  <strong>Assigned seat layout</strong>
+                  <p>{assignedVehicle.vehicleCategory || assignedVehicle.category} · {assignedVehicle.bookablePassengerCapacity} passenger seats</p>
+                </div> : (ws.demo || cars.length === 0) && <label>
+                  Car Category
                   <select
-                    required
-                    value={selectedRouteId}
-                    onChange={(e) => {
-                      const rid = e.target.value;
-                      setSelectedRouteId(rid);
-                      const r = routes.find((rt) => String(rt._id) === rid);
-                      if (r) {
-                        setFormData((f) => ({
-                          ...f,
-                          routeName: `${r.source} → ${r.destination}`,
-                          ...(r.departure ? { departureTime: r.departure } : {}),
-                          ...(r.arrival ? { arrivalTime: r.arrival } : {}),
-                        }));
-                        setFormError("");
-                      }
-                    }}
-                  >
-                    <option value="">Select Route…</option>
-                    {routes.map((r) => (
-                      <option key={r._id} value={r._id}>
-                        {r.source} → {r.destination}{" "}
-                        {r.distanceKm ? `(${r.distanceKm} km)` : ""}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Raipur → Bilaspur"
-                    value={formData.routeName}
+                    value={formData.vehicleCategory}
                     onChange={(e) =>
-                      setFormData({ ...formData, routeName: e.target.value })
+                      setFormData({
+                        ...formData,
+                        vehicleCategory: e.target.value as "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus",
+                      })
                     }
+                  >
+                    <option value="4-Passenger Sedan">4-Passenger Sedan (4 Bookable Seats)</option>
+                    <option value="7-Passenger MUV">7-Passenger MUV (7 Bookable Seats)</option>
+                  </select>
+                </label>}
+              </div>
+
+              <div className="car-editor-row">
+                <label>
+                  Assigned Vehicle Registration
+                  {cars.length > 0 ? (
+                    <select
+                      required
+                      value={selectedCarId}
+                      onChange={(e) => {
+                        const cid = e.target.value;
+                        setSelectedCarId(cid);
+                        const c = cars.find((car) => String(car._id) === cid);
+                        if (c) {
+                          const reg = c.registrationNumber || c.registration || "";
+                          const cat =
+                            c.vehicleCategory || c.category || "4-Passenger Sedan";
+                          setFormData((f) => ({
+                            ...f,
+                            carRegistration: reg,
+                            vehicleCategory: cat,
+                          }));
+                        }
+                      }}
+                    >
+                      <option value="">Select registered vehicle…</option>
+                      {cars.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.registrationNumber || c.registration} ({c.make}{" "}
+                          {c.model || c.modelName}) —{" "}
+                          {c.vehicleCategory || c.category}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. CG-04-MG-2001"
+                      value={formData.carRegistration}
+                      onChange={(e) =>
+                        setFormData({ ...formData, carRegistration: e.target.value })
+                      }
+                    />
+                  )}
+                </label>
+                <label>
+                  Route (City Pair)
+                  {routes.length > 0 ? (
+                    <select
+                      required
+                      value={selectedRouteId}
+                      onChange={(e) => {
+                        const rid = e.target.value;
+                        setSelectedRouteId(rid);
+                        const r = routes.find((rt) => String(rt._id) === rid);
+                        if (r) {
+                          setFormData((f) => ({
+                            ...f,
+                            routeName: `${r.source} → ${r.destination}`,
+                            ...(r.departure ? { departureTime: r.departure } : {}),
+                            ...(r.arrival ? { arrivalTime: r.arrival } : {}),
+                          }));
+                          setFormError("");
+                        }
+                      }}
+                    >
+                      <option value="">Select Route…</option>
+                      {routes.map((r) => (
+                        <option key={r._id} value={r._id}>
+                          {r.source} → {r.destination}{" "}
+                          {r.distanceKm ? `(${r.distanceKm} km)` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Raipur → Bilaspur"
+                      value={formData.routeName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, routeName: e.target.value })
+                      }
+                    />
+                  )}
+                </label>
+              </div>
+
+              {assignedLayout?.length ? <section aria-label="Saved seat layout">
+                <div className="scheduled-layout-preview" style={{ gridTemplateColumns: `repeat(${Math.max(...assignedLayout.map((seat) => seat.column)) + 1}, minmax(0, 1fr))` }}>
+                  {assignedLayout.map((seat) => <span key={seat.number} className={seat.number === "D" ? "driver-position" : undefined}
+                    style={{ gridRow: seat.row + 1, gridColumn: seat.column + 1 }}>
+                    {seat.number === "D" ? "Driver" : seat.number}
+                  </span>)}
+                </div>
+              </section> : assignedVehicle && ["Mini Bus", "Bus", "Custom Car"].includes(formData.vehicleCategory) &&
+                <p role="status">Save a seat layout for this vehicle in Layouts before scheduling.</p>}
+
+              <div className="car-editor-row">
+                <label>
+                  Departure Date
+                  <input
+                    type="date"
+                    required
+                    value={formData.departureDate}
+                    onChange={(e) => setFormData({ ...formData, departureDate: e.target.value })}
                   />
+                </label>
+                <label>
+                  Departure Time (IST)
+                  <input
+                    type="time"
+                    required
+                    value={formData.departureTime}
+                    onChange={(e) => setFormData({ ...formData, departureTime: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="car-editor-row">
+                <label>
+                  Estimated Arrival Date
+                  <input
+                    type="date"
+                    required
+                    value={formData.arrivalDate}
+                    onChange={(e) => setFormData({ ...formData, arrivalDate: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Arrival Time (IST)
+                  <input
+                    type="time"
+                    required
+                    value={formData.arrivalTime}
+                    onChange={(e) => setFormData({ ...formData, arrivalTime: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="car-editor-row">
+                <label>
+                  Repeat schedule
+                  <select value={repeat} disabled={busy} onChange={(e) => setRepeat(e.target.value as typeof repeat)}>
+                    <option value="once">Single date</option>
+                    <option value="daily">Every day</option>
+                    <option value="weekdays">Monday to Friday</option>
+                    <option value="weekends">Saturday and Sunday</option>
+                  </select>
+                </label>
+                {repeat !== "once" && (
+                  <label>
+                    Repeat through
+                    <input type="date" required min={formData.departureDate} value={repeatEnd} disabled={busy} onChange={(e) => setRepeatEnd(e.target.value)} />
+                  </label>
                 )}
-              </label>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              </div>
+              {repeat !== "once" && <p className="car-editor-intro">Departure Date is the first day of the range. We schedule up to 31 days using the same times and fare. Each departure has its own seats and bookings.</p>}
               <label>
-                Departure Date
+                Base Fare per Seat (in Rupees ₹)
                 <input
-                  type="date"
+                  type="number"
+                  min="50"
+                  max="50000"
                   required
-                  value={formData.departureDate}
-                  onChange={(e) => setFormData({ ...formData, departureDate: e.target.value })}
+                  value={formData.baseFareRupees}
+                  onChange={(e) => setFormData({ ...formData, baseFareRupees: Number(e.target.value) })}
                 />
               </label>
-              <label>
-                Departure Time (IST)
-                <input
-                  type="time"
-                  required
-                  value={formData.departureTime}
-                  onChange={(e) => setFormData({ ...formData, departureTime: e.target.value })}
-                />
-              </label>
-            </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <label>
-                Estimated Arrival Date
-                <input
-                  type="date"
-                  required
-                  value={formData.arrivalDate}
-                  onChange={(e) => setFormData({ ...formData, arrivalDate: e.target.value })}
-                />
-              </label>
-              <label>
-                Arrival Time (IST)
-                <input
-                  type="time"
-                  required
-                  value={formData.arrivalTime}
-                  onChange={(e) => setFormData({ ...formData, arrivalTime: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <label>
-              Base Fare per Seat (in Rupees ₹)
-              <input
-                type="number"
-                min="50"
-                max="50000"
-                required
-                value={formData.baseFareRupees}
-                onChange={(e) => setFormData({ ...formData, baseFareRupees: Number(e.target.value) })}
-              />
-            </label>
-
-            <div className="info-banner" style={{ fontSize: "12px" }}>
-              <ShieldCheck size={16} />
-              <div>
-                <strong>Bus-Style Individual Seat Booking Rules</strong>:
-                Front passenger seat carries 10% premium. Middle seats enjoy 10% discount. Driver seat (D) is strictly non-bookable and never sold.
+              <div className="car-editor-capacity">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Bus-Style Individual Seat Booking Rules:</strong>{" "}
+                  Front passenger seat carries 10% premium. Middle seats enjoy 10% discount. Driver seat (D) is strictly non-bookable and never sold.
+                </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
-              <button type="button" className="btn secondary" onClick={() => setDialogOpen(false)}>
+            <div className="car-editor-footer">
+              <button type="button" className="btn secondary" disabled={busy} onClick={() => setDialogOpen(false)}>
                 Cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>
@@ -774,23 +880,29 @@ export function CarTripMaster() {
       )}
 
       {cancelDialogOpen && selectedTrip && (
-        <Overlay title={`Cancel Trip ${selectedTrip.tripNumber}`} onClose={() => setCancelDialogOpen(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <p>
-              Are you sure you want to cancel car trip <strong>{selectedTrip.tripNumber}</strong> on route{" "}
-              <strong>{selectedTrip.routeName}</strong>?
-            </p>
-            <label>
-              Cancellation Reason (Required for audit log)
-              <textarea
-                required
-                rows={3}
-                placeholder="e.g. Unforeseen vehicle maintenance, road blockage"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-              />
-            </label>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+        <Overlay
+          title={`Cancel Trip ${selectedTrip.tripNumber}`}
+          onClose={() => setCancelDialogOpen(false)}
+          className="car-editor-dialog"
+        >
+          <div className="car-editor-form">
+            <div className="car-editor-body">
+              <p className="car-editor-intro">
+                Are you sure you want to cancel car trip <strong>{selectedTrip.tripNumber}</strong> on route{" "}
+                <strong>{selectedTrip.routeName}</strong>?
+              </p>
+              <label>
+                Cancellation Reason (Required for audit log)
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="e.g. Unforeseen vehicle maintenance, road blockage"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="car-editor-footer">
               <button className="btn secondary" onClick={() => setCancelDialogOpen(false)}>
                 Go Back
               </button>

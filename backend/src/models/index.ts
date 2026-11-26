@@ -71,4 +71,5 @@ export * from "./public-api.model.js";
 
 export { PartnerSupport } from "./partner-portal.model.js";
 export { DailyAgentSettlement } from "./agent-settlement.model.js";
+export { VehicleLayout } from "./vehicle-layout.model.js";
 export { CatalogCity, CityCatalogImport } from "./city-catalog.model.js";

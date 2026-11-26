@@ -798,11 +798,12 @@ export function BookingCounter({
       )}
       <div
         className={`counter-workbench${trip ? " has-trip" : ""}`}
-        hidden={counterView !== "booking"}
+        style={counterView === "booking" ? undefined : { display: "none" }}
       >
         <div className="counter-left">
           <SeatMap
             variant="counter-chart"
+            vehicleType={trip?.busType}
             title={
               trip
                 ? `Vehicle : ${trip.registration || (trip.busName && trip.busName !== "Bus unavailable" ? trip.busName : "Car Fleet")} (${trip.busType || "Car"})`

@@ -1,0 +1,72 @@
+.car-trips-table {
+  overflow-x: auto;
+}
+.car-trips-table .data-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.car-trips-table .data-table :is(th, td) {
+  padding: 12px 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.car-trips-table th:first-child { width: 15%; }
+.car-trips-table th:last-child { width: 16%; }
+.car-trip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.car-trip-actions .btn {
+  min-height: 36px;
+  padding: 7px 9px;
+}
+@media (max-width: 1100px) {
+  .car-trips-table { padding: 12px; }
+  .car-trips-table .data-table, .car-trips-table tbody { display: block; }
+  .car-trips-table thead { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; }
+  .car-trips-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: white;
+  }
+  .car-trips-table tbody td { display: block; border: 0; }
+  .car-trips-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .car-trips-table td:first-child, .car-trips-table td:last-child { grid-column: 1 / -1; }
+  .car-trip-actions .btn { min-height: 44px; }
+}
+
+.scheduled-layout-preview {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  max-width: 360px;
+  max-height: 160px;
+  overflow: auto;
+  border-radius: 10px;
+  background: #f3f6f8;
+}
+
+.scheduled-layout-preview span {
+  padding: 6px 2px;
+  border: 1px solid #b7d8c7;
+  border-radius: 6px;
+  background: #e3f5ed;
+  text-align: center;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.scheduled-layout-preview .driver-position {
+  border-color: #cfd5df;
+  background: #eef0f4;
+}
