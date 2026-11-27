@@ -8,7 +8,9 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 require_root() {
   [[ -d $ROOT && ! -L $ROOT && $(cat "$ROOT/.project-owner") == bookmybus-crs ]] || fail 'Dedicated deployment directory not provisioned'
   [[ $(stat -c %a "$ROOT/shared/api.env") == 600 ]] || fail 'api.env must have mode 0600'
+  [[ $(stat -c %a "$ROOT/shared/car-sandbox.env") == 600 ]] || fail 'car-sandbox.env must have mode 0600'
   export APP_ENV_FILE="$ROOT/shared/api.env"
+  export CAR_SANDBOX_ENV_FILE="$ROOT/shared/car-sandbox.env"
   export REDIS_TLS_DIR="$ROOT/shared/redis-tls"
   [[ -r $REDIS_TLS_DIR/ca.crt && -r $REDIS_TLS_DIR/redis.conf ]] || fail 'Dedicated TLS Redis configuration missing'
   grep -Eq '^[^#].*(REPLACE_|replace-|example\.com)' "$APP_ENV_FILE" && fail 'Production environment still contains example values'
@@ -23,14 +25,16 @@ load_release() {
   REVISION=$(sed -n 's/^REVISION=//p' "$RELEASE/images.env")
   API_IMAGE=$(sed -n 's/^API_IMAGE=//p' "$RELEASE/images.env")
   WEB_IMAGE=$(sed -n 's/^WEB_IMAGE=//p' "$RELEASE/images.env")
+  CAR_SANDBOX_IMAGE=$(sed -n 's/^CAR_SANDBOX_IMAGE=//p' "$RELEASE/images.env")
   [[ $REVISION =~ ^[a-f0-9]{40}$ ]] || fail 'Invalid revision'
   local prefix
   prefix=$(cat "$ROOT/shared/registry-prefix")
   [[ $prefix =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+$ ]] || fail 'Invalid registry allowlist'
   [[ $API_IMAGE == "$prefix-api@sha256:"* && ${API_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid API image digest'
   [[ $WEB_IMAGE == "$prefix-web@sha256:"* && ${WEB_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid web image digest'
-  [[ $(wc -l < "$RELEASE/images.env") == 3 ]] || fail 'Unexpected image manifest fields'
-  export API_IMAGE WEB_IMAGE REVISION
+  [[ $CAR_SANDBOX_IMAGE == "$prefix-car-sandbox@sha256:"* && ${CAR_SANDBOX_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid Car sandbox image digest'
+  [[ $(wc -l < "$RELEASE/images.env") == 4 ]] || fail 'Unexpected image manifest fields'
+  export API_IMAGE WEB_IMAGE CAR_SANDBOX_IMAGE REVISION
 }
 compose() { docker compose --project-directory "$RELEASE" --env-file "$RELEASE/images.env" -p "$PROJECT" -f "$RELEASE/docker-compose.prod.yml" "$@"; }
 health() {
@@ -41,6 +45,7 @@ health() {
     [[ $actual == "$REVISION" ]] || return 1
     curl -fsS --max-time 8 -o /dev/null -H "Host: $host" http://127.0.0.1:5020/ || return 1
   done
+  curl -fsS --max-time 8 -H 'Host: partner.bookmybus.pro' http://127.0.0.1:5020/api/v1/car/openapi.json | grep -q '"openapi"' || return 1
 }
 wait_health() { for attempt in {1..30}; do health && return 0; sleep 2; done; return 1; }
 check_namespace() {

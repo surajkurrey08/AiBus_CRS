@@ -15,8 +15,8 @@ export const carSearchRouter = Router();
 // List active cities
 carSearchRouter.get(
   "/cities",
-  asyncRoute(async (_req, res) => {
-    const cities = await getCarCities();
+  asyncRoute(async (req, res) => {
+    const cities = await getCarCities(req.carProvider!.operatorId);
     return ok(res, cities);
   })
 );
@@ -25,7 +25,7 @@ carSearchRouter.get(
 carSearchRouter.get(
   "/routes",
   asyncRoute(async (req, res) => {
-    const routes = await getCarRoutes(req.query as any);
+    const routes = await getCarRoutes(req.query as any, req.carProvider!.operatorId);
     return ok(res, routes);
   })
 );
@@ -34,7 +34,7 @@ carSearchRouter.get(
 carSearchRouter.get(
   "/trips/search",
   asyncRoute(async (req, res) => {
-    const result = await searchOneWayTrips(req.query as any);
+    const result = await searchOneWayTrips(req.query as any, req.carProvider!.operatorId);
     return ok(res, result.data, result.meta);
   })
 );
@@ -43,7 +43,7 @@ carSearchRouter.get(
 carSearchRouter.post(
   "/trips/round-trip-search",
   asyncRoute(async (req, res) => {
-    const result = await searchRoundTrips(req.body);
+    const result = await searchRoundTrips(req.body, req.carProvider!.operatorId);
     return ok(res, result.data, result.meta);
   })
 );
@@ -52,7 +52,7 @@ carSearchRouter.post(
 carSearchRouter.get(
   "/trips/:id",
   asyncRoute(async (req, res) => {
-    const trip = await getTripPublicById(String(req.params.id));
+    const trip = await getTripPublicById(String(req.params.id), req.carProvider!.operatorId);
     return ok(res, trip);
   })
 );
@@ -61,7 +61,7 @@ carSearchRouter.get(
 carSearchRouter.get(
   "/trips/:id/seats",
   asyncRoute(async (req, res) => {
-    const inventory = await getTripSeatsPublic(String(req.params.id));
+    const inventory = await getTripSeatsPublic(String(req.params.id), req.carProvider!.operatorId);
     return ok(res, inventory);
   })
 );
@@ -70,7 +70,7 @@ carSearchRouter.get(
 carSearchRouter.post(
   "/fares/quote",
   asyncRoute(async (req, res) => {
-    const quote = await quoteTripFare(req.body);
+    const quote = await quoteTripFare(req.body, req.carProvider!.operatorId);
     return ok(res, quote);
   })
 );

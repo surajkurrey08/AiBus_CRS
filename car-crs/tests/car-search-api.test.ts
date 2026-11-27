@@ -2,6 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
+import jwt from "jsonwebtoken";
+import { randomBytes } from "node:crypto";
+import { providerAudience } from "../src/middleware/provider.js";
 import { createCarCrsApp } from "../src/app.js";
 import { Car } from "../src/models/car.model.js";
 import { CarRoute } from "../src/models/car-route.model.js";
@@ -12,9 +15,18 @@ import { getStandard4PassengerLayout, getStandard7PassengerLayout } from "../src
 describe("Car Search & Availability REST API (/api/v1/car)", () => {
   let mongo: MongoMemoryReplSet;
   const JWT_SECRET = "test-secret-key-car-crs-12345";
-  const app = createCarCrsApp(JWT_SECRET);
+  const providerKey = randomBytes(48).toString("hex");
+  const app = createCarCrsApp(JWT_SECRET, providerKey);
 
   const operatorId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  function providerClient(subject = userId) {
+    const token = jwt.sign({ operatorId: String(operatorId) }, providerKey, {
+      subject: String(subject), audience: providerAudience, expiresIn: "45m",
+    });
+    return request.agent(app).set("Authorization", "Bearer " + token);
+  }
+
   let carSedanId: string;
   let carMuvId: string;
   let routeOutboundId: string;
@@ -306,14 +318,14 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
 
   describe("Public Discovery APIs (GET /cities, GET /routes)", () => {
     it("returns active car cities", async () => {
-      const res = await request(app).get("/api/v1/car/cities");
+      const res = await providerClient().get("/api/v1/car/cities");
       expect(res.status).toBe(200);
       expect(res.body.data).toContain("Pune");
       expect(res.body.data).toContain("Mumbai");
     });
 
     it("returns active routes with boarding and dropping stops", async () => {
-      const res = await request(app).get("/api/v1/car/routes?source=Pune");
+      const res = await providerClient().get("/api/v1/car/routes?source=Pune");
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
       expect(res.body.data[0].destination).toBe("Mumbai");
@@ -323,7 +335,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
 
   describe("One Way Search API (GET /trips/search)", () => {
     it("returns available scheduled car trips with seat count and starting fare in integer paise", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .get("/api/v1/car/trips/search")
         .query({
           source: "Pune",
@@ -345,7 +357,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
     });
 
     it("filters out trips when requested passengers exceed available seats", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .get("/api/v1/car/trips/search")
         .query({
           source: "Pune",
@@ -361,7 +373,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
 
   describe("Round Trip Search API (POST /trips/round-trip-search)", () => {
     it("returns separate outbound and return trip options", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/trips/round-trip-search")
         .send({
           source: "Pune",
@@ -383,7 +395,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
     });
 
     it("rejects round trip search when returnDate is before outboundDate", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/trips/round-trip-search")
         .send({
           source: "Pune",
@@ -399,7 +411,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
 
   describe("Seat Inventory Availability (GET /trips/:id/seats)", () => {
     it("returns real-time seat inventory with Driver seat locked non-bookable", async () => {
-      const res = await request(app).get(`/api/v1/car/trips/${trip1Id}/seats`);
+      const res = await providerClient().get(`/api/v1/car/trips/${trip1Id}/seats`);
 
       expect(res.status).toBe(200);
       const inventory = res.body.data;
@@ -425,7 +437,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
 
   describe("Authoritative Backend Fare Quote (POST /fares/quote)", () => {
     it("computes authoritative fare quote for One Way trip in integer paise", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/fares/quote")
         .send({
           outboundTripId: trip1Id,
@@ -440,7 +452,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
     });
 
     it("computes combined round-trip fare quote with independent legs", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/fares/quote")
         .send({
           outboundTripId: trip1Id,
@@ -457,7 +469,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
     });
 
     it("rejects fare quote if customer attempts to book the Driver seat", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/fares/quote")
         .send({
           outboundTripId: trip1Id,
@@ -469,7 +481,7 @@ describe("Car Search & Availability REST API (/api/v1/car)", () => {
     });
 
     it("rejects fare quote if requested seat is already booked", async () => {
-      const res = await request(app)
+      const res = await providerClient()
         .post("/api/v1/car/fares/quote")
         .send({
           outboundTripId: trip1Id,

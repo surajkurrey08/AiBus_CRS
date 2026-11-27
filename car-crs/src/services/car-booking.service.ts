@@ -52,7 +52,7 @@ export async function confirmBooking(
   }).lean();
 
   if (existingBooking) {
-    if (existingBooking.requestHash !== requestHash) {
+    if (String(existingBooking.userId) !== userId || existingBooking.requestHash !== requestHash) {
       fail(
         409,
         "IDEMPOTENCY_CONFLICT",
@@ -76,7 +76,7 @@ export async function confirmBooking(
   // 2. Validate Holds
   const outboundHoldId = input.outboundHoldId || input.holdId!;
   const outboundHold = await CarSeatHold.findOne({
-    holdId: outboundHoldId,
+    holdId: outboundHoldId, operatorId, userId,
   });
 
   if (!outboundHold) {
@@ -106,7 +106,7 @@ export async function confirmBooking(
   let returnHold: any = null;
   if (input.bookingType === "ROUND_TRIP") {
     returnHold = await CarSeatHold.findOne({
-      holdId: input.returnHoldId!,
+      holdId: input.returnHoldId!, operatorId, userId,
     });
 
     if (!returnHold) {

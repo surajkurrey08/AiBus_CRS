@@ -13,6 +13,8 @@ touch "$root/shared/redis-tls/ca.crt" "$root/shared/redis-tls/redis.conf"
 printf 'bookmybus-crs\n' > "$root/.project-owner"
 printf 'JWT_SECRET=synthetic-test\n' > "$root/shared/api.env"
 chmod 600 "$root/shared/api.env"
+printf 'CAR_CRS_JWT_SECRET=synthetic-test\nCAR_PROVIDER_JWT_SECRET=synthetic-test\n' > "$root/shared/car-sandbox.env"
+chmod 600 "$root/shared/car-sandbox.env"
 printf 'ghcr.io/owner/repo\n' > "$root/shared/registry-prefix"
 cat > /tmp/mockbin/docker <<'MOCK'
 #!/usr/bin/env bash
@@ -64,7 +66,7 @@ make_release() {
   cp /src/scripts/{deploy,rollback,release-common}.sh "$root/releases/$id/scripts/"
   cp /src/docker-compose.prod.yml /src/docker-compose.public-test.yml "$root/releases/$id/"
   cp /src/deploy/public-api-test-compose.env.example "$root/releases/$id/deploy/"
-  printf 'REVISION=%s\nAPI_IMAGE=ghcr.io/owner/repo-api@sha256:%064d\nWEB_IMAGE=ghcr.io/owner/repo-web@sha256:%064d\n' "$revision" 1 2 > "$root/releases/$id/images.env"
+  printf 'REVISION=%s\nAPI_IMAGE=ghcr.io/owner/repo-api@sha256:%064d\nWEB_IMAGE=ghcr.io/owner/repo-web@sha256:%064d\nCAR_SANDBOX_IMAGE=ghcr.io/owner/repo-car-sandbox@sha256:%064d\n' "$revision" 1 2 3 > "$root/releases/$id/images.env"
 }
 a=$(printf 'a%.0s' {1..40}); b=$(printf 'b%.0s' {1..40})
 make_release "$a"; make_release "$b"

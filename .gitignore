@@ -15,5 +15,6 @@ backups/
 
 # Disposable Phase 6 browser infrastructure and artifacts
 .cache/
+**/.temp/
 playwright-report/
 test-results/

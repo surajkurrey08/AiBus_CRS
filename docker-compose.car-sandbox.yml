@@ -1,0 +1,57 @@
+name: aicar-sandbox
+
+services:
+  car-sandbox-mongo:
+    image: mongo:7.0
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    restart: unless-stopped
+    init: true
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    cpus: 0.75
+    pids_limit: 160
+    volumes: [car-sandbox-mongo:/data/db]
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'car-sandbox-mongo:27017'}]}).ok }\" | grep -qx 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 15
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  car-sandbox-api:
+    image: ${CAR_SANDBOX_IMAGE:?Digest-pinned CAR_SANDBOX_IMAGE is required}
+    env_file:
+      - path: ${CAR_SANDBOX_ENV_FILE:?Private CAR_SANDBOX_ENV_FILE is required}
+        format: raw
+    environment:
+      NODE_ENV: staging
+      CAR_CRS_PORT: 4010
+      CAR_CRS_MONGODB_URI: mongodb://car-sandbox-mongo:27017/aibus_car_crs_partner_sandbox?replicaSet=rs0
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    cpus: 0.75
+    pids_limit: 160
+    depends_on:
+      car-sandbox-mongo: {condition: service_healthy}
+    networks: [data, integration]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  car-sandbox-mongo:
+
+networks:
+  data:
+    internal: true
+  integration:
+    name: bookmybus-crs_integration
+    external: true

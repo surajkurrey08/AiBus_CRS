@@ -38,6 +38,10 @@ Register an operator in the frontend. Registration creates an operator and admin
 
 Authenticated OpenAPI JSON: `GET /api/v1/openapi.json`. Swagger UI is served at `/api/v1/docs` and requires a bearer header; use a local Swagger client to load the authenticated JSON and authorize, since navigating directly to a bearer-protected URL does not attach the SPA's in-memory token.
 
+For the current car provider sandbox, see the [Car CRS guide](../car-crs/README.md).
+
+Legacy bus partner API OpenAPI JSON: `GET /api/v1/public/openapi.json`. Its public Swagger UI is served at `/api/v1/public/docs`; request execution is disabled because partner credentials are server-to-server only. Use the Partner Portal playground or a backend/Postman client for sandbox requests.
+
 All lists return `{data,meta:{page,limit,total,pages}}`; errors return `{error:{code,message,requestId}}`. Limits are 1–100. Search is escaped literal text. IDs are Mongo ObjectIds. Amounts are **integer paise**, not floating-point rupees. Dates use `YYYY-MM-DD` and departures require timestamps with offset; operational dates and financial grouping use Asia/Kolkata.
 
 Booking flow for internal inventory:

@@ -2,6 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
+import jwt from "jsonwebtoken";
+import { randomBytes } from "node:crypto";
+import { providerAudience } from "../src/middleware/provider.js";
 import { createCarCrsApp } from "../src/app.js";
 import { Car } from "../src/models/car.model.js";
 import { CarRoute } from "../src/models/car-route.model.js";
@@ -25,7 +28,8 @@ import { signCarToken } from "../src/middleware/auth.middleware.js";
 describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   let mongo: MongoMemoryReplSet;
   const JWT_SECRET = "test-secret-key-car-crs-phase4-secure";
-  const app = createCarCrsApp(JWT_SECRET);
+  const providerKey = randomBytes(48).toString("hex");
+  const app = createCarCrsApp(JWT_SECRET, providerKey);
 
   const operatorId = new mongoose.Types.ObjectId();
   const otherOperatorId = new mongoose.Types.ObjectId();
@@ -34,6 +38,13 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
 
   let operatorToken: string;
   let otherOperatorToken: string;
+
+  function providerClient(subject = userId) {
+    const token = jwt.sign({ operatorId: String(operatorId) }, providerKey, {
+      subject: String(subject), audience: providerAudience, expiresIn: "45m",
+    });
+    return request.agent(app).set("Authorization", "Bearer " + token);
+  }
 
   let carSedanId: string;
   let carMuvId: string;
@@ -249,17 +260,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 1: One Way seat booking (Search -> Hold -> Confirm -> PNR & Ticket)", async () => {
     // 1. Search trips
-    const searchRes = await request(app)
+    const searchRes = await providerClient()
       .get("/api/v1/car/trips/search")
       .query({ source: "Pune", destination: "Mumbai", journeyDate: "2026-12-15" });
     expect(searchRes.status).toBe(200);
     expect(searchRes.body.data.length).toBeGreaterThan(0);
 
     // 2. Hold seat "FP"
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -270,10 +279,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdId).toBeDefined();
 
     // 3. Confirm Booking
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId,
@@ -300,10 +307,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 2: Round Trip seat booking (Outbound + Return holds -> Combined Confirmation -> 2 Tickets)", async () => {
     // 1. Create Round Trip Hold
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds/round-trip")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         outboundTripId: tripSedanOutbound._id.toString(),
         outboundSeatIds: ["2L"],
@@ -317,10 +322,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(returnHoldId).toBeDefined();
 
     // 2. Confirm Round Trip Booking
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ROUND_TRIP",
         outboundHoldId,
@@ -346,10 +349,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 3: 4-passenger-seat configuration (5 physical = 1 driver + 4 bookable)", async () => {
     // Attempt to hold all 4 passenger seats (FP, 2L, 2M, 2R)
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP", "2L", "2M", "2R"],
@@ -359,10 +360,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdRes.body.data.heldSeats).toEqual(["FP", "2L", "2M", "2R"]);
 
     // Confirm booking for all 4 seats
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -392,10 +391,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 4: 7-passenger-seat configuration (8 physical = 1 driver + 7 bookable)", async () => {
     const all7Seats = ["FP", "2L", "2M", "2R", "3L", "3M", "3R"];
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripMuvOutbound._id.toString(),
         seatIds: all7Seats,
@@ -405,10 +402,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdRes.body.data.heldSeats).toHaveLength(7);
 
     // Total fare: 80k + 75k + 70k + 75k + 75k + 65k + 75k = 515000
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -426,10 +421,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 5: Driver seat rejection on hold and booking ('D' is never bookable)
   // =========================================================================
   it("Scenario 5: Driver seat rejection on hold and booking ('D' is never bookable)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["D"],
@@ -445,10 +438,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 6: Duplicate seat hold rejection (same seat cannot have 2 active holds)", async () => {
     // First hold succeeds
-    const hold1 = await request(app)
+    const hold1 = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -456,10 +447,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(hold1.status).toBe(201);
 
     // Second hold for same seat fails with 409
-    const hold2 = await request(app)
+    const hold2 = await providerClient(new mongoose.Types.ObjectId())
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", new mongoose.Types.ObjectId().toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -500,10 +489,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 8: Seat hold expiry (expired hold cannot confirm)
   // =========================================================================
   it("Scenario 8: Seat hold expiry (expired hold cannot confirm)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -515,10 +502,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     // Manually expire the hold in MongoDB
     await CarSeatHold.updateOne({ holdId }, { expiresAt: new Date(Date.now() - 5000) });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId,
@@ -536,20 +521,16 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 9: Multi-seat booking
   // =========================================================================
   it("Scenario 9: Multi-seat booking", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["2L", "2R"],
       });
     expect(holdRes.status).toBe(201);
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -571,10 +552,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 10: Wrong/tampered fare rejection
   // =========================================================================
   it("Scenario 10: Wrong/tampered fare rejection", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -582,10 +561,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdRes.status).toBe(201);
 
     // Real fare is 55000, client tries to pay 1000
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -603,10 +580,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 11: Payment mismatch rejection
   // =========================================================================
   it("Scenario 11: Payment mismatch rejection", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -614,10 +589,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdRes.status).toBe(201);
 
     // Real fare is 55000, client tries to pay 999999
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -635,10 +608,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 12: Duplicate payment confirmation / idempotency
   // =========================================================================
   it("Scenario 12: Duplicate payment confirmation / idempotency", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -655,18 +626,14 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     };
 
     // First Call
-    const call1 = await request(app)
+    const call1 = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send(payload);
     expect(call1.status).toBe(201);
 
     // Second Call (exact same idempotency key and payload)
-    const call2 = await request(app)
+    const call2 = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send(payload);
     expect(call2.status).toBe(201);
     expect(call2.body.data.replayed).toBe(true);
@@ -680,10 +647,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 13: Idempotent booking confirmation (returns existing booking with same hash)
   // =========================================================================
   it("Scenario 13: Idempotent booking confirmation (returns existing booking with same hash)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
@@ -699,19 +664,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
       payment: { mode: "sandbox", amountPaise: 55000 },
     };
 
-    const call1 = await request(app)
+    const call1 = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send(payload);
     expect(call1.status).toBe(201);
     const pnr1 = call1.body.data.pnr;
     const bookingId1 = call1.body.data.booking._id;
 
-    const call2 = await request(app)
+    const call2 = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send(payload);
     expect(call2.status).toBe(201);
     expect(call2.body.data.pnr).toBe(pnr1);
@@ -722,10 +683,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 14: Expired-hold confirmation rejection (HTTP 410)
   // =========================================================================
   it("Scenario 14: Expired-hold confirmation rejection (HTTP 410)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["2M"],
@@ -736,10 +695,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     // Set hold as already expired
     await CarSeatHold.updateOne({ holdId }, { expiresAt: new Date(Date.now() - 60000), status: "expired" });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId,
@@ -788,10 +745,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 16: Both legs confirmed consistently with 1 PNR and 2 tickets
   // =========================================================================
   it("Scenario 16: Both legs confirmed consistently with 1 PNR and 2 tickets", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds/round-trip")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         outboundTripId: tripSedanOutbound._id.toString(),
         outboundSeatIds: ["2L"],
@@ -801,10 +756,8 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(holdRes.status).toBe(201);
     const { outboundHoldId, returnHoldId } = holdRes.body.data;
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ROUND_TRIP",
         outboundHoldId,
@@ -829,19 +782,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   it("Scenario 17: PNR uniqueness", async () => {
     const pnrs = new Set<string>();
     for (let i = 0; i < 5; i++) {
-      const holdRes = await request(app)
+      const holdRes = await providerClient()
         .post("/api/v1/car/holds")
-        .set("x-operator-id", operatorId.toString())
-        .set("x-user-id", userId.toString())
         .send({
           tripId: tripMuvOutbound._id.toString(),
           seatIds: [["FP", "2L", "2M", "2R", "3L"][i]],
         });
 
-      const confirmRes = await request(app)
+      const confirmRes = await providerClient()
         .post("/api/v1/car/bookings/confirm")
-        .set("x-operator-id", operatorId.toString())
-        .set("x-user-id", userId.toString())
         .send({
           bookingType: "ONE_WAY",
           holdId: holdRes.body.data.holdId,
@@ -863,19 +812,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 18: Ticket issuance with masked driver details
   // =========================================================================
   it("Scenario 18: Ticket issuance with masked driver details", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -888,7 +833,7 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     const bookingId = confirmRes.body.data.booking._id;
 
     // Fetch passenger-facing tickets
-    const ticketRes = await request(app).get(`/api/v1/car/bookings/${bookingId}/tickets`);
+    const ticketRes = await providerClient().get(`/api/v1/car/bookings/${bookingId}/tickets`);
     expect(ticketRes.status).toBe(200);
     const ticket = ticketRes.body.data[0];
 
@@ -908,19 +853,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 19: Booking ownership / tenant isolation
   // =========================================================================
   it("Scenario 19: Booking ownership / tenant isolation", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -946,18 +887,14 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // =========================================================================
   it("Scenario 20: Agent permissions & commission attribution (5% commission in journal)", async () => {
     const holdRes = await request(app)
-      .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
+      .post("/api/v1/operator/holds").set("Authorization", "Bearer " + operatorToken)
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
     const confirmRes = await request(app)
-      .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
+      .post("/api/v1/operator/bookings/confirm").set("Authorization", "Bearer " + operatorToken)
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -986,19 +923,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 21: Operator tenant isolation
   // =========================================================================
   it("Scenario 21: Operator tenant isolation in query APIs", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -1011,10 +944,18 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     const bookingId = confirmRes.body.data.booking._id;
 
     // Operator A can access booking
-    const resA = await request(app)
+    const resA = await providerClient()
       .get(`/api/v1/car/bookings/${bookingId}`)
       .set("x-operator-id", operatorId.toString());
     expect(resA.status).toBe(200);
+
+    const secondProvider = providerClient(new mongoose.Types.ObjectId());
+    const foreignTicket = await secondProvider.get(`/api/v1/car/bookings/${bookingId}/tickets`);
+    expect(foreignTicket.status).toBe(404);
+    const foreignCancellation = await secondProvider
+      .post(`/api/v1/car/bookings/${bookingId}/cancel`)
+      .send({ reason: "Cancel sandbox booking" });
+    expect(foreignCancellation.status).toBe(404);
 
     // Operator B via operator router cannot access Operator A's booking
     const resB = await request(app)
@@ -1027,19 +968,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 22: Cancellation quote calculation (>24h, 12-24h, 2-12h, <2h)
   // =========================================================================
   it("Scenario 22: Cancellation quote calculation (>24h, 12-24h, 2-12h, <2h)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -1093,19 +1030,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 23: Cancellation execution, seat inventory release, ticket invalidation, refund status
   // =========================================================================
   it("Scenario 23: Cancellation execution, seat inventory release, ticket invalidation, refund status", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -1118,7 +1051,7 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     const bookingId = confirmRes.body.data.booking._id;
 
     // Execute cancellation
-    const cancelRes = await request(app)
+    const cancelRes = await providerClient()
       .post(`/api/v1/car/bookings/${bookingId}/cancel`)
       .set("x-operator-id", operatorId.toString())
       .send({ reason: "Passenger schedule change" });
@@ -1138,7 +1071,7 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(ticket?.cancellationReason).toBe("Passenger schedule change");
 
     // Verify refund status endpoint
-    const refundRes = await request(app).get(`/api/v1/car/bookings/${bookingId}/refund-status`);
+    const refundRes = await providerClient().get(`/api/v1/car/bookings/${bookingId}/refund-status`);
     expect(refundRes.status).toBe(200);
     expect(refundRes.body.data.paymentStatus).toBe("Refunded");
   });
@@ -1147,19 +1080,15 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
   // SCENARIO 24: Ledger posting and balanced double-entry journals (totalDebits === totalCredits)
   // =========================================================================
   it("Scenario 24: Ledger posting and balanced double-entry journals (totalDebits === totalCredits)", async () => {
-    const holdRes = await request(app)
+    const holdRes = await providerClient()
       .post("/api/v1/car/holds")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         tripId: tripSedanOutbound._id.toString(),
         seatIds: ["FP"],
       });
 
-    const confirmRes = await request(app)
+    const confirmRes = await providerClient()
       .post("/api/v1/car/bookings/confirm")
-      .set("x-operator-id", operatorId.toString())
-      .set("x-user-id", userId.toString())
       .send({
         bookingType: "ONE_WAY",
         holdId: holdRes.body.data.holdId,
@@ -1181,7 +1110,7 @@ describe("AICAR CRS — Phase 4 Comprehensive Booking Flow Test Suite", () => {
     expect(debits).toBe(credits);
 
     // Cancel booking and verify reversal journal balances
-    await request(app)
+    await providerClient()
       .post(`/api/v1/car/bookings/${bookingId}/cancel`)
       .set("x-operator-id", operatorId.toString())
       .send({ reason: "Customer request" });

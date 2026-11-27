@@ -218,7 +218,7 @@ function Explorer({ spec, playground }: { spec: any; playground: boolean }) {
           <span className="dev-eyebrow">DEVELOPER WORKSPACE</span>
           <h2>
             {playground
-              ? "Test a request. Inspect the result."
+              ? "Bus API playground"
               : "Build with the AIBUS Booking API."}
           </h2>
           <p>
@@ -685,6 +685,16 @@ function Explorer({ spec, playground }: { spec: any; playground: boolean }) {
   );
 }
 export function DeveloperWorkspace({ playground }: { playground: boolean }) {
+  if (import.meta.env.DEV && !playground) {
+    return (
+      <Panel title="Car CRS provider documentation">
+        <div className="portal-pad">
+          <p>Search car trips, quote fares, hold seats, and manage one-way or round-trip bookings.</p>
+          <a href="http://127.0.0.1:4010/api/v1/car/docs/">Open local car API Swagger</a>
+        </div>
+      </Panel>
+    );
+  }
   return (
     <Load path="/partner/documentation">
       {(spec) => (

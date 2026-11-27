@@ -28,11 +28,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix car-crs --no-audit --no-fund
       - run: npm run check:ci-env
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:deployment
       - run: npm test
+      - run: npm run typecheck --prefix car-crs
+      - run: npm run test --prefix car-crs
       - run: npm run build
       - name: Report quality result
         if: always()
@@ -73,7 +76,8 @@ jobs:
       - run: |
           docker buildx build --platform linux/amd64 --load --target api --build-arg REVISION="$GITHUB_SHA" -t bookmybus-ci-api .
           docker buildx build --platform linux/amd64 --load --target web-production --build-arg REVISION="$GITHUB_SHA" -t bookmybus-ci-web .
-          bash scripts/ci/image-smoke.sh bookmybus-ci-api bookmybus-ci-web "$GITHUB_SHA"
+          docker buildx build --platform linux/amd64 --load --target car-sandbox-api --build-arg REVISION="$GITHUB_SHA" -t bookmybus-ci-car-sandbox .
+          bash scripts/ci/image-smoke.sh bookmybus-ci-api bookmybus-ci-web bookmybus-ci-car-sandbox "$GITHUB_SHA"
           bash scripts/ci/test-release-scripts.sh
       - name: Report Docker result
         if: always()

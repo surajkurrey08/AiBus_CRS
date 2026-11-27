@@ -21,26 +21,34 @@ import {
   confirmBookingSchema,
   cancelBookingSchema,
 } from "../validators/car-booking.validators.js";
-import { ok } from "../utils/response.js";
-import mongoose from "mongoose";
+import { fail, ok } from "../utils/response.js";
+import { CarBooking } from "../models/car-booking.model.js";
+import { requireCarPermission } from "../middleware/auth.middleware.js";
 
 export const carBookingRouter = express.Router();
 
 function getOperatorAndUser(req: express.Request) {
-  const operatorUser = (req as any).carAuth || (req as any).carOperator;
-  const operatorId =
-    operatorUser?.operatorId ||
-    (req.headers["x-operator-id"] as string) ||
-    "65f1a2b3c4d5e6f7a8b9c0d1";
-  const userId =
-    operatorUser?.userId ||
-    (req.headers["x-user-id"] as string) ||
-    new mongoose.Types.ObjectId().toString();
-  const channel: "operator" | "customer" | "agent" | "partner" =
-    operatorUser ? "operator" : "customer";
-
-  return { operatorId, userId, channel };
+  if (req.carProvider) return { ...req.carProvider, channel: "partner" as const };
+  if (!req.carAuth) fail(401, "UNAUTHENTICATED", "Authentication required");
+  return { operatorId: req.carAuth.operatorId, userId: req.carAuth.userId, channel: "operator" as const };
 }
+
+carBookingRouter.use((req, res, next) => {
+  if (req.carProvider) return next();
+  return requireCarPermission(req.method === "GET" ? "car:bookings:read" : "car:bookings:write")(req, res, next);
+});
+
+// Resolve a stable, owned booking before reading its tickets or changing its state.
+carBookingRouter.param("bookingId", async (req, _res, next, id: string) => {
+  const { operatorId } = getOperatorAndUser(req);
+  const key = /^[a-f0-9]{24}$/i.test(id) ? { _id: id } : { pnr: id.toUpperCase() };
+  const booking = await CarBooking.findOne({
+    ...key, operatorId, ...(req.carProvider ? { userId: req.carProvider.userId, channel: "partner" } : {}),
+  }).select("_id");
+  if (!booking) fail(404, "BOOKING_NOT_FOUND", "Booking not found");
+  req.params.bookingId = String(booking._id);
+  next();
+});
 
 // 1. Create Seat Hold (One Way)
 carBookingRouter.post("/holds", async (req, res, next) => {
@@ -88,7 +96,8 @@ carBookingRouter.post("/holds/round-trip", async (req, res, next) => {
 // 3. Get Seat Hold
 carBookingRouter.get("/holds/:id", async (req, res, next) => {
   try {
-    const hold = await getSeatHold(req.params.id);
+    const { operatorId, userId } = getOperatorAndUser(req);
+    const hold = await getSeatHold(req.params.id, { operatorId, userId });
     return ok(res, hold);
   } catch (err) {
     next(err);
@@ -98,8 +107,8 @@ carBookingRouter.get("/holds/:id", async (req, res, next) => {
 // 4. Release Seat Hold
 carBookingRouter.delete("/holds/:id", async (req, res, next) => {
   try {
-    const { userId } = getOperatorAndUser(req);
-    const result = await releaseSeatHold(req.params.id, userId);
+    const { userId, operatorId } = getOperatorAndUser(req);
+    const result = await releaseSeatHold(req.params.id, userId, operatorId);
     return ok(res, result);
   } catch (err) {
     next(err);
@@ -112,10 +121,12 @@ carBookingRouter.post("/bookings/confirm", async (req, res, next) => {
     const validated = confirmBookingSchema.parse(req.body);
     const { operatorId, userId, channel } = getOperatorAndUser(req);
 
+    if (req.carProvider && (validated.agentId || validated.payment.mode !== "sandbox"))
+      fail(400, "SANDBOX_PAYMENT_REQUIRED", "Use sandbox payment for provider bookings");
     const result = await confirmBooking(
       operatorId,
       userId,
-      (req.body.channel as any) || channel,
+      req.carAuth && validated.agentId && req.body.channel === "agent" ? "agent" : channel,
       validated
     );
 
@@ -126,11 +137,10 @@ carBookingRouter.post("/bookings/confirm", async (req, res, next) => {
 });
 
 // 6. Get Booking Details by ID or PNR
-carBookingRouter.get("/bookings/:id", async (req, res, next) => {
+carBookingRouter.get("/bookings/:bookingId", async (req, res, next) => {
   try {
-    const operatorId =
-      (req as any).carAuth?.operatorId || (req as any).carOperator?.operatorId;
-    const booking = await getBookingByIdOrPnr(req.params.id, operatorId);
+    const { operatorId } = getOperatorAndUser(req);
+    const booking = await getBookingByIdOrPnr(req.params.bookingId, operatorId);
     return ok(res, booking);
   } catch (err) {
     next(err);
@@ -138,9 +148,9 @@ carBookingRouter.get("/bookings/:id", async (req, res, next) => {
 });
 
 // 7. Get Booking Tickets
-carBookingRouter.get("/bookings/:id/tickets", async (req, res, next) => {
+carBookingRouter.get("/bookings/:bookingId/tickets", async (req, res, next) => {
   try {
-    const tickets = await getBookingTickets(req.params.id);
+    const tickets = await getBookingTickets(req.params.bookingId);
     return ok(res, tickets);
   } catch (err) {
     next(err);
@@ -148,9 +158,9 @@ carBookingRouter.get("/bookings/:id/tickets", async (req, res, next) => {
 });
 
 // 8. Cancellation Quote
-carBookingRouter.post("/bookings/:id/cancellation-quote", async (req, res, next) => {
+carBookingRouter.post("/bookings/:bookingId/cancellation-quote", async (req, res, next) => {
   try {
-    const quote = await quoteCancellation(req.params.id);
+    const quote = await quoteCancellation(req.params.bookingId);
     return ok(res, quote);
   } catch (err) {
     next(err);
@@ -158,11 +168,11 @@ carBookingRouter.post("/bookings/:id/cancellation-quote", async (req, res, next)
 });
 
 // 9. Cancel Booking
-carBookingRouter.post("/bookings/:id/cancel", async (req, res, next) => {
+carBookingRouter.post("/bookings/:bookingId/cancel", async (req, res, next) => {
   try {
     const validated = cancelBookingSchema.parse(req.body);
     const { operatorId } = getOperatorAndUser(req);
-    const result = await cancelBooking(req.params.id, operatorId, validated);
+    const result = await cancelBooking(req.params.bookingId, operatorId, validated);
     return ok(res, result);
   } catch (err) {
     next(err);
@@ -170,9 +180,9 @@ carBookingRouter.post("/bookings/:id/cancel", async (req, res, next) => {
 });
 
 // 10. Refund Status
-carBookingRouter.get("/bookings/:id/refund-status", async (req, res, next) => {
+carBookingRouter.get("/bookings/:bookingId/refund-status", async (req, res, next) => {
   try {
-    const status = await getRefundStatus(req.params.id);
+    const status = await getRefundStatus(req.params.bookingId);
     return ok(res, status);
   } catch (err) {
     next(err);

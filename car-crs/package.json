@@ -6,13 +6,17 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:sandbox": "node dist/server.js",
+    "provider-token": "node dist/scripts/issue-provider-token.js",
+    "prepare-sandbox": "node dist/scripts/prepare-sandbox-fixture.js"
   },
   "dependencies": {
     "dotenv": "^18.0.10",
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.9",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -20,6 +24,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",
     "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
     "mongodb-memory-server": "^11.3.0",
     "supertest": "^7.3.2",
     "typescript": "~5.7.2",

@@ -1,3 +1,4 @@
+import { authenticateProvider } from "./middleware/provider.js";
 import express from "express";
 import { authenticateCarOperator } from "./middleware/auth.middleware.js";
 import { carMasterRouter } from "./routes/car-master.routes.js";
@@ -9,14 +10,14 @@ import { carBookingRouter } from "./routes/car-booking.routes.js";
 import { AppError } from "./utils/response.js";
 import { ZodError } from "zod";
 
-export function createCarCrsApp(jwtSecret: string) {
+export function createCarCrsApp(jwtSecret: string, providerSecret?: string) {
   const app = express();
 
-  app.use(express.json());
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "128kb" }));
 
   // Mount Public Car Search, Availability, Holds and Bookings routes
-  app.use("/api/v1/car", carSearchRouter);
-  app.use("/api/v1/car", carBookingRouter);
+  app.use("/api/v1/car", authenticateProvider(providerSecret), carSearchRouter, carBookingRouter);
 
   // Mount API Operator routes
   const operatorRouter = express.Router();

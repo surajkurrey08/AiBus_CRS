@@ -1,0 +1,2689 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AiCar Provider API",
+    "version": "1.0.0-sandbox",
+    "description": "Local Car CRS sandbox. Use a server-issued car provider bearer token. Search the assigned operator inventory, quote seats, hold, confirm and retrieve tickets. Booking and refund amounts are sandbox records in INR paise. Examples use synthetic values; substitute IDs, seats and future dates from your own inventory."
+  },
+  "servers": [
+    {
+      "url": "/api/v1/car"
+    }
+  ],
+  "security": [
+    {
+      "CarProvider": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Inventory"
+    },
+    {
+      "name": "Holds"
+    },
+    {
+      "name": "Bookings"
+    },
+    {
+      "name": "Cancellation and refunds"
+    }
+  ],
+  "paths": {
+    "/cities": {
+      "get": {
+        "operationId": "carCities",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List cities",
+        "description": "Sorted city names from active routes for the operator assigned to your token.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    "Mumbai",
+                    "Pune"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/routes": {
+      "get": {
+        "operationId": "carRoutes",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List routes and stops",
+        "description": "Filter active routes by city name. Matching ignores letter case.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Route"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "source",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "in": "query"
+          },
+          {
+            "name": "destination",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "in": "query"
+          }
+        ]
+      }
+    },
+    "/trips/search": {
+      "get": {
+        "operationId": "searchCarTrips",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Find one-way trips",
+        "description": "Results include future scheduled trips open for booking with enough available passenger seats.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SearchResult"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "page",
+                        "limit",
+                        "totalPages"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          }
+        },
+        "parameters": [
+          {
+            "name": "source",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "example": "Pune"
+            },
+            "required": true,
+            "in": "query"
+          },
+          {
+            "name": "destination",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "example": "Mumbai"
+            },
+            "required": true,
+            "in": "query"
+          },
+          {
+            "name": "journeyDate",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2027-01-20"
+            },
+            "required": true,
+            "in": "query"
+          },
+          {
+            "name": "passengerCount",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7,
+              "default": 1
+            },
+            "required": false,
+            "in": "query"
+          },
+          {
+            "name": "vehicleCategory",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "4-Passenger Sedan",
+                "4-Passenger Hatchback",
+                "6-Passenger SUV",
+                "7-Passenger MUV"
+              ]
+            },
+            "required": false,
+            "in": "query"
+          },
+          {
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "in": "query"
+          },
+          {
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "in": "query"
+          }
+        ]
+      }
+    },
+    "/trips/round-trip-search": {
+      "post": {
+        "operationId": "searchReturnTrips",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Find outbound and return trips",
+        "description": "Use different cities. The return date must be on or after the outbound date. Confirm timing for your selected pair with a fare quote.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "outboundTrips": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SearchResult"
+                          }
+                        },
+                        "returnTrips": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SearchResult"
+                          }
+                        }
+                      },
+                      "required": [
+                        "outboundTrips",
+                        "returnTrips"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "outboundTotal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "returnTotal": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "outboundDate": {
+                          "type": "string",
+                          "format": "date",
+                          "example": "2027-01-20"
+                        },
+                        "returnDate": {
+                          "type": "string",
+                          "format": "date",
+                          "example": "2027-01-20"
+                        }
+                      },
+                      "required": [
+                        "outboundTotal",
+                        "returnTotal",
+                        "outboundDate",
+                        "returnDate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 2
+                  },
+                  "destination": {
+                    "type": "string",
+                    "minLength": 2
+                  },
+                  "outboundDate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2027-01-20"
+                  },
+                  "returnDate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2027-01-20"
+                  },
+                  "passengerCount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 7,
+                    "default": 1
+                  },
+                  "vehicleCategory": {
+                    "type": "string",
+                    "enum": [
+                      "4-Passenger Sedan",
+                      "4-Passenger Hatchback",
+                      "6-Passenger SUV",
+                      "7-Passenger MUV"
+                    ]
+                  },
+                  "page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "default": 20
+                  }
+                },
+                "required": [
+                  "source",
+                  "destination",
+                  "outboundDate",
+                  "returnDate"
+                ]
+              },
+              "example": {
+                "source": "Pune",
+                "destination": "Mumbai",
+                "outboundDate": "2027-01-20",
+                "returnDate": "2027-01-21"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{id}": {
+      "get": {
+        "operationId": "carTrip",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get trip details",
+        "description": "Use the trip ID from search.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "pattern": "^[a-fA-F0-9]{24}$",
+                          "example": "641111111111111111111111"
+                        },
+                        "tripNumber": {
+                          "type": "string"
+                        },
+                        "journeyDate": {
+                          "type": "string",
+                          "format": "date",
+                          "example": "2027-01-20"
+                        },
+                        "departureAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "estimatedArrivalAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "vehicleCategory": {
+                          "type": "string",
+                          "enum": [
+                            "4-Passenger Sedan",
+                            "4-Passenger Hatchback",
+                            "6-Passenger SUV",
+                            "7-Passenger MUV"
+                          ]
+                        },
+                        "totalPhysicalSeats": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "bookableCapacity": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "availableSeatsCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "route": {
+                          "$ref": "#/components/schemas/Route"
+                        },
+                        "car": {
+                          "$ref": "#/components/schemas/Car"
+                        },
+                        "bookingOpen": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "_id",
+                        "tripNumber",
+                        "journeyDate",
+                        "departureAt",
+                        "estimatedArrivalAt",
+                        "vehicleCategory",
+                        "totalPhysicalSeats",
+                        "bookableCapacity",
+                        "availableSeatsCount",
+                        "route",
+                        "car",
+                        "bookingOpen"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$",
+              "example": "641111111111111111111111"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/trips/{id}/seats": {
+      "get": {
+        "operationId": "carSeats",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Read the seat map",
+        "description": "Choose an available passenger seat with isBookable=true. Driver seats cannot be held.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SeatMap"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$",
+              "example": "641111111111111111111111"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/fares/quote": {
+      "post": {
+        "operationId": "quoteCarFare",
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Quote selected seats",
+        "description": "For round trips include both return fields. Amounts are in INR paise. A quote does not reserve seats.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Fare"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "bookingType": "ONE_WAY",
+                    "outbound": {
+                      "tripId": "641111111111111111111111",
+                      "tripNumber": "CAR-101",
+                      "seats": [
+                        {
+                          "seatId": "FP",
+                          "category": "front_passenger",
+                          "farePaise": 55000
+                        }
+                      ],
+                      "subtotalPaise": 55000
+                    },
+                    "grandTotalPaise": 55000
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outboundTripId": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$",
+                    "example": "641111111111111111111111"
+                  },
+                  "outboundSeatIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4
+                    },
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "example": [
+                      "FP"
+                    ]
+                  },
+                  "returnTripId": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$",
+                    "example": "641111111111111111111111"
+                  },
+                  "returnSeatIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4
+                    },
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "example": [
+                      "FP"
+                    ]
+                  }
+                },
+                "required": [
+                  "outboundTripId",
+                  "outboundSeatIds"
+                ]
+              },
+              "example": {
+                "outboundTripId": "641111111111111111111111",
+                "outboundSeatIds": [
+                  "FP"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/holds": {
+      "post": {
+        "operationId": "holdCarSeats",
+        "tags": [
+          "Holds"
+        ],
+        "summary": "Hold seats on one trip",
+        "description": "Hold duration defaults to 600 seconds. Save holdId and expiresAt.",
+        "responses": {
+          "201": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Hold"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "holdId": "HOLD-1800000000000-0123ABCD",
+                    "tripId": "641111111111111111111111",
+                    "tripNumber": "CAR-101",
+                    "legType": "single",
+                    "seatIds": [
+                      "FP"
+                    ],
+                    "heldSeats": [
+                      "FP"
+                    ],
+                    "amountPaise": 55000,
+                    "expiresAt": "2027-01-19T08:10:00Z",
+                    "status": "held"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tripId": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$",
+                    "example": "641111111111111111111111"
+                  },
+                  "seatIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "example": [
+                      "FP"
+                    ]
+                  },
+                  "legType": {
+                    "type": "string",
+                    "enum": [
+                      "single",
+                      "outbound",
+                      "return"
+                    ]
+                  },
+                  "holdDurationSeconds": {
+                    "type": "integer",
+                    "minimum": 60,
+                    "maximum": 3600,
+                    "default": 600
+                  }
+                },
+                "required": [
+                  "tripId",
+                  "seatIds"
+                ]
+              },
+              "example": {
+                "tripId": "641111111111111111111111",
+                "seatIds": [
+                  "FP"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/holds/round-trip": {
+      "post": {
+        "operationId": "holdReturnSeats",
+        "tags": [
+          "Holds"
+        ],
+        "summary": "Hold both legs",
+        "description": "Save both hold IDs. The combined expiry is the earlier leg expiry.",
+        "responses": {
+          "201": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "ONE_WAY",
+                            "ROUND_TRIP"
+                          ]
+                        },
+                        "outboundHold": {
+                          "$ref": "#/components/schemas/Hold"
+                        },
+                        "returnHold": {
+                          "$ref": "#/components/schemas/Hold"
+                        },
+                        "outboundHoldId": {
+                          "type": "string",
+                          "example": "HOLD-1800000000000-0123ABCD"
+                        },
+                        "returnHoldId": {
+                          "type": "string",
+                          "example": "HOLD-1800000000000-0123ABCD"
+                        },
+                        "combinedAmountPaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "bookingType",
+                        "outboundHold",
+                        "returnHold",
+                        "outboundHoldId",
+                        "returnHoldId",
+                        "combinedAmountPaise",
+                        "expiresAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outboundTripId": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$",
+                    "example": "641111111111111111111111"
+                  },
+                  "outboundSeatIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "example": [
+                      "FP"
+                    ]
+                  },
+                  "returnTripId": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$",
+                    "example": "641111111111111111111111"
+                  },
+                  "returnSeatIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "example": [
+                      "FP"
+                    ]
+                  },
+                  "holdDurationSeconds": {
+                    "type": "integer",
+                    "minimum": 60,
+                    "maximum": 3600,
+                    "default": 600
+                  }
+                },
+                "required": [
+                  "outboundTripId",
+                  "outboundSeatIds",
+                  "returnTripId",
+                  "returnSeatIds"
+                ]
+              },
+              "example": {
+                "outboundTripId": "641111111111111111111111",
+                "outboundSeatIds": [
+                  "FP"
+                ],
+                "returnTripId": "642222222222222222222222",
+                "returnSeatIds": [
+                  "2L"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/holds/{id}": {
+      "get": {
+        "operationId": "getCarHold",
+        "tags": [
+          "Holds"
+        ],
+        "summary": "Get an owned hold",
+        "description": "Use the holdId string from the hold response.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Hold"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "HOLD-1800000000000-0123ABCD"
+            },
+            "in": "path"
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "releaseCarHold",
+        "tags": [
+          "Holds"
+        ],
+        "summary": "Release an owned hold",
+        "description": "released=false indicates that the hold was already inactive.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "holdId": {
+                          "type": "string",
+                          "example": "HOLD-1800000000000-0123ABCD"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "released": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "holdId",
+                        "status",
+                        "released"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "holdId": "HOLD-1800000000000-0123ABCD",
+                    "status": "released",
+                    "released": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "HOLD-1800000000000-0123ABCD"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/bookings/confirm": {
+      "post": {
+        "operationId": "confirmCarBooking",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Confirm a sandbox booking",
+        "description": "Send holdId or outboundHoldId and one passenger per held seat. ROUND_TRIP also requires returnHoldId. Supply returnPassengers if seats differ. Retry the identical body with the same idempotencyKey. A supplied amount must match the authoritative fare.",
+        "responses": {
+          "201": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking": {
+                          "$ref": "#/components/schemas/Booking"
+                        },
+                        "tickets": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Ticket"
+                          }
+                        },
+                        "pnr": {
+                          "type": "string"
+                        },
+                        "reference": {
+                          "type": "string"
+                        },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "ONE_WAY",
+                            "ROUND_TRIP"
+                          ]
+                        },
+                        "totalPayablePaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "paymentStatus": {
+                          "type": "string",
+                          "enum": [
+                            "Pending",
+                            "Paid",
+                            "Refund Pending",
+                            "Partially Refunded",
+                            "Refunded",
+                            "Failed"
+                          ]
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "booking",
+                        "tickets",
+                        "pnr",
+                        "reference",
+                        "bookingType",
+                        "totalPayablePaise",
+                        "paymentStatus"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bookingType": {
+                    "type": "string",
+                    "enum": [
+                      "ONE_WAY",
+                      "ROUND_TRIP"
+                    ]
+                  },
+                  "holdId": {
+                    "type": "string",
+                    "example": "HOLD-1800000000000-0123ABCD"
+                  },
+                  "outboundHoldId": {
+                    "type": "string",
+                    "example": "HOLD-1800000000000-0123ABCD"
+                  },
+                  "returnHoldId": {
+                    "type": "string",
+                    "example": "HOLD-1800000000000-0123ABCD"
+                  },
+                  "passengers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Passenger"
+                    },
+                    "minItems": 1,
+                    "maxItems": 7
+                  },
+                  "returnPassengers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Passenger"
+                    },
+                    "minItems": 1,
+                    "maxItems": 7
+                  },
+                  "contact": {
+                    "type": "object",
+                    "properties": {
+                      "phone": {
+                        "type": "string",
+                        "minLength": 5
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      }
+                    },
+                    "required": [
+                      "phone"
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "payment": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "sandbox"
+                        ]
+                      },
+                      "amountPaise": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "paymentReference": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
+                  }
+                },
+                "required": [
+                  "bookingType",
+                  "passengers",
+                  "contact",
+                  "idempotencyKey",
+                  "payment"
+                ]
+              },
+              "example": {
+                "bookingType": "ONE_WAY",
+                "holdId": "HOLD-1800000000000-0123ABCD",
+                "passengers": [
+                  {
+                    "seatId": "FP",
+                    "name": "Demo Passenger"
+                  }
+                ],
+                "contact": {
+                  "phone": "9999999999"
+                },
+                "payment": {
+                  "mode": "sandbox"
+                },
+                "idempotencyKey": "example-car-booking-001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "operationId": "getCarBooking",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Read an owned booking",
+        "description": "Use either the booking ID or PNR returned by confirmation.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Booking"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "tickets": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Ticket"
+                              }
+                            }
+                          },
+                          "required": [
+                            "tickets"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Booking ID or PNR"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/bookings/{id}/tickets": {
+      "get": {
+        "operationId": "carTickets",
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Read tickets",
+        "description": "Each confirmed leg has a ticket with passenger and seat details.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ticket"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "ticketNumber": "TKT-CAR7B9X2K4-OUT",
+                      "pnr": "CAR7B9X2K4",
+                      "legType": "outbound",
+                      "status": "valid",
+                      "issuedAt": "2027-01-19T08:03:00Z",
+                      "seatIds": [
+                        "FP"
+                      ],
+                      "passengers": [
+                        {
+                          "name": "Demo Passenger",
+                          "seatId": "FP"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Booking ID or PNR"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/bookings/{id}/cancellation-quote": {
+      "post": {
+        "operationId": "carCancellationQuote",
+        "tags": [
+          "Cancellation and refunds"
+        ],
+        "summary": "Get cancellation charges",
+        "description": "The fee depends on time to the earliest departure. The quote does not cancel the booking.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string",
+                          "pattern": "^[a-fA-F0-9]{24}$",
+                          "example": "641111111111111111111111"
+                        },
+                        "pnr": {
+                          "type": "string"
+                        },
+                        "bookingType": {
+                          "type": "string",
+                          "enum": [
+                            "ONE_WAY",
+                            "ROUND_TRIP"
+                          ]
+                        },
+                        "totalPaidPaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "cancellationFeePercent": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "cancellationFeePaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "refundablePaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "hoursBeforeDeparture": {
+                          "type": "number"
+                        },
+                        "eligible": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "pnr",
+                        "bookingType",
+                        "totalPaidPaise",
+                        "cancellationFeePercent",
+                        "cancellationFeePaise",
+                        "refundablePaise",
+                        "hoursBeforeDeparture",
+                        "eligible"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Booking ID or PNR"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/bookings/{id}/cancel": {
+      "post": {
+        "operationId": "cancelCarBooking",
+        "tags": [
+          "Cancellation and refunds"
+        ],
+        "summary": "Cancel a sandbox booking",
+        "description": "Cancels the booking across its legs and records the sandbox refund outcome.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string",
+                          "pattern": "^[a-fA-F0-9]{24}$",
+                          "example": "641111111111111111111111"
+                        },
+                        "pnr": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "cancelled": {
+                          "type": "boolean"
+                        },
+                        "paymentStatus": {
+                          "type": "string",
+                          "enum": [
+                            "Pending",
+                            "Paid",
+                            "Refund Pending",
+                            "Partially Refunded",
+                            "Refunded",
+                            "Failed"
+                          ]
+                        },
+                        "refundStatus": {
+                          "type": "string",
+                          "enum": [
+                            "Pending",
+                            "Paid",
+                            "Refund Pending",
+                            "Partially Refunded",
+                            "Refunded",
+                            "Failed"
+                          ]
+                        },
+                        "totalPaidPaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "cancellationFeePaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "refundablePaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "pnr",
+                        "status",
+                        "cancelled",
+                        "paymentStatus",
+                        "refundStatus",
+                        "totalPaidPaise",
+                        "cancellationFeePaise",
+                        "refundablePaise",
+                        "reason",
+                        "cancelledAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Booking ID or PNR"
+            },
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              },
+              "example": {
+                "reason": "Demo trip cancelled"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/refund-status": {
+      "get": {
+        "operationId": "carRefundStatus",
+        "tags": [
+          "Cancellation and refunds"
+        ],
+        "summary": "Read the sandbox refund status",
+        "description": "Read paymentStatus and leg statuses after cancellation.",
+        "responses": {
+          "200": {
+            "description": "Successful sandbox response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string",
+                          "pattern": "^[a-fA-F0-9]{24}$",
+                          "example": "641111111111111111111111"
+                        },
+                        "pnr": {
+                          "type": "string"
+                        },
+                        "paymentStatus": {
+                          "type": "string",
+                          "enum": [
+                            "Pending",
+                            "Paid",
+                            "Refund Pending",
+                            "Partially Refunded",
+                            "Refunded",
+                            "Failed"
+                          ]
+                        },
+                        "isCancelled": {
+                          "type": "boolean"
+                        },
+                        "totalPaidPaise": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "legs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "legType": {
+                                "type": "string",
+                                "enum": [
+                                  "single",
+                                  "outbound",
+                                  "return"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "seats": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "seatId": {
+                                      "type": "string"
+                                    },
+                                    "passengerName": {
+                                      "type": "string"
+                                    },
+                                    "farePaise": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "seatId",
+                                    "passengerName",
+                                    "farePaise"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "legType",
+                              "status",
+                              "seats"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "pnr",
+                        "paymentStatus",
+                        "isCancelled",
+                        "totalPaidPaise",
+                        "legs"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Booking ID or PNR"
+            },
+            "in": "path"
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CarProvider": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Sandbox token scoped to one provider and operator. Send from your backend."
+      }
+    },
+    "schemas": {
+      "Stop": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "Route": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 2
+          },
+          "destination": {
+            "type": "string",
+            "minLength": 2
+          },
+          "boarding": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stop"
+            }
+          },
+          "dropping": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stop"
+            }
+          },
+          "estimatedDurationMinutes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "distanceKm": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "_id",
+          "source",
+          "destination"
+        ]
+      },
+      "Car": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "registration": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "4-Passenger Sedan",
+              "4-Passenger Hatchback",
+              "6-Passenger SUV",
+              "7-Passenger MUV"
+            ]
+          }
+        },
+        "required": [
+          "_id"
+        ]
+      },
+      "Trip": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "tripNumber": {
+            "type": "string"
+          },
+          "journeyDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-01-20"
+          },
+          "departureAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estimatedArrivalAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vehicleCategory": {
+            "type": "string",
+            "enum": [
+              "4-Passenger Sedan",
+              "4-Passenger Hatchback",
+              "6-Passenger SUV",
+              "7-Passenger MUV"
+            ]
+          },
+          "totalPhysicalSeats": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bookableCapacity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "availableSeatsCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "route": {
+            "$ref": "#/components/schemas/Route"
+          },
+          "car": {
+            "$ref": "#/components/schemas/Car"
+          }
+        },
+        "required": [
+          "_id",
+          "journeyDate",
+          "departureAt",
+          "estimatedArrivalAt",
+          "availableSeatsCount"
+        ]
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "tripNumber": {
+            "type": "string"
+          },
+          "journeyDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-01-20"
+          },
+          "departureAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estimatedArrivalAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vehicleCategory": {
+            "type": "string",
+            "enum": [
+              "4-Passenger Sedan",
+              "4-Passenger Hatchback",
+              "6-Passenger SUV",
+              "7-Passenger MUV"
+            ]
+          },
+          "totalPhysicalSeats": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bookableCapacity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "availableSeatsCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "route": {
+            "$ref": "#/components/schemas/Route"
+          },
+          "car": {
+            "$ref": "#/components/schemas/Car"
+          },
+          "minFarePaise": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxFarePaise": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "_id",
+          "journeyDate",
+          "departureAt",
+          "estimatedArrivalAt",
+          "availableSeatsCount",
+          "route",
+          "car",
+          "minFarePaise",
+          "maxFarePaise"
+        ]
+      },
+      "Seat": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "row": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isDriver": {
+            "type": "boolean"
+          },
+          "isBookable": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string"
+          },
+          "farePaise": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "available",
+              "held",
+              "booked",
+              "blocked",
+              "non_bookable"
+            ]
+          }
+        },
+        "required": [
+          "seatId",
+          "label",
+          "row",
+          "column",
+          "isDriver",
+          "isBookable",
+          "category",
+          "farePaise",
+          "state"
+        ]
+      },
+      "SeatMap": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "tripNumber": {
+            "type": "string"
+          },
+          "vehicleCategory": {
+            "type": "string",
+            "enum": [
+              "4-Passenger Sedan",
+              "4-Passenger Hatchback",
+              "6-Passenger SUV",
+              "7-Passenger MUV"
+            ]
+          },
+          "driveOrientation": {
+            "type": "string"
+          },
+          "totalPhysicalSeats": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bookableCapacity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bookingOpen": {
+            "type": "boolean"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Seat"
+            }
+          }
+        },
+        "required": [
+          "tripId",
+          "tripNumber",
+          "vehicleCategory",
+          "driveOrientation",
+          "totalPhysicalSeats",
+          "bookableCapacity",
+          "bookingOpen",
+          "seats"
+        ]
+      },
+      "FareLeg": {
+        "type": "object",
+        "properties": {
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "tripNumber": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seatId": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "farePaise": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "seatId",
+                "category",
+                "farePaise"
+              ]
+            }
+          },
+          "subtotalPaise": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "tripId",
+          "seats",
+          "subtotalPaise"
+        ]
+      },
+      "Fare": {
+        "type": "object",
+        "properties": {
+          "bookingType": {
+            "type": "string",
+            "enum": [
+              "ONE_WAY",
+              "ROUND_TRIP"
+            ]
+          },
+          "outbound": {
+            "$ref": "#/components/schemas/FareLeg"
+          },
+          "return": {
+            "$ref": "#/components/schemas/FareLeg"
+          },
+          "grandTotalPaise": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "bookingType",
+          "outbound",
+          "grandTotalPaise"
+        ]
+      },
+      "Hold": {
+        "type": "object",
+        "properties": {
+          "holdId": {
+            "type": "string",
+            "example": "HOLD-1800000000000-0123ABCD"
+          },
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "legType": {
+            "type": "string",
+            "enum": [
+              "single",
+              "outbound",
+              "return"
+            ]
+          },
+          "seatIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 7,
+            "example": [
+              "FP"
+            ]
+          },
+          "amountPaise": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "released",
+              "consumed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "holdId",
+          "tripId",
+          "legType",
+          "seatIds",
+          "amountPaise",
+          "expiresAt",
+          "status"
+        ]
+      },
+      "Passenger": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "seatId": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "M",
+              "F",
+              "O"
+            ]
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "name",
+          "seatId"
+        ]
+      },
+      "Ticket": {
+        "type": "object",
+        "properties": {
+          "ticketNumber": {
+            "type": "string"
+          },
+          "pnr": {
+            "type": "string"
+          },
+          "legType": {
+            "type": "string",
+            "enum": [
+              "single",
+              "outbound",
+              "return"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "cancelled"
+            ]
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "seatIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 7,
+            "example": [
+              "FP"
+            ]
+          },
+          "passengers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Passenger"
+            },
+            "minItems": 1,
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "ticketNumber",
+          "pnr",
+          "legType",
+          "status",
+          "issuedAt",
+          "seatIds",
+          "passengers"
+        ]
+      },
+      "BookedLeg": {
+        "type": "object",
+        "properties": {
+          "legType": {
+            "type": "string",
+            "enum": [
+              "single",
+              "outbound",
+              "return"
+            ]
+          },
+          "tripId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "carId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "status": {
+            "type": "string"
+          },
+          "departureAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estimatedArrivalAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalPaise": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seatId": {
+                  "type": "string"
+                },
+                "passengerName": {
+                  "type": "string"
+                },
+                "farePaise": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "seatId",
+                "passengerName",
+                "farePaise"
+              ]
+            }
+          }
+        },
+        "required": [
+          "legType",
+          "tripId",
+          "carId",
+          "status",
+          "departureAt",
+          "estimatedArrivalAt",
+          "totalPaise",
+          "seats"
+        ]
+      },
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "641111111111111111111111"
+          },
+          "pnr": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "bookingType": {
+            "type": "string",
+            "enum": [
+              "ONE_WAY",
+              "ROUND_TRIP"
+            ]
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookedLeg"
+            }
+          },
+          "totalPayablePaise": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Paid",
+              "Refund Pending",
+              "Partially Refunded",
+              "Refunded",
+              "Failed"
+            ]
+          }
+        },
+        "required": [
+          "_id",
+          "pnr",
+          "reference",
+          "bookingType",
+          "legs",
+          "totalPayablePaise",
+          "paymentStatus"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "message"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "Invalid request or unavailable booking state",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Invalid request or unavailable booking state"
+              }
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Missing, invalid or expired car provider token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "INVALID_PROVIDER_TOKEN",
+                "message": "Missing, invalid or expired car provider token"
+              }
+            }
+          }
+        }
+      },
+      "Error404": {
+        "description": "Resource unavailable to this provider",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "BOOKING_NOT_FOUND",
+                "message": "Resource unavailable to this provider"
+              }
+            }
+          }
+        }
+      },
+      "Error409": {
+        "description": "Seat availability changed or the booking key was reused",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "SEAT_UNAVAILABLE",
+                "message": "Seat availability changed or the booking key was reused"
+              }
+            }
+          }
+        }
+      },
+      "Error410": {
+        "description": "Hold has expired",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "HOLD_EXPIRED",
+                "message": "Hold has expired"
+              }
+            }
+          }
+        }
+      },
+      "Error503": {
+        "description": "Provider sandbox unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "CAR_SANDBOX_DISABLED",
+                "message": "Provider sandbox unavailable"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

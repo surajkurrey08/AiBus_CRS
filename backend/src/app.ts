@@ -26,6 +26,7 @@ import { pinoHttp } from "pino-http";
 import swaggerUi from "swagger-ui-express";
 import { allowedWebOrigins, type Config } from "./config/env.js";
 import { openapi } from "./docs/openapi.js";
+import { publicApiSpec } from "./docs/public-api.openapi.js";
 import {
   authRouter,
   authenticate,
@@ -169,6 +170,20 @@ export function createApp(
   );
   app.use("/api/v1/partner", partnerPortalRouter(config, limiter));
   app.use("/api/v1/platform/api-partners", platformPartnersRouter(config));
+  if (config.NODE_ENV === "development") {
+    app.get("/api/v1/car/docs", (_req, res) =>
+      res.redirect("http://127.0.0.1:4010/api/v1/car/docs/"),
+    );
+  }
+  app.use(
+    "/api/v1/public/docs",
+    ...swaggerUi.serveFiles(publicApiSpec, {
+      swaggerOptions: { supportedSubmitMethods: [] },
+    }),
+    swaggerUi.setup(publicApiSpec, {
+      swaggerOptions: { supportedSubmitMethods: [] },
+    }),
+  );
   app.use("/api/v1/public", publicApiRouter(config, limiter));
   app.get("/api/v1/openapi.json", authenticate(config), (_req, res) =>
     res.json(openapi),

@@ -10,6 +10,11 @@ import {
 } from "../validators/car-trip.validators.js";
 import { z } from "zod";
 
+function cityNamePattern(value: string) {
+  const escaped = z.string().trim().min(1).max(120).parse(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("^" + escaped + "$", "i");
+}
+
 const objectIdRegex = /^[a-fA-F0-9]{24}$/;
 
 function assertValidObjectId(id: string, name = "id"): void {
@@ -21,8 +26,8 @@ function assertValidObjectId(id: string, name = "id"): void {
 /**
  * Lists all active departure and arrival cities across active car routes.
  */
-export async function getCarCities() {
-  const routes = await CarRoute.find({ status: "Active" }, "source destination").lean();
+export async function getCarCities(operatorId: string) {
+  const routes = await CarRoute.find({ operatorId, status: "Active" }, "source destination").lean();
   const citySet = new Set<string>();
   for (const r of routes) {
     if (r.source) citySet.add(r.source.trim());
@@ -34,13 +39,13 @@ export async function getCarCities() {
 /**
  * Lists active car routes with boarding and dropping points.
  */
-export async function getCarRoutes(query: { source?: string; destination?: string }) {
-  const filter: Record<string, any> = { status: "Active" };
+export async function getCarRoutes(query: { source?: string; destination?: string }, operatorId: string) {
+  const filter: Record<string, any> = { operatorId, status: "Active" };
   if (query.source) {
-    filter.source = { $regex: new RegExp(`^${query.source.trim()}$`, "i") };
+    filter.source = { $regex: cityNamePattern(query.source) };
   }
   if (query.destination) {
-    filter.destination = { $regex: new RegExp(`^${query.destination.trim()}$`, "i") };
+    filter.destination = { $regex: cityNamePattern(query.destination) };
   }
 
   return await CarRoute.find(filter)
@@ -51,13 +56,14 @@ export async function getCarRoutes(query: { source?: string; destination?: strin
 /**
  * Searches available scheduled car trips for One Way travel.
  */
-export async function searchOneWayTrips(params: z.infer<typeof searchOneWayTripsSchema>) {
+export async function searchOneWayTrips(params: z.infer<typeof searchOneWayTripsSchema>, operatorId: string) {
   const validated = searchOneWayTripsSchema.parse(params);
 
   // 1. Find matching active routes
   const routes = await CarRoute.find({
-    source: { $regex: new RegExp(`^${validated.source.trim()}$`, "i") },
-    destination: { $regex: new RegExp(`^${validated.destination.trim()}$`, "i") },
+    operatorId,
+    source: { $regex: cityNamePattern(validated.source) },
+    destination: { $regex: cityNamePattern(validated.destination) },
     status: "Active",
   }).lean();
 
@@ -73,6 +79,7 @@ export async function searchOneWayTrips(params: z.infer<typeof searchOneWayTrips
 
   // 2. Query scheduled trips
   const tripFilter: Record<string, any> = {
+    operatorId,
     routeId: { $in: routeIds },
     journeyDate: validated.journeyDate,
     status: "Scheduled",
@@ -155,7 +162,7 @@ export async function searchOneWayTrips(params: z.infer<typeof searchOneWayTrips
 /**
  * Searches available scheduled car trips for Round Trip travel with separate outbound and return options.
  */
-export async function searchRoundTrips(params: z.infer<typeof searchRoundTripsSchema>) {
+export async function searchRoundTrips(params: z.infer<typeof searchRoundTripsSchema>, operatorId: string) {
   const validated = searchRoundTripsSchema.parse(params);
 
   // Search outbound leg: source -> destination on outboundDate
@@ -167,7 +174,7 @@ export async function searchRoundTrips(params: z.infer<typeof searchRoundTripsSc
     vehicleCategory: validated.vehicleCategory,
     page: validated.page,
     limit: validated.limit,
-  });
+  }, operatorId);
 
   // Search return leg: destination -> source on returnDate
   const returnResult = await searchOneWayTrips({
@@ -178,7 +185,7 @@ export async function searchRoundTrips(params: z.infer<typeof searchRoundTripsSc
     vehicleCategory: validated.vehicleCategory,
     page: validated.page,
     limit: validated.limit,
-  });
+  }, operatorId);
 
   // Filter return trips: if outboundDate === returnDate, return trip departure must be after earliest outbound arrival
   let validReturnTrips = returnResult.data;
@@ -208,10 +215,10 @@ export async function searchRoundTrips(params: z.infer<typeof searchRoundTripsSc
 /**
  * Retrieves public trip details.
  */
-export async function getTripPublicById(tripId: string) {
+export async function getTripPublicById(tripId: string, operatorId: string) {
   assertValidObjectId(tripId, "tripId");
 
-  const trip: any = await CarTrip.findOne({ _id: tripId, status: "Scheduled" })
+  const trip: any = await CarTrip.findOne({ _id: tripId, operatorId, status: "Scheduled" })
     .populate("carId", "registration make modelName category bookablePassengerCapacity driveOrientation")
     .populate("routeId", "source destination distanceKm estimatedDurationMinutes boarding dropping")
     .lean();
@@ -243,10 +250,10 @@ export async function getTripPublicById(tripId: string) {
  * Retrieves real-time seat inventory availability for passenger seat selection.
  * Driver seat is strictly marked non-bookable.
  */
-export async function getTripSeatsPublic(tripId: string) {
+export async function getTripSeatsPublic(tripId: string, operatorId: string) {
   assertValidObjectId(tripId, "tripId");
 
-  const trip: any = await CarTrip.findById(tripId)
+  const trip: any = await CarTrip.findOne({ _id: tripId, operatorId, status: "Scheduled" })
     .populate("carId", "registration make modelName category driveOrientation")
     .lean();
 
@@ -281,11 +288,11 @@ export async function getTripSeatsPublic(tripId: string) {
 /**
  * Authoritative backend fare quotation calculation in integer paise.
  */
-export async function quoteTripFare(params: z.infer<typeof fareQuoteSchema>) {
+export async function quoteTripFare(params: z.infer<typeof fareQuoteSchema>, operatorId: string) {
   const validated = fareQuoteSchema.parse(params);
 
   // 1. Validate outbound trip & seats
-  const outboundTrip: any = await CarTrip.findById(validated.outboundTripId).lean();
+  const outboundTrip: any = await CarTrip.findOne({ _id: validated.outboundTripId, operatorId }).lean();
   if (!outboundTrip) {
     fail(404, "TRIP_NOT_FOUND", "Outbound car trip not found");
   }
@@ -321,7 +328,7 @@ export async function quoteTripFare(params: z.infer<typeof fareQuoteSchema>) {
   let returnTotalPaise = 0;
 
   if (validated.returnTripId && validated.returnSeatIds) {
-    const returnTrip: any = await CarTrip.findById(validated.returnTripId).lean();
+    const returnTrip: any = await CarTrip.findOne({ _id: validated.returnTripId, operatorId }).lean();
     if (!returnTrip) {
       fail(404, "RETURN_TRIP_NOT_FOUND", "Return car trip not found");
     }

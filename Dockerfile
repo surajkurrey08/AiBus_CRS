@@ -20,6 +20,30 @@ RUN npm run build
 FROM dependencies AS production-dependencies
 RUN npm prune --omit=dev --no-audit --no-fund
 
+# Car CRS is deliberately built in its own dependency boundary.  It is not a
+# root workspace because it must be deployable without the Bus CRS runtime.
+FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS car-dependencies
+WORKDIR /app/car-crs
+COPY car-crs/package.json car-crs/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+FROM car-dependencies AS car-build
+COPY car-crs ./
+RUN npm run build
+
+FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS car-sandbox-api
+ARG REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CRS" org.opencontainers.image.revision=$REVISION
+WORKDIR /app/car-crs
+COPY --from=car-dependencies /app/car-crs/node_modules ./node_modules
+COPY --from=car-build /app/car-crs/dist ./dist
+COPY --from=car-build /app/car-crs/src/docs ./dist/docs
+COPY car-crs/package.json ./package.json
+USER node
+EXPOSE 4010
+HEALTHCHECK --interval=15s --timeout=6s --start-period=35s --retries=8 CMD node -e "fetch('http://127.0.0.1:4010/health/ready',{signal:AbortSignal.timeout(4500)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "dist/server.js"]
+
 FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS api
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CRS" org.opencontainers.image.revision=$REVISION
@@ -40,6 +64,7 @@ LABEL org.opencontainers.image.source="https://github.com/surajkurrey08/AiBus_CR
 COPY deploy/nginx/gateway.conf /etc/nginx/conf.d/default.conf
 COPY deploy/nginx/proxy.inc /etc/nginx/bookmybus-proxy.inc
 COPY deploy/nginx/public-test-proxy.inc /etc/nginx/bookmybus-public-test-proxy.inc
+COPY deploy/nginx/car-sandbox-proxy.inc /etc/nginx/bookmybus-car-sandbox-proxy.inc
 COPY --from=build /app/frontend/dist /usr/share/nginx/operator
 COPY --from=build /app/admin/dist /usr/share/nginx/admin
 COPY --from=build /app/partner/dist /usr/share/nginx/partner

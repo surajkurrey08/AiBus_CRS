@@ -11,7 +11,8 @@ export function validateCarCrsConfig(env: NodeJS.ProcessEnv = process.env) {
     CAR_CRS_PORT: z.coerce.number().int().min(1024).max(65535).default(4010),
     CAR_CRS_MONGODB_URI: z.string().min(1, "CAR_CRS_MONGODB_URI is required"),
     BUS_CRS_MONGODB_URI: z.string().optional(),
-    CAR_CRS_JWT_SECRET: z.string().min(48).default("car-crs-isolated-secret-entropy-minimum-48-characters-needed"),
+    CAR_CRS_JWT_SECRET: z.string().min(48).optional(),
+    CAR_PROVIDER_JWT_SECRET: z.string().min(48).optional(),
   });
 
   const parsed = schema.parse(env);
@@ -35,4 +36,15 @@ export function validateCarCrsConfig(env: NodeJS.ProcessEnv = process.env) {
   }
 
   return parsed;
+}
+
+export function readCarSandboxConfig(env: NodeJS.ProcessEnv = process.env) {
+  const config = validateCarCrsConfig(env);
+  if (!config.CAR_CRS_JWT_SECRET || !config.CAR_PROVIDER_JWT_SECRET)
+    throw new Error("CAR_CRS_JWT_SECRET and CAR_PROVIDER_JWT_SECRET are required");
+  return {
+    ...config,
+    CAR_CRS_JWT_SECRET: config.CAR_CRS_JWT_SECRET,
+    CAR_PROVIDER_JWT_SECRET: config.CAR_PROVIDER_JWT_SECRET,
+  };
 }

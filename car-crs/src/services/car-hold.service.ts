@@ -64,7 +64,7 @@ export async function createSeatHold(params: CreateHoldParams) {
   const uniqueSeatIds = Array.from(new Set(seatIds));
 
   // 1. Fetch trip and verify publication & sales status
-  const trip = await CarTrip.findById(tripId);
+  const trip = await CarTrip.findOne({ _id: tripId, operatorId });
   if (!trip) {
     fail(404, "TRIP_NOT_FOUND", "Scheduled car trip not found");
   }
@@ -241,7 +241,7 @@ export async function createRoundTripSeatHold(params: CreateRoundTripHoldParams)
     };
   } catch (err) {
     // Compensating rollback: release outbound hold if return leg fails
-    await releaseSeatHold(outboundHold.holdId, userId).catch(() => {});
+    await releaseSeatHold(outboundHold.holdId, userId, operatorId).catch(() => {});
     throw err;
   }
 }
@@ -249,8 +249,8 @@ export async function createRoundTripSeatHold(params: CreateRoundTripHoldParams)
 /**
  * Retrieves hold details and lazily updates status if expired.
  */
-export async function getSeatHold(holdId: string) {
-  const hold: any = await CarSeatHold.findOne({ holdId }).populate("tripId").lean();
+export async function getSeatHold(holdId: string, owner: { operatorId: string; userId: string }) {
+  const hold: any = await CarSeatHold.findOne({ holdId, ...owner }).lean();
   if (!hold) {
     fail(404, "HOLD_NOT_FOUND", `Seat hold '${holdId}' was not found`);
   }
@@ -267,16 +267,13 @@ export async function getSeatHold(holdId: string) {
 /**
  * Releases a seat hold early, restoring seats to 'available'.
  */
-export async function releaseSeatHold(holdId: string, userId?: string) {
-  const filter: any = { holdId, status: "held" };
-  if (userId) {
-    filter.userId = new mongoose.Types.ObjectId(userId);
-  }
+export async function releaseSeatHold(holdId: string, userId: string, operatorId: string) {
+  const filter = { holdId, userId, operatorId, status: "held" };
 
   const hold = await CarSeatHold.findOne(filter);
   if (!hold) {
     // If already released, return existing state
-    const existing = await CarSeatHold.findOne({ holdId });
+    const existing = await CarSeatHold.findOne({ holdId, userId, operatorId });
     if (existing) {
       return { holdId, status: existing.status, released: false };
     }

@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-api=${1:?API image required}; web=${2:?Web image required}; revision=${3:?Revision required}
+api=${1:?API image required}; web=${2:?Web image required}; car=${3:?Car sandbox image required}; revision=${4:?Revision required}
 [[ $revision =~ ^[a-f0-9]{40}$ ]] || exit 2
 run="bookmybus-ci-${RANDOM}-$$"
 cleanup() { docker rm -f "$run" >/dev/null 2>&1 || :; }
 trap cleanup EXIT
-for image in "$api" "$web"; do
+for image in "$api" "$web" "$car"; do
   [[ $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image") == "$revision" ]]
 done
 # Import the real compiled app without starting servers or connecting to a DB.
 docker run --rm --network none --read-only --cap-drop ALL "$api" node --input-type=module -e "await import('./dist/app.js'); console.log('Compiled API imports successfully')"
+docker run --rm --network none --read-only --cap-drop ALL "$car" node --input-type=module -e "import { readFile } from 'node:fs/promises'; await import('./dist/app.js'); JSON.parse(await readFile('./dist/docs/openapi.json')); console.log('Car sandbox and Swagger contract import successfully')"
 # Override only the API DNS in this disposable web container. No real upstream.
 docker run -d --name "$run" --label bookmybus.ci=true --read-only --security-opt no-new-privileges:true --tmpfs /var/cache/nginx:size=32m --tmpfs /var/run:size=1m --tmpfs /tmp:size=16m --add-host api:127.0.0.1 "$web" >/dev/null
 for attempt in {1..20}; do
@@ -29,4 +30,4 @@ for host in bookmybus.pro admin.bookmybus.pro partner.bookmybus.pro; do
   actual=$(docker exec "$run" wget -q -O - --header "Host: $host" http://127.0.0.1:8080/ | sha256sum | cut -d ' ' -f 1)
   [[ $actual == "$expected" ]]
 done
-echo 'All three image routes and compiled API validated.'
+echo 'All gateway routes, compiled APIs and Car Swagger contract validated.'

@@ -16,6 +16,7 @@ backups/
 
 # Local dependency cache and disposable browser artifacts
 .cache/
+**/.temp/
 playwright-report/
 test-results/
 .github/

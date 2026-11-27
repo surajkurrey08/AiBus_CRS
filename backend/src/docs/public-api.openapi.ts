@@ -110,8 +110,8 @@ export const publicApiSpec = {
   },
   servers: [
     {
-      url: "https://sandbox.example.invalid/api/v1/public",
-      description: "Deployment placeholder; no public environment provisioned",
+      url: "/api/v1/public",
+      description: "This host's isolated sandbox API",
     },
   ],
   paths: {
