@@ -1,5 +1,14 @@
 # AiCar provider sandbox
 
+## Live provider handoff
+
+Share `aicar-provider-kit-live.zip`, built from `PROVIDER-QUICKSTART.md`,
+`postman/provider-booking.postman_collection.json`,
+`postman/provider.postman_environment.json`, and `src/docs/openapi.json`.
+The environment targets `https://partner.bookmybus.pro/api/v1/car` and contains
+no token or assigned dates. Give each provider its own identity and deliver
+the 45-minute token privately. The older local collection below is for localhost.
+
 ### Provider handoff
 
 The [provider quickstart](PROVIDER-QUICKSTART.md), [blank environment](postman/provider.postman_environment.json), tested [collection](postman/local-booking.postman_collection.json) and [OpenAPI contract](src/docs/openapi.json) are the four shareable files. Package them from the repository root:

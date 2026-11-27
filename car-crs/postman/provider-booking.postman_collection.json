@@ -1,0 +1,1022 @@
+{
+  "info": {
+    "name": "AiCar live sandbox provider booking flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run all folders in order with the AiCar provider sandbox environment. Creates and cancels two synthetic bookings. Sandbox accounting only."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{providerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 · Authentication and inventory",
+      "item": [
+        {
+          "name": "A bearer token is required",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/cities",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"A bearer token is required\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  const data = pm.response.json().error;",
+                  "  pm.expect(data.code).to.equal(\"PROVIDER_TOKEN_REQUIRED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discover cities",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/cities"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Discover cities\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data).to.include.members([\"Pune\", \"Mumbai\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read Pune pickup and Mumbai drop-off",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/routes?source=Pune&destination=Mumbai"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read Pune pickup and Mumbai drop-off\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.some(route => route.boarding.length && route.dropping.length)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find the outbound car",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/search?source=Pune&destination=Mumbai&journeyDate={{journeyDate}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Find the outbound car\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  const trip = data.find(t => t.tripNumber === \"DEMO-PUNE-\" + pm.environment.get(\"journeyDate\"));",
+                  "  pm.expect(trip.availableSeatsCount).to.be.above(0);",
+                  "  pm.collectionVariables.set(\"trip\", trip._id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find both legs",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/trips/round-trip-search",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"Pune\",\n  \"destination\": \"Mumbai\",\n  \"outboundDate\": \"{{journeyDate}}\",\n  \"returnDate\": \"{{returnDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Find both legs\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.outboundTrips.map(t => t._id)).to.include(pm.collectionVariables.get(\"trip\"));",
+                  "  const back = data.returnTrips.find(t => t.tripNumber === \"DEMO-MUMBAI-\" + pm.environment.get(\"returnDate\"));",
+                  "  pm.expect(back.availableSeatsCount).to.be.above(0);",
+                  "  pm.collectionVariables.set(\"back\", back._id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read the selected car trip",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{trip}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read the selected car trip\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.bookingOpen).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Select a passenger seat on outbound trip",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{trip}}/seats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Select a passenger seat on outbound trip\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.seats.find(s => s.isDriver).isBookable).to.equal(false);",
+                  "  const choice = data.seats.find(s => s.isBookable && s.state === \"available\");",
+                  "  pm.expect(choice).to.be.an(\"object\");",
+                  "  pm.collectionVariables.set(\"seat\", choice.seatId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Select a passenger seat on return trip",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{back}}/seats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Select a passenger seat on return trip\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.seats.find(s => s.isDriver).isBookable).to.equal(false);",
+                  "  const choice = data.seats.find(s => s.isBookable && s.state === \"available\");",
+                  "  pm.expect(choice).to.be.an(\"object\");",
+                  "  pm.collectionVariables.set(\"backSeat\", choice.seatId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · Temporary hold",
+      "item": [
+        {
+          "name": "Create a temporary hold",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/holds",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{trip}}\",\n  \"seatIds\": [\n    \"{{seat}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Create a temporary hold\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set(\"hold\", data.holdId);",
+                  "  pm.expect(data.status).to.equal(\"held\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read hold and expiry",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/holds/{{hold}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read hold and expiry\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.holdId).to.equal(pm.collectionVariables.get(\"hold\"));",
+                  "  pm.expect(Date.parse(data.expiresAt)).to.be.above(Date.now());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Release temporary hold",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/holds/{{hold}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Release temporary hold\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.released).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 · One-way booking and refund",
+      "item": [
+        {
+          "name": "Quote ONE_WAY",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/fares/quote",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outboundTripId\": \"{{trip}}\",\n  \"outboundSeatIds\": [\n    \"{{seat}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Quote ONE_WAY\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.bookingType).to.equal(\"ONE_WAY\");",
+                  "  pm.expect(data.grandTotalPaise).to.be.above(0);",
+                  "  pm.collectionVariables.set(\"amount\", data.grandTotalPaise);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hold seats for ONE_WAY",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/holds",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{trip}}\",\n  \"seatIds\": [\n    \"{{seat}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Hold seats for ONE_WAY\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.amountPaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"hold\", data.holdId);",
+                  "  pm.collectionVariables.set(\"key\", pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm ONE_WAY",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/confirm",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingType\": \"ONE_WAY\",\n  \"holdId\": \"{{hold}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{seat}}\"\n    }\n  ],\n  \"contact\": {\n    \"phone\": \"9999999999\"\n  },\n  \"payment\": {\n    \"mode\": \"sandbox\",\n    \"amountPaise\": {{amount}}\n  },\n  \"idempotencyKey\": \"{{key}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Confirm ONE_WAY\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.paymentStatus).to.equal(\"Paid\");",
+                  "  pm.expect(data.pnr).to.match(/^CAR[A-Z0-9]{7}$/);",
+                  "  pm.expect(data.totalPayablePaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"booking\", data.booking._id);",
+                  "  pm.collectionVariables.set(\"pnr\", data.pnr);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry confirmation with same key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/confirm",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingType\": \"ONE_WAY\",\n  \"holdId\": \"{{hold}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{seat}}\"\n    }\n  ],\n  \"contact\": {\n    \"phone\": \"9999999999\"\n  },\n  \"payment\": {\n    \"mode\": \"sandbox\",\n    \"amountPaise\": {{amount}}\n  },\n  \"idempotencyKey\": \"{{key}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retry confirmation with same key\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.replayed).to.equal(true);",
+                  "  pm.expect(data.booking._id).to.equal(pm.collectionVariables.get(\"booking\"));",
+                  "  pm.expect(data.pnr).to.equal(pm.collectionVariables.get(\"pnr\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Look up booking by PNR",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{pnr}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Look up booking by PNR\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data._id).to.equal(pm.collectionVariables.get(\"booking\"));",
+                  "  pm.expect(data.legs.every(l => l.status === \"Confirmed\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve issued tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/tickets"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retrieve issued tickets\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.length).to.equal(1);",
+                  "  pm.expect(data.every(t => t.status === \"valid\" && t.pnr === pm.collectionVariables.get(\"pnr\"))).to.equal(true);",
+                  "  pm.expect(data.map(t => t.legType)).to.have.members([\"outbound\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quote cancellation",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/{{booking}}/cancellation-quote"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Quote cancellation\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.eligible).to.equal(true);",
+                  "  pm.expect(data.refundablePaise + data.cancellationFeePaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"refund\", data.refundablePaise);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel demo booking",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/{{booking}}/cancel",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Local sandbox verification\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cancel demo booking\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.cancelled).to.equal(true);",
+                  "  pm.expect(data.refundablePaise).to.equal(pm.collectionVariables.get(\"refund\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read refund outcome",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/refund-status"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read refund outcome\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.paymentStatus).to.equal(\"Refunded\");",
+                  "  pm.expect(data.isCancelled).to.equal(true);",
+                  "  pm.expect(data.legs.every(l => l.status === \"Cancelled\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read cancelled tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/tickets"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read cancelled tickets\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.length).to.equal(1);",
+                  "  pm.expect(data.every(t => t.status === \"cancelled\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check released seat outbound",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{trip}}/seats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Check released seat outbound\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.seats.find(s => s.seatId === pm.collectionVariables.get(\"seat\")).state).to.equal(\"available\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 · Round-trip booking and refund",
+      "item": [
+        {
+          "name": "Quote ROUND_TRIP",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/fares/quote",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outboundTripId\": \"{{trip}}\",\n  \"outboundSeatIds\": [\n    \"{{seat}}\"\n  ],\n  \"returnTripId\": \"{{back}}\",\n  \"returnSeatIds\": [\n    \"{{backSeat}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Quote ROUND_TRIP\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.bookingType).to.equal(\"ROUND_TRIP\");",
+                  "  pm.expect(data.grandTotalPaise).to.be.above(0);",
+                  "  pm.collectionVariables.set(\"amount\", data.grandTotalPaise);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hold seats for ROUND_TRIP",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/holds/round-trip",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outboundTripId\": \"{{trip}}\",\n  \"outboundSeatIds\": [\n    \"{{seat}}\"\n  ],\n  \"returnTripId\": \"{{back}}\",\n  \"returnSeatIds\": [\n    \"{{backSeat}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Hold seats for ROUND_TRIP\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.combinedAmountPaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"hold\", data.outboundHoldId);",
+                  "  pm.collectionVariables.set(\"backHold\", data.returnHoldId);",
+                  "  pm.collectionVariables.set(\"key\", pm.variables.replaceIn(\"{{$guid}}\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm ROUND_TRIP",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/confirm",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingType\": \"ROUND_TRIP\",\n  \"holdId\": \"{{hold}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{seat}}\"\n    }\n  ],\n  \"returnHoldId\": \"{{backHold}}\",\n  \"returnPassengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{backSeat}}\"\n    }\n  ],\n  \"contact\": {\n    \"phone\": \"9999999999\"\n  },\n  \"payment\": {\n    \"mode\": \"sandbox\",\n    \"amountPaise\": {{amount}}\n  },\n  \"idempotencyKey\": \"{{key}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Confirm ROUND_TRIP\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.paymentStatus).to.equal(\"Paid\");",
+                  "  pm.expect(data.pnr).to.match(/^CAR[A-Z0-9]{7}$/);",
+                  "  pm.expect(data.totalPayablePaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"booking\", data.booking._id);",
+                  "  pm.collectionVariables.set(\"pnr\", data.pnr);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry confirmation with same key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/confirm",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingType\": \"ROUND_TRIP\",\n  \"holdId\": \"{{hold}}\",\n  \"passengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{seat}}\"\n    }\n  ],\n  \"returnHoldId\": \"{{backHold}}\",\n  \"returnPassengers\": [\n    {\n      \"name\": \"Demo Passenger\",\n      \"seatId\": \"{{backSeat}}\"\n    }\n  ],\n  \"contact\": {\n    \"phone\": \"9999999999\"\n  },\n  \"payment\": {\n    \"mode\": \"sandbox\",\n    \"amountPaise\": {{amount}}\n  },\n  \"idempotencyKey\": \"{{key}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retry confirmation with same key\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.replayed).to.equal(true);",
+                  "  pm.expect(data.booking._id).to.equal(pm.collectionVariables.get(\"booking\"));",
+                  "  pm.expect(data.pnr).to.equal(pm.collectionVariables.get(\"pnr\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Look up booking by PNR",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{pnr}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Look up booking by PNR\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data._id).to.equal(pm.collectionVariables.get(\"booking\"));",
+                  "  pm.expect(data.legs.every(l => l.status === \"Confirmed\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retrieve issued tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/tickets"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retrieve issued tickets\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.length).to.equal(2);",
+                  "  pm.expect(data.every(t => t.status === \"valid\" && t.pnr === pm.collectionVariables.get(\"pnr\"))).to.equal(true);",
+                  "  pm.expect(data.map(t => t.legType)).to.have.members([\"outbound\",\"return\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quote cancellation",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/{{booking}}/cancellation-quote"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Quote cancellation\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.eligible).to.equal(true);",
+                  "  pm.expect(data.refundablePaise + data.cancellationFeePaise).to.equal(pm.collectionVariables.get(\"amount\"));",
+                  "  pm.collectionVariables.set(\"refund\", data.refundablePaise);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel demo booking",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/bookings/{{booking}}/cancel",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Local sandbox verification\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cancel demo booking\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.cancelled).to.equal(true);",
+                  "  pm.expect(data.refundablePaise).to.equal(pm.collectionVariables.get(\"refund\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read refund outcome",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/refund-status"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read refund outcome\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.paymentStatus).to.equal(\"Refunded\");",
+                  "  pm.expect(data.isCancelled).to.equal(true);",
+                  "  pm.expect(data.legs.every(l => l.status === \"Cancelled\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read cancelled tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/bookings/{{booking}}/tickets"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Read cancelled tickets\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.length).to.equal(2);",
+                  "  pm.expect(data.every(t => t.status === \"cancelled\")).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check released seat outbound",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{trip}}/seats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Check released seat outbound\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.seats.find(s => s.seatId === pm.collectionVariables.get(\"seat\")).state).to.equal(\"available\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check released seat return",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/trips/{{back}}/seats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Check released seat return\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.seats.find(s => s.seatId === pm.collectionVariables.get(\"backSeat\")).state).to.equal(\"available\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
