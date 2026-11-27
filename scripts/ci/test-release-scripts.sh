@@ -45,6 +45,7 @@ set -eu
 case "$*" in
   */health/ready*) printf '{"data":{"status":"ready"}}' ;;
   */deployment-revision*) cat /opt/bookmybus-crs/active-revision ;;
+  */api/v1/car/openapi.json*) printf '{"openapi":"3.0.3"}' ;;
   *) exit 0 ;;
 esac
 MOCK
