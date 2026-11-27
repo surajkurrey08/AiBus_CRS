@@ -17,9 +17,10 @@ log="$ROOT/logs/deploy-$release.log"
 echo "Preparing release $release; log: $log"
 compose config --quiet >>"$log" 2>&1
 compose pull >>"$log" 2>&1
-for image in "$API_IMAGE" "$WEB_IMAGE" "$CAR_SANDBOX_IMAGE"; do
+for image in "$API_IMAGE" "$WEB_IMAGE"; do
   [[ $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image") == "$REVISION" ]] || fail 'Image revision mismatch'
 done
+[[ $(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$CAR_SANDBOX_IMAGE") == "$REVISION" ]] || fail 'Car sandbox image revision mismatch'
 compose run --rm --no-deps api node --input-type=module -e "import {readConfig} from './dist/config/env.js';readConfig();console.log('Production configuration validated')" >>"$log" 2>&1
 previous=''
 if [[ -L $ROOT/current ]]; then

@@ -32,8 +32,12 @@ load_release() {
   [[ $prefix =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+$ ]] || fail 'Invalid registry allowlist'
   [[ $API_IMAGE == "$prefix-api@sha256:"* && ${API_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid API image digest'
   [[ $WEB_IMAGE == "$prefix-web@sha256:"* && ${WEB_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid web image digest'
-  [[ $CAR_SANDBOX_IMAGE == "$prefix-car-sandbox@sha256:"* && ${CAR_SANDBOX_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid Car sandbox image digest'
-  [[ $(wc -l < "$RELEASE/images.env") == 4 ]] || fail 'Unexpected image manifest fields'
+  if [[ -n $CAR_SANDBOX_IMAGE ]]; then
+    [[ $CAR_SANDBOX_IMAGE == "$prefix-car-sandbox@sha256:"* && ${CAR_SANDBOX_IMAGE##*@sha256:} =~ ^[a-f0-9]{64}$ ]] || fail 'Invalid Car sandbox image digest'
+    [[ $(wc -l < "$RELEASE/images.env") == 4 ]] || fail 'Unexpected image manifest fields'
+  else
+    [[ $(wc -l < "$RELEASE/images.env") == 3 ]] || fail 'Unexpected legacy image manifest fields'
+  fi
   export API_IMAGE WEB_IMAGE CAR_SANDBOX_IMAGE REVISION
 }
 compose() { docker compose --project-directory "$RELEASE" --env-file "$RELEASE/images.env" -p "$PROJECT" -f "$RELEASE/docker-compose.prod.yml" "$@"; }
@@ -45,7 +49,9 @@ health() {
     [[ $actual == "$REVISION" ]] || return 1
     curl -fsS --max-time 8 -o /dev/null -H "Host: $host" http://127.0.0.1:5020/ || return 1
   done
-  curl -fsS --max-time 8 -H 'Host: partner.bookmybus.pro' http://127.0.0.1:5020/api/v1/car/openapi.json | grep -q '"openapi"' || return 1
+  if [[ -n $CAR_SANDBOX_IMAGE ]]; then
+    curl -fsS --max-time 8 -H 'Host: partner.bookmybus.pro' http://127.0.0.1:5020/api/v1/car/openapi.json | grep -q '"openapi"' || return 1
+  fi
 }
 wait_health() { for attempt in {1..30}; do health && return 0; sleep 2; done; return 1; }
 check_namespace() {

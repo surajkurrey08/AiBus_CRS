@@ -67,7 +67,10 @@ make_release() {
   cp /src/scripts/{deploy,rollback,release-common}.sh "$root/releases/$id/scripts/"
   cp /src/docker-compose.prod.yml /src/docker-compose.public-test.yml "$root/releases/$id/"
   cp /src/deploy/public-api-test-compose.env.example "$root/releases/$id/deploy/"
-  printf 'REVISION=%s\nAPI_IMAGE=ghcr.io/owner/repo-api@sha256:%064d\nWEB_IMAGE=ghcr.io/owner/repo-web@sha256:%064d\nCAR_SANDBOX_IMAGE=ghcr.io/owner/repo-car-sandbox@sha256:%064d\n' "$revision" 1 2 3 > "$root/releases/$id/images.env"
+  printf 'REVISION=%s\nAPI_IMAGE=ghcr.io/owner/repo-api@sha256:%064d\nWEB_IMAGE=ghcr.io/owner/repo-web@sha256:%064d\n' "$revision" 1 2 > "$root/releases/$id/images.env"
+  if [[ $revision == "$(printf 'b%.0s' {1..40})" ]]; then
+    printf 'CAR_SANDBOX_IMAGE=ghcr.io/owner/repo-car-sandbox@sha256:%064d\n' 3 >> "$root/releases/$id/images.env"
+  fi
 }
 a=$(printf 'a%.0s' {1..40}); b=$(printf 'b%.0s' {1..40})
 make_release "$a"; make_release "$b"
