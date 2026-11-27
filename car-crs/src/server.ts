@@ -2,9 +2,11 @@ import { createServer } from "node:http";
 import { createCarSandboxApp } from "./sandbox-app.js";
 import { readCarSandboxConfig } from "./config/env.js";
 import { connectCarCrsDatabase } from "./database/connection.js";
+import { prepareDemoInventory } from "./scripts/demo-inventory.js";
 
 const config = readCarSandboxConfig();
 await connectCarCrsDatabase(config.CAR_CRS_MONGODB_URI);
+if (config.NODE_ENV === "staging") await prepareDemoInventory();
 
 const app = createCarSandboxApp(
   config.CAR_CRS_JWT_SECRET,

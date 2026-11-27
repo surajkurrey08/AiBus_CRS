@@ -1,4 +1,5 @@
 import { phoneNumber } from "../validators/account-input.schemas.js";
+import jwt from "jsonwebtoken";
 import { Router } from "express";
 import { z } from "zod";
 import * as M from "../models/index.js";
@@ -88,6 +89,27 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
     }),
   );
   r.use(authenticate(config));
+  r.post(
+    "/car/token",
+    rateLimit(limiter, "car-portal-token", 10, 3600),
+    asyncRoute(async (req, res) => {
+      const { partner, user } = await S.portalMember(req.auth, "partner:credentials:write");
+      await S.portalMember(req.auth, "partner:passengers");
+      const input = z.object({ password: z.string().min(1).max(256) }).strict().parse(req.body);
+      const account: any = await M.User.findById(user._id).select("+passwordHash").lean();
+      if (!account || !(await checkPassword(input.password, account.passwordHash)))
+        fail(403, "STEP_UP_REQUIRED", "Verify your current password");
+      if (!config.CAR_PROVIDER_JWT_SECRET || !config.CAR_SANDBOX_DEMO_OPERATOR_ID)
+        fail(503, "CAR_SANDBOX_DISABLED", "Car sandbox token service is not configured");
+      const requiredScopes = ["inventory:read", "holds:write", "bookings:write", "bookings:read", "tickets:read", "cancellations:write", "refunds:read"];
+      if (!requiredScopes.every(scope => partner.scopes.includes(scope)))
+        fail(403, "CAR_SCOPE_APPROVAL_REQUIRED", "Ask your administrator to approve all Car sandbox booking scopes first");
+      const token = jwt.sign({ operatorId: config.CAR_SANDBOX_DEMO_OPERATOR_ID }, config.CAR_PROVIDER_JWT_SECRET!, {
+        subject: String(partner._id), audience: "car-provider-sandbox", algorithm: "HS256", expiresIn: "45m",
+      });
+      ok(res, { token, expiresAt: new Date(Date.now() + 45 * 60000).toISOString(), providerId: String(partner._id), environment: "sandbox" });
+    }),
+  );
   r.use(
     asyncRoute(async (req, res, next) => {
       if (

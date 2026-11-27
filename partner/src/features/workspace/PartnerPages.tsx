@@ -17,6 +17,7 @@ import {
   credentialRequest,
 } from "./ApiAccess";
 import { PartnerSettlements } from "../settlements/PartnerSettlements";
+import { CarSandboxAccess } from "./CarSandboxAccess";
 export function Page({ page, user }: { page: string; user: Identity }) {
   const [revision, setRevision] = useState(0),
     [form, setForm] = useState<{
@@ -130,10 +131,11 @@ export function Page({ page, user }: { page: string; user: Identity }) {
       </Load>
     );
   else if (page === "docs" || page === "playground")
-    content = <DeveloperWorkspace playground={page === "playground"} />;
+    content = <><CarSandboxAccess /><DeveloperWorkspace playground={page === "playground"} /></>;
   else if (page === "credentials")
     content = (
       <>
+        <CarSandboxAccess />
         <CredentialsGuide writable={can(user, "credentials:write")} />
         <PlatformTable
           request={credentialRequest}

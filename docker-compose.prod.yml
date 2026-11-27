@@ -34,8 +34,11 @@ services:
     env_file:
       - path: ${APP_ENV_FILE:?Private APP_ENV_FILE is required}
         format: raw
+      - path: ${CAR_SANDBOX_ENV_FILE:?Private CAR_SANDBOX_ENV_FILE is required}
+        format: raw
     environment:
       NODE_ENV: production
+      CAR_SANDBOX_DEMO_OPERATOR_ID: b4eede3b6d7e78a69446fd8d
       PORT: 4000
       TRUST_PROXY: 2
       UPLOAD_DIR: /app/backend/var/uploads

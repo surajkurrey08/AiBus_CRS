@@ -30,6 +30,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
         .regex(/^[a-z0-9]+(?::[a-z0-9-]+)*$/i)
         .default("aibus"),
       JWT_SECRET: z.string().min(48),
+      CAR_PROVIDER_JWT_SECRET: z.string().min(48).optional(),
+      CAR_SANDBOX_DEMO_OPERATOR_ID: z.string().regex(/^[a-f0-9]{24}$/).optional(),
       WEB_ORIGIN: browserOrigin.default("http://127.0.0.1:5173"),
       ADMIN_WEB_ORIGIN: browserOrigin.optional(),
       PARTNER_WEB_ORIGIN: browserOrigin.optional(),

@@ -55,7 +55,7 @@ if (process.argv[2] === "token") {
 } else {
   const spec = JSON.parse(readFileSync(new URL("../car-crs/src/docs/openapi.json", import.meta.url), "utf8"));
   const docsOptions = { customSiteTitle: "AiCar Provider API", swaggerOptions: {
-    supportedSubmitMethods: [], validatorUrl: null, persistAuthorization: false,
+    supportedSubmitMethods: ["get", "post", "delete"], validatorUrl: null, persistAuthorization: false,
   }};
   await connectCarCrsDatabase(localDatabase);
   const app = express();

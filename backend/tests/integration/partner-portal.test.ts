@@ -1,4 +1,5 @@
 import { reviewPartner } from "../../src/services/partner-portal.service.js";
+import jwt from "jsonwebtoken";
 import { principal } from "../../src/services/auth.service.js";
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
@@ -24,6 +25,8 @@ const config = readConfig({
   NODE_ENV: "test",
   MONGODB_URI: "mongodb://127.0.0.1/aibus_public_sandbox_portal",
   JWT_SECRET: "d".repeat(64),
+  CAR_PROVIDER_JWT_SECRET: "c".repeat(64),
+  CAR_SANDBOX_DEMO_OPERATOR_ID: "b4eede3b6d7e78a69446fd8d",
   PUBLIC_API_SANDBOX: "true",
   PUBLIC_API_JWT_SECRET: "p".repeat(64),
   PUBLIC_WEBHOOK_SIGNING_KEY: "b".repeat(64),
@@ -135,6 +138,23 @@ beforeEach(async () => {
   adminToken = await session(admin, "admin");
 });
 describe("Phase 8 partner platform boundaries", () => {
+  it("Car portal tokens require approval, full scopes, password and passenger permission", async () => {
+    await P.ApiPartner.updateOne({_id: partner._id}, {$set: {status: "Active", onboardingStatus: "Approved"}});
+    expect((await post("/partner/car/token", {password: "wrong"})).status).toBe(403);
+    const result = await post("/partner/car/token", {password});
+    expect(result.status).toBe(200);
+    const claims = jwt.verify(result.body.data.token, "c".repeat(64), {audience: "car-provider-sandbox", algorithms: ["HS256"]}) as jwt.JwtPayload;
+    expect(claims.sub).toBe(String(partner._id));
+    expect(claims.operatorId).toBe(config.CAR_SANDBOX_DEMO_OPERATOR_ID);
+    expect(claims.exp! - claims.iat!).toBe(2700);
+    await M.User.updateOne({_id: owner._id}, {$set: {partnerRole: "Developer"}});
+    expect((await post("/partner/car/token", {password})).status).toBe(403);
+    await M.User.updateOne({_id: owner._id}, {$set: {partnerRole: "Owner"}});
+    await P.ApiPartner.updateOne({_id: partner._id}, {$set: {scopes: ["inventory:read"]}});
+    expect((await post("/partner/car/token", {password})).status).toBe(403);
+    await P.ApiPartner.updateOne({_id: partner._id}, {$set: {status: "Suspended"}});
+    expect((await post("/partner/car/token", {password})).status).toBe(403);
+  });
   it("registers a submitted organization without credentials or inventory", async () => {
     const r = await post("/partner/applications", application(), "");
     expect(r.status).toBe(201);

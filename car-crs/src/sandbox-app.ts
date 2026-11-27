@@ -9,7 +9,10 @@ export function createCarSandboxApp(operatorSecret: string, providerSecret: stri
   const openapi = JSON.parse(readFileSync(new URL("./docs/openapi.json", import.meta.url), "utf8"));
   const options = {
     customSiteTitle: "AiCar Provider API",
-    swaggerOptions: { supportedSubmitMethods: [], validatorUrl: null },
+    swaggerOptions: {
+      supportedSubmitMethods: ["get", "post", "delete"], validatorUrl: null,
+      persistAuthorization: false, displayRequestDuration: true,
+    },
   };
   // Public documentation must precede the provider-authenticated API router.
   app.get("/api/v1/car/openapi.json", (_req, res) => res.json(openapi));
