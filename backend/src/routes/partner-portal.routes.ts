@@ -608,7 +608,7 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
         approval: p.onboardingStatus,
         environment: "sandbox",
         sandboxReady: ready,
-        productionAccess: false,
+        productionAccess: p.productionAccess || { status: "Disabled", operatorIds: [], allowedIps: [] },
         activeCredentials: await P.ApiCredential.countDocuments({
           partnerId: p._id,
           portalManaged: false,
@@ -693,7 +693,11 @@ export function platformPartnersRouter(config: Config) {
           .select("subject message status response createdAt")
           .limit(25)
           .lean(),
-        productionAccess: false,
+        productionAccess: p!.productionAccess || {
+          status: "Disabled",
+          operatorIds: [],
+          allowedIps: [],
+        },
       });
     }),
   );
