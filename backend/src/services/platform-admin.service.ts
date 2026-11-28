@@ -61,10 +61,11 @@ export async function platformAudit(
   action: string,
   resourceId: string,
   reason: string,
-  session: ClientSession,
+  session?: ClientSession,
   operatorId?: string,
   metadata: Record<string, unknown> = {},
 ) {
+  const options = session ? { session } : undefined;
   await M.Audit.create(
     [
       {
@@ -77,7 +78,7 @@ export async function platformAudit(
         expiresAt: null,
       },
     ],
-    { session },
+    options,
   );
 }
 export async function changeOperator(
