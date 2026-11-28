@@ -3,6 +3,7 @@ import {
   platformPartnersRouter,
 } from "./routes/partner-portal.routes.js";
 import { publicApiRouter } from "./routes/public-api.routes.js";
+import { liveCarInventoryRouter } from "./routes/live-car-inventory.routes.js";
 import { sandboxPortalBridgeRouter } from "./routes/sandbox-portal.routes.js";
 import { operationsRouter } from "./routes/operations.routes.js";
 import { observeRequests } from "./services/observability.service.js";
@@ -185,6 +186,7 @@ export function createApp(
     }),
   );
   app.use("/api/v1/public", publicApiRouter(config, limiter));
+  app.use("/api/v1/live-car", liveCarInventoryRouter(config, limiter));
   app.get("/api/v1/openapi.json", authenticate(config), (_req, res) =>
     res.json(openapi),
   );
