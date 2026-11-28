@@ -485,9 +485,9 @@ approved change if recovery without this interval is required.
 
 The live search reads the primary operator database. Each request looks up currently published trips and seat availability. The route supports inventory reads. It uses one server credential for the configured operator allowlist, so issue that credential only to the intended integration.
 
-1. Select the approved operator accounts that may share inventory. Obtain their 24-character operator IDs from the production platform admin or deployment owner.
-2. Generate a credential with `openssl rand -hex 32` in a private terminal. In `/opt/bookmybus-crs/shared/api.env`, set `LIVE_CAR_INVENTORY_TOKEN` to that value and `LIVE_CAR_INVENTORY_OPERATOR_IDS` to the operator IDs separated by commas with no spaces. Preserve the file owner and permissions. Keep the token in the integration's backend secret store.
-3. Deploy the reviewed release through the usual production workflow. Both settings must be present for activation. To disable access, remove both settings and recreate the production API through the deployment workflow. To rotate the token, replace it in both secret stores and recreate the API.
+1. In the admin panel, open API Partners, select the approved partner, configure Production Access and select the approved operators. Add fixed backend IP addresses when IP lock is required.
+2. Issue a production credential from the same panel and store it in the partner's backend secret store. The credential is shown once.
+3. Deploy the reviewed release through the usual production workflow. Changes made in the admin panel apply to the next API request.
 4. Publish an upcoming trip with an active car and route. Query the HTTPS endpoint with the exact source and destination names shown on the route, the journey date in `YYYY-MM-DD`, and the dedicated Bearer token.
 
    ```bash
