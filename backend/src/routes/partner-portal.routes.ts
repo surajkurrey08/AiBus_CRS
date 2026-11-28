@@ -21,6 +21,10 @@ import {
   playgroundOperations,
 } from "../services/partner-playground.service.js";
 import { platformPermit } from "../services/platform-read.service.js";
+import {
+  configurePartnerProductionAccess,
+  issuePartnerProductionCredential,
+} from "../services/partner-production-access.service.js";
 import { checkPassword } from "../services/auth.service.js";
 import {
   adminInventoryOptions,
@@ -527,7 +531,7 @@ export function partnerPortalRouter(config: Config, limiter: Limiter) {
         intendedUsage: p.intendedUsage,
         requestedEnvironment: p.requestedEnvironment,
         environment: "sandbox",
-        productionAccess: false,
+        productionAccess: p.productionAccess || { status: "Disabled", operatorIds: [], allowedIps: [] },
       });
     }),
   );
@@ -692,6 +696,32 @@ export function platformPartnersRouter(config: Config) {
         productionAccess: false,
       });
     }),
+  );
+  r.post(
+    "/:id/production-access",
+    asyncRoute(async (req, res) =>
+      ok(
+        res,
+        await configurePartnerProductionAccess(
+          req.auth,
+          oid.parse(req.params.id),
+          V.productionAccessInput.parse(req.body),
+        ),
+      ),
+    ),
+  );
+  r.post(
+    "/:id/production-credential",
+    asyncRoute(async (req, res) =>
+      ok(
+        res,
+        await issuePartnerProductionCredential(
+          req.auth,
+          oid.parse(req.params.id),
+          review.parse(req.body),
+        ),
+      ),
+    ),
   );
   r.post(
     "/:id/review",
