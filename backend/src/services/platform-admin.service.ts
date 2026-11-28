@@ -65,21 +65,20 @@ export async function platformAudit(
   operatorId?: string,
   metadata: Record<string, unknown> = {},
 ) {
-  const options = session ? { session } : undefined;
-  await M.Audit.create(
-    [
-      {
-        actorId: auth.userId,
-        ...(operatorId ? { operatorId } : {}),
-        action,
-        resourceId,
-        resource: "Platform",
-        metadata: { reason, ...metadata },
-        expiresAt: null,
-      },
-    ],
-    options,
-  );
+  const entry = {
+    actorId: auth.userId,
+    ...(operatorId ? { operatorId } : {}),
+    action,
+    resourceId,
+    resource: "Platform",
+    metadata: { reason, ...metadata },
+    expiresAt: null,
+  };
+  if (session) {
+    await M.Audit.create([entry], { session });
+    return;
+  }
+  await M.Audit.create(entry);
 }
 export async function changeOperator(
   auth: Principal,
