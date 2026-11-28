@@ -162,3 +162,39 @@ it("creates a route like Pune to Nashik from Route Master", async () => {
   expect(body.source).toBe("Pune");
   expect(body.destination).toBe("Nashik");
 });
+
+it("creates a route with highway note and comma-separated intermediate via cities", async () => {
+  const user = userEvent.setup();
+  render(<AreaMaster defaultTab="routes" />);
+  const create = screen.getByRole("button", { name: "Create route" });
+  await waitFor(() =>
+    expect((create as HTMLButtonElement).disabled).toBe(false),
+  );
+  await user.click(create);
+  const dialog = within(screen.getByRole("dialog"));
+  await user.type(dialog.getByLabelText("From / Origin city"), "Pune");
+  await user.type(dialog.getByLabelText("To / Destination city"), "Nashik");
+  await user.type(dialog.getByLabelText("Distance in km"), "210");
+  await user.type(dialog.getByLabelText("Highway / Via Route Note"), "Via NH-60");
+  await user.type(
+    dialog.getByLabelText("Quick add via cities"),
+    "Moshi, Chakan, Rajgurunagar",
+  );
+  await user.click(dialog.getByRole("button", { name: "Add stops" }));
+  await user.click(dialog.getByRole("button", { name: "Save route" }));
+  await waitFor(() => expect(ws.refresh).toHaveBeenCalled());
+  const postCall = vi
+    .mocked(api)
+    .mock.calls.find(
+      ([path, options]) =>
+        path === "/operator/routes" && options?.method === "POST",
+    );
+  const body = JSON.parse(postCall![1]!.body as string);
+  expect(body.viaLabel).toBe("Via NH-60");
+  expect(body.viaStops.map((s: any) => s.city)).toEqual([
+    "Moshi",
+    "Chakan",
+    "Rajgurunagar",
+  ]);
+  expect(body.viaStops[0].distanceKm).toBeGreaterThan(0);
+});

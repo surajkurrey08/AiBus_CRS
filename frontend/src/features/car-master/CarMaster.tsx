@@ -3,11 +3,13 @@ import { Car, Plus, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from "
 import { api } from "../../api/client";
 import { DataTable, MiniStats, Overlay, Panel } from "../../components/index";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import { AssignVehicleOwner } from "../vehicle-owner/AssignVehicleOwner";
 import "./car-master.css";
 
 export interface CarRecord {
   id?: string;
   _id?: string;
+  ownerId?: string | null;
   registrationNumber: string;
   make: string;
   model: string;
@@ -74,6 +76,7 @@ const DEMO_CARS: CarRecord[] = [
 export function CarMaster() {
   const ws = useWorkspace();
   const canWrite = ws.user.permissions.includes("fleet:write");
+  const [ownerVehicle, setOwnerVehicle] = useState<CarRecord | null>(null);
   const [cars, setCars] = useState<CarRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -350,6 +353,11 @@ export function CarMaster() {
                     </td>
                     {canWrite && (
                       <td>
+                        {!ws.demo && ws.user.role === "operator_admin" && (car._id || car.id) && (
+                          <button className="btn secondary" disabled={saving} onClick={() => setOwnerVehicle(car)}>
+                            {car.ownerId ? "Change owner" : "Assign owner"}
+                          </button>
+                        )}
                         <button className="btn secondary" disabled={saving} onClick={() => void manageCar(car)}>
                           {car.status === "Active" ? "Deactivate" : "Activate"}
                         </button>
@@ -366,6 +374,19 @@ export function CarMaster() {
         </div>
       </Panel>
 
+      {ownerVehicle && (
+        <AssignVehicleOwner
+          vehicleId={(ownerVehicle._id || ownerVehicle.id)!}
+          registration={ownerVehicle.registrationNumber}
+          currentOwner={ownerVehicle.ownerId}
+          onClose={() => setOwnerVehicle(null)}
+          onSaved={(ownerId) => {
+            const vehicleId = ownerVehicle._id || ownerVehicle.id;
+            setCars((list) => list.map((car) => (car._id || car.id) === vehicleId ? { ...car, ownerId } : car));
+            setOwnerVehicle(null);
+          }}
+        />
+      )}
       {dialogOpen && (
         <Overlay
           title={editingCar ? "Edit Car" : "Add New Vehicle"}

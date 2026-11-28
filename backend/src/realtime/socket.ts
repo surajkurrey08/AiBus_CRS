@@ -20,7 +20,7 @@ export function attachRealtime(
       const token = socket.handshake.auth?.token;
       if (typeof token !== "string") throw new Error("Missing token");
       const auth = await principal(token, config);
-      if (!auth.operatorId || auth.agentId)
+      if (!auth.operatorId || auth.agentId || auth.role === "vehicle_owner")
         throw new Error("Operator staff context required");
       socket.data.auth = auth;
       next();

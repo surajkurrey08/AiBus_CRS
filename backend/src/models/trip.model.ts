@@ -3,6 +3,7 @@ import {
   mapping,
   model,
   objectId,
+  segmentFareSchema,
   tenantFields,
 } from "./shared/schema.js";
 
@@ -12,6 +13,7 @@ export const Trip = model(
     ...tenantFields,
     routeId: { type: objectId, required: true },
     carId: { type: objectId, ref: "Car" },
+    fleetOwnerId: { type: objectId, immutable: true },
     busId: { type: objectId, required: false },
     tripNumber: String,
     tripType: {
@@ -20,6 +22,7 @@ export const Trip = model(
       default: "ONE_WAY",
     },
     vehicleCategory: { type: String, default: "4-Passenger Sedan" },
+    amenities: { type: [String], default: undefined },
     carRegistration: String,
     routeName: String,
     bookableCapacity: { type: Number, default: 4 },
@@ -43,6 +46,10 @@ export const Trip = model(
     availableSeatsCount: Number,
     seatSideFares: {
       type: { doublePaise: Number, singlePaise: Number },
+      default: undefined,
+    },
+    segmentFares: {
+      type: [segmentFareSchema],
       default: undefined,
     },
     bookingOpen: { type: Boolean, default: true },
@@ -69,6 +76,7 @@ export const Trip = model(
   },
   [
     { keys: { operatorId: 1, journeyDate: 1 } },
+    { keys: { operatorId: 1, fleetOwnerId: 1, journeyDate: 1 } },
     { keys: { operatorId: 1, status: 1, departureAt: 1 } },
     { keys: { carId: 1, departureAt: 1 } },
     { keys: { busId: 1, departureAt: 1 }, options: { unique: true, sparse: true } },

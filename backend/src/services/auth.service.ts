@@ -85,6 +85,8 @@ export async function principal(
   if (!session || !user)
     fail(401, "SESSION_REVOKED", "Your session has ended. Sign in again.");
   if (user!.role === "partner" && session!.client !== "partner") fail(401, "SESSION_CLIENT_MISMATCH", "Partner portal session required");
+  if (user!.role === "vehicle_owner" && session!.client !== "owner")
+    fail(401, "SESSION_CLIENT_MISMATCH", "Vehicle owner session required");
   if (user!.role !== "super_admin" && user!.role !== "partner") {
     const operator = await Operator.findOne({
       _id: user!.operatorId,
@@ -146,6 +148,7 @@ export async function sessionResponse(
     userId: user._id,
     family,
     client:
+      cookieName === "aibus_owner_refresh" ? "owner" :
       cookieName === "aibus_partner_refresh" ? "partner" :
       cookieName === "aibus_agent_refresh"
         ? "agent"

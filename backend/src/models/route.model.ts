@@ -4,6 +4,7 @@ import {
   objectId,
   stop,
   tenantFields,
+  viaStopSchema,
 } from "./shared/schema.js";
 
 export const Route = model(
@@ -20,6 +21,11 @@ export const Route = model(
     arrival: { type: String, required: true },
     durationMinutes: { type: Number, required: true },
     distanceKm: Number,
+    viaLabel: String,
+    viaStops: {
+      type: [viaStopSchema],
+      default: undefined,
+    },
     status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     ...mapping,
   },

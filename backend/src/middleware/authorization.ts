@@ -2,6 +2,8 @@ import type { Request, RequestHandler } from "express";
 import { Permission } from "../types/permissions.js";
 import { AppError, fail } from "../utils/errors.js";
 export const operatorStaffOnly: RequestHandler = (req, _res, next) => {
+  if (req.auth.role === "vehicle_owner")
+    return next(new AppError(403, "OPERATOR_STAFF_REQUIRED", "Use the vehicle owner workspace"));
   if (req.auth.agentId || req.auth.role === "agent" || req.auth.partnerId || req.auth.role === "partner")
     return next(
       new AppError(

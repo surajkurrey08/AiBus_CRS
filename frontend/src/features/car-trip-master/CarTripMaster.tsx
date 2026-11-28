@@ -101,15 +101,25 @@ const DEMO_TRIPS: CarTripRecord[] = [
   },
 ];
 
-export function CarTripMaster() {
+import { TripAmenitiesFields } from "../booking-counter/components/TripAmenitiesFields";
+import type { CounterTrip } from "../booking-counter/api/counter.api";
+
+export function CarTripMaster({ fromTrip, onClose }: { fromTrip?: CounterTrip; onClose?: () => void } = {}) {
   const ws = useWorkspace();
+  const canManageAmenities = !ws.user.agentId && ws.user.role === "operator_admin";
   const canWrite = ws.user.permissions.includes("routes:write");
   const [trips, setTrips] = useState<CarTripRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [repeat, setRepeat] = useState<"once" | "daily" | "weekdays" | "weekends">("once");
+  const [dialogOpen, setDialogOpen] = useState(Boolean(fromTrip));
+  const [amenities, setAmenities] = useState<string[]>(fromTrip?.amenities ?? []);
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const closeSchedule = () => {
+    setDialogOpen(false);
+    onClose?.();
+  };
+  const [repeat, setRepeat] = useState<"once" | "daily" | "weekdays" | "weekends" | "alternate" | "selected">("once");
   const [repeatEnd, setRepeatEnd] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<CarTripRecord | null>(null);
@@ -117,28 +127,52 @@ export function CarTripMaster() {
 
   const [cars, setCars] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
-  const [selectedCarId, setSelectedCarId] = useState("");
+  const [selectedCarId, setSelectedCarId] = useState(fromTrip?.busId ?? "");
   const assignedVehicle = cars.find((car) => car._id === selectedCarId);
   const assignedLayout = assignedVehicle?.seatLayout as { number: string; row: number; column: number }[] | undefined;
-  const [selectedRouteId, setSelectedRouteId] = useState("");
+  const [selectedRouteId, setSelectedRouteId] = useState(fromTrip?.routeId ?? "");
 
-  const [formData, setFormData] = useState({
-    tripType: "ONE_WAY" as "ONE_WAY" | "ROUND_TRIP",
+  const [formData, setFormData] = useState(() => {
+    const dateInIst = (value: Date) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(value);
+    const today = dateInIst(new Date());
+    const firstDate = fromTrip
+      ? new Date(Math.max(Date.parse(today), Date.parse(fromTrip.journeyDate)) + 86_400_000).toISOString().slice(0, 10)
+      : today;
+    const arrivalDate = fromTrip?.arrivalAt
+      ? new Date(Date.parse(firstDate) + Date.parse(dateInIst(new Date(fromTrip.arrivalAt))) - Date.parse(fromTrip.journeyDate)).toISOString().slice(0, 10)
+      : firstDate;
+    return {
+    tripType: fromTrip?.tripType === "ROUND_TRIP" ? "ROUND_TRIP" as const : "ONE_WAY" as const,
     vehicleCategory: "4-Passenger Sedan" as "4-Passenger Sedan" | "7-Passenger MUV" | "Custom Car" | "Mini Bus" | "Bus",
     carRegistration: "DL-01-AB-1234",
     routeName: "Pune → Mumbai",
-    departureDate: new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-    }).format(new Date()),
-    departureTime: "08:00",
-    arrivalDate: new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-    }).format(new Date()),
-    arrivalTime: "12:00",
-    baseFareRupees: 500,
+    departureDate: firstDate,
+    departureTime: fromTrip ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }).format(new Date(fromTrip.departureAt)) : "08:00",
+    arrivalDate,
+    arrivalTime: fromTrip?.arrivalAt ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }).format(new Date(fromTrip.arrivalAt)) : "12:00",
+    baseFareRupees: fromTrip?.baseFarePaise == null ? 500 : fromTrip.baseFarePaise / 100,
+    };
   });
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const firstDay = Date.parse(formData.departureDate);
+  const lastDay = repeat === "once" ? firstDay : Date.parse(repeatEnd);
+  const dayMs = 86_400_000;
+  const validRange = Number.isFinite(lastDay) && lastDay >= firstDay && lastDay - firstDay < 31 * dayMs;
+  const departureDays: number[] = [];
+  if (validRange) {
+    for (let day = firstDay; day <= lastDay; day += dayMs) {
+      const weekday = new Date(day).getUTCDay();
+      const weekend = weekday === 0 || weekday === 6;
+      if (repeat === "alternate" && ((day - firstDay) / dayMs) % 2 !== 0) continue;
+      if (repeat === "selected" && !weekdays.includes(weekday)) continue;
+      if ((repeat === "weekdays" && weekend) || (repeat === "weekends" && !weekend)) continue;
+      departureDays.push(day);
+    }
+  }
 
   const loadFleetAndRoutes = async () => {
     if (ws.demo) return;
@@ -175,7 +209,8 @@ export function CarTripMaster() {
       if (carList.length > 0) {
         setSelectedCarId((prevId) => {
           const currentValid = carList.some((c: any) => c._id === prevId);
-          const chosenId = currentValid ? prevId : carList[0]._id;
+          const chosenId = currentValid ? prevId : fromTrip ? "" : carList[0]._id;
+          if (!chosenId) return "";
           const chosen = carList.find((c: any) => c._id === chosenId) || carList[0];
           const reg = chosen.registrationNumber || chosen.registration || "";
           const cat = chosen.vehicleCategory || chosen.category || "4-Passenger Sedan";
@@ -191,7 +226,8 @@ export function CarTripMaster() {
       if (routeList.length > 0) {
         setSelectedRouteId((prevId) => {
           const currentValid = routeList.some((r: any) => r._id && r._id === prevId);
-          const chosenId = currentValid ? prevId : (routeList[0]._id || "");
+          const chosenId = currentValid ? prevId : fromTrip ? "" : (routeList[0]._id || "");
+          if (fromTrip && !chosenId) return "";
           const chosen = routeList.find((r: any) => r._id === chosenId) || routeList[0];
           setFormData((f) => ({
             ...f,
@@ -225,7 +261,7 @@ export function CarTripMaster() {
   };
 
   useEffect(() => {
-    loadTrips();
+    if (!fromTrip) loadTrips();
     loadFleetAndRoutes();
   }, [ws.revision]);
 
@@ -371,24 +407,15 @@ export function CarTripMaster() {
       availableSeatsCount: bookableCapacity,
     };
 
-    const dayMs = 86_400_000;
-    const first = Date.parse(formData.departureDate);
-    const last = repeat === "once" ? first : Date.parse(repeatEnd);
-    if (!Number.isFinite(last) || last < first || last - first >= 31 * dayMs) {
+    if (!validRange) {
       setFormError("Choose an end date within 31 days of the first departure, inclusive.");
       return;
     }
-    const departures = [];
-    for (let day = first; day <= last; day += dayMs) {
-      const weekday = new Date(day).getUTCDay();
-      const weekend = weekday === 0 || weekday === 6;
-      if ((repeat === "weekdays" && weekend) || (repeat === "weekends" && !weekend)) continue;
-      departures.push({
-        date: new Date(day).toISOString().slice(0, 10),
-        departureAt: new Date(dep.getTime() + day - first).toISOString(),
-        arrivalAt: new Date(arr.getTime() + day - first).toISOString(),
-      });
-    }
+    const departures = departureDays.map((day) => ({
+      date: new Date(day).toISOString().slice(0, 10),
+      departureAt: new Date(dep.getTime() + day - firstDay).toISOString(),
+      arrivalAt: new Date(arr.getTime() + day - firstDay).toISOString(),
+    }));
     if (!departures.length) {
       setFormError("No departures match the repeat rule in this date range.");
       return;
@@ -422,6 +449,7 @@ export function CarTripMaster() {
                 carRegistration: formData.carRegistration, routeName: formData.routeName,
                 baseFarePaise: newTrip.baseFarePaise, baseFareRupees: formData.baseFareRupees,
                 bookableCapacity, totalPhysicalSeats, status: "Scheduled", bookingOpen: true,
+                ...(canManageAmenities ? { amenities } : {}),
               }),
             });
             created++;
@@ -434,9 +462,9 @@ export function CarTripMaster() {
         setFormError(created + " of " + departures.length + " trips scheduled. " + failures.join(" | "));
       } else {
         setNotice(created === 1 ? "Car trip created successfully." : created + " car trips scheduled successfully.");
-        setDialogOpen(false);
+        closeSchedule();
       }
-      if (!ws.demo) await loadTrips();
+      if (!ws.demo && !fromTrip) await loadTrips();
     } finally {
       setBusy(false);
     }
@@ -444,6 +472,7 @@ export function CarTripMaster() {
 
   return (
     <div className="car-trip-master-page">
+      {!fromTrip && <>
       <MiniStats
         items={[
           [String(trips.length), "Total Car Trips"],
@@ -476,6 +505,8 @@ export function CarTripMaster() {
                 onClick={() => {
                   setFormError("");
                   loadFleetAndRoutes();
+                  setAmenities([]);
+                  setWeekdays([]);
                   setRepeat("once");
                   setRepeatEnd("");
                   setDialogOpen(true);
@@ -637,10 +668,11 @@ export function CarTripMaster() {
         </div>
       </Panel>
 
+      </>}
       {dialogOpen && (
         <Overlay
-          title="Schedule Vehicle Trip"
-          onClose={() => { if (!busy) setDialogOpen(false); }}
+          title={fromTrip ? "Schedule from selected trip" : "Schedule Vehicle Trip"}
+          onClose={() => { if (!busy) closeSchedule(); }}
           className="car-editor-dialog"
         >
           <form onSubmit={handleScheduleSubmit} className="car-editor-form">
@@ -833,11 +865,20 @@ export function CarTripMaster() {
                   Repeat schedule
                   <select value={repeat} disabled={busy} onChange={(e) => setRepeat(e.target.value as typeof repeat)}>
                     <option value="once">Single date</option>
+                    <option value="alternate">Alternate days</option>
+                    <option value="selected">Selected weekdays</option>
                     <option value="daily">Every day</option>
                     <option value="weekdays">Monday to Friday</option>
                     <option value="weekends">Saturday and Sunday</option>
                   </select>
                 </label>
+                {repeat === "selected" && <fieldset>
+                  <legend>Running days</legend>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name, day) => (
+                    <label key={name}><input type="checkbox" disabled={busy} checked={weekdays.includes(day)}
+                      onChange={(event) => setWeekdays((current) => event.target.checked ? [...current, day] : current.filter((value) => value !== day))} /> {name}</label>
+                  ))}
+                </fieldset>}
                 {repeat !== "once" && (
                   <label>
                     Repeat through
@@ -865,10 +906,16 @@ export function CarTripMaster() {
                   Front passenger seat carries 10% premium. Middle seats enjoy 10% discount. Driver seat (D) is strictly non-bookable and never sold.
                 </div>
               </div>
+              {repeat !== "once" && validRange && (
+                <div aria-live="polite">
+                  <strong>{departureDays.length} planned departures</strong>
+                  <p>{departureDays.map((day) => new Date(day).toISOString().slice(0, 10)).join(", ")}</p>
+                </div>
+              )}
+              {canManageAmenities && <TripAmenitiesFields value={amenities} onChange={setAmenities} disabled={busy} />}
             </div>
-
             <div className="car-editor-footer">
-              <button type="button" className="btn secondary" disabled={busy} onClick={() => setDialogOpen(false)}>
+              <button type="button" className="btn secondary" disabled={busy} onClick={closeSchedule}>
                 Cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>

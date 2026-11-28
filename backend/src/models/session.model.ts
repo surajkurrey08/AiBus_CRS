@@ -5,7 +5,7 @@ export const Session = model(
   {
     userId: { type: objectId, required: true, index: true },
     family: { type: String, required: true, index: true },
-    client: { type: String, enum: ["operator", "admin", "agent", "partner"] },
+    client: { type: String, enum: ["operator", "admin", "agent", "partner", "owner"] },
     refreshHash: { type: String, required: true, unique: true, select: false },
     expiresAt: { type: Date, required: true },
     revokedAt: Date,

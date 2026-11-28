@@ -5,6 +5,7 @@ export type Role =
   | "booking_staff"
   | "read_only"
   | "agent"
+  | "vehicle_owner"
   | "partner";
 
 export type Permission =
@@ -70,6 +71,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
   booking_staff: ["read", "bookings:write", "manifest:read", "manifest:write"],
   read_only: ["read"],
   agent: [],
+  vehicle_owner: [],
   partner: [],
 };
 

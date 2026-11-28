@@ -51,6 +51,7 @@ import { analytics } from "../services/analytics.service.js";
 
 import { counterRouter } from "./counter.routes.js";
 import { createScheduledTrip } from "../services/trip-scheduling.service.js";
+import { cityKey } from "../services/city-catalog.service.js";
 import { readPublishedCarInventory } from "../services/car-inventory-preview.service.js";
 import { commissionConfig } from "../validators/agent.schemas.js";
 
@@ -673,49 +674,53 @@ export function operatorRouter(config: Config) {
       if (input.source.toLowerCase() === input.destination.toLowerCase())
         fail(400, "INVALID_ROUTE", "Source and destination must differ");
 
-      // Resolve or auto-create source city in M.City
-      if (!input.sourceCityId && req.auth.operatorId) {
-        const sourceCity = (await M.City.findOne({
+      const ensureCityId = async (cityName: string) => {
+        const trimmed = cityName.trim();
+        const key = cityKey(trimmed, "Maharashtra", "India");
+        const query = {
           ...tenant(req),
-          name: literalRegex(input.source.trim()),
-        })) as any;
-        if (
-          sourceCity &&
-          String(sourceCity.name || "").toLowerCase() === input.source.trim().toLowerCase()
-        ) {
-          input.sourceCityId = sourceCity._id;
-        } else if (!sourceCity) {
+          $or: [{ name: literalRegex(trimmed) }, { key }],
+        };
+        const existing = (await M.City.findOne(query).lean()) as any;
+        if (existing) return existing._id;
+        try {
           const created = await M.City.create({
             operatorId: req.auth.operatorId,
-            name: input.source.trim(),
+            name: trimmed,
             state: "Maharashtra",
             country: "India",
+            key,
             status: "Active",
           });
-          input.sourceCityId = created._id;
+          return created._id;
+        } catch (err: any) {
+          if (err?.code === 11000) {
+            const raceExisting = (await M.City.findOne(query).lean()) as any;
+            if (raceExisting) return raceExisting._id;
+          }
+          throw err;
         }
-      }
+      };
 
-      // Resolve or auto-create destination city in M.City
-      if (!input.destinationCityId && req.auth.operatorId) {
-        const destCity = (await M.City.findOne({
-          ...tenant(req),
-          name: literalRegex(input.destination.trim()),
-        })) as any;
-        if (
-          destCity &&
-          String(destCity.name || "").toLowerCase() === input.destination.trim().toLowerCase()
-        ) {
-          input.destinationCityId = destCity._id;
-        } else if (!destCity) {
-          const created = await M.City.create({
-            operatorId: req.auth.operatorId,
-            name: input.destination.trim(),
-            state: "Maharashtra",
-            country: "India",
-            status: "Active",
-          });
-          input.destinationCityId = created._id;
+      if (req.auth.operatorId) {
+        if (!input.sourceCityId) {
+          input.sourceCityId = await ensureCityId(input.source);
+        }
+        if (!input.destinationCityId) {
+          input.destinationCityId = await ensureCityId(input.destination);
+        }
+        if (Array.isArray(input.viaStops)) {
+          const seenVia = new Set<string>([
+            input.source.trim().toLowerCase(),
+            input.destination.trim().toLowerCase(),
+          ]);
+          for (const stop of input.viaStops) {
+            const name = String(stop?.city || "").trim();
+            const normalized = name.toLowerCase();
+            if (!normalized || seenVia.has(normalized)) continue;
+            seenVia.add(normalized);
+            await ensureCityId(name);
+          }
         }
       }
     },
@@ -969,8 +974,26 @@ export function operatorRouter(config: Config) {
     "/trips/:id/holds",
     permit("bookings:write"),
     asyncRoute(async (req, res) => {
-      const { seats } = z.object({ seats: seatList }).strict().parse(req.body);
-      ok(res, await createHold(req.auth, parseId(req), seats), undefined, 201);
+      const { seats, fromCity, toCity } = z
+        .object({
+          seats: seatList,
+          fromCity: text.optional(),
+          toCity: text.optional(),
+        })
+        .strict()
+        .parse(req.body);
+      ok(
+        res,
+        await createHold(
+          req.auth,
+          parseId(req),
+          seats,
+          undefined,
+          fromCity && toCity ? { fromCity, toCity } : undefined,
+        ),
+        undefined,
+        201,
+      );
     }),
   );
   router.delete(
@@ -1058,6 +1081,8 @@ export function operatorRouter(config: Config) {
           salesPartnerId: id.optional(),
           passengers: z.array(passengerInput).min(1).max(6),
           quoteId: id.optional(),
+          fromCity: text.optional(),
+          toCity: text.optional(),
           contact: contactInput.optional(),
           gst: gstInput.optional(),
           operatorDiscountPaise: amount.optional(),

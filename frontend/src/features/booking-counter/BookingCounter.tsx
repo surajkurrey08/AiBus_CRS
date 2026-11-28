@@ -8,9 +8,6 @@ import {
   ChevronRight,
   Clock,
   LockKeyhole,
-  MapPin,
-  Pause,
-  Play,
   Search,
   Settings2,
   ShieldCheck,
@@ -20,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { CityAutocomplete } from "./components/CityAutocomplete.tsx";
 import { api, ApiError } from "../../api/client.ts";
 import { Badge, Panel } from "../../components/index.ts";
 import {
@@ -47,6 +45,29 @@ import {
   PricingDialog,
   TicketDialog,
 } from "./components/CounterDialogs.tsx";
+import { CarTripMaster } from "../car-trip-master/CarTripMaster";
+import {
+  SeatWiseFareModal,
+  TripAmenitiesModal,
+  TripScheduleModal,
+} from "./components/TripControlModals.tsx";
+
+const canRepriceSeat = (seat: InventorySeat) => seat.state === "available" &&
+  seat.isBookable !== false && !seat.isDriver && seat.number !== "D" && seat.category !== "driver";
+
+function resolveMatchedSegmentKey(value: CounterTrip | null) {
+  const autoSeg = value?.matchedSegment
+    ? value.segmentFares?.find(
+        (seg) =>
+          seg.fromCity.trim().toLowerCase() ===
+            value.matchedSegment!.fromCity.trim().toLowerCase() &&
+          seg.toCity.trim().toLowerCase() ===
+            value.matchedSegment!.toCity.trim().toLowerCase(),
+      )
+    : undefined;
+  return autoSeg ? `${autoSeg.fromCity}->${autoSeg.toCity}` : "";
+}
+
 const sourceLabels: Record<string, string> = {
   operator: "Operator counter",
   customer: "AIBUS Customer App",
@@ -58,7 +79,7 @@ const time = (value?: string) =>
     ? new Date(value).toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false,
+        hourCycle: "h23",
         timeZone: "Asia/Kolkata",
       })
     : "—";
@@ -89,6 +110,21 @@ export function BookingCounter({
       ws.user.permissions.includes(p) &&
       (p !== "pricing:write" ||
         (!ws.user.agentId && ["operator_admin", "manager"].includes(ws.user.role)));
+  const [tripControl, setTripControl] = useState<"fare" | "schedule" | "repeat" | "amenities" | null>(null);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+  const [schedule, setSchedule] = useState({ departure: "", arrival: "", arrivalDate: "" });
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [amenitiesSaving, setAmenitiesSaving] = useState(false);
+  const [amenitiesError, setAmenitiesError] = useState("");
+  const [selectedSegmentKey, setSelectedSegmentKey] = useState("");
+  const [cityCatalog, setCityCatalog] = useState<{
+    cities: string[];
+    destinationsByOrigin: Record<string, string[]>;
+  }>({ cities: [], destinationsByOrigin: {} });
+  const canManageTrip = ws.user.role === "operator_admin" && !ws.user.agentId;
+  const fromInputRef = useRef<HTMLInputElement | null>(null),
+    toInputRef = useRef<HTMLInputElement | null>(null);
   const [from, setFrom] = useState(""),
     [to, setTo] = useState(""),
     [date, setDate] = useState(today),
@@ -158,7 +194,7 @@ export function BookingCounter({
     [quotaLabel, setQuotaLabel] = useState(""),
     [chartOpen, setChartOpen] = useState(false),
     [fareOverrides, setFareOverrides] = useState<Record<string, string>>({}),
-    [fareSaving, setFareSaving] = useState<string | null>(null),
+    [fareSaving, setFareSaving] = useState(false),
     [leaveAction, setLeaveAction] = useState<(() => void) | null>(null);
   const searchRequest = useRef<AbortController | null>(null),
     activeHold = useRef<CounterHold | null>(null),
@@ -174,7 +210,22 @@ export function BookingCounter({
   const seconds = hold
       ? Math.max(0, Math.ceil((Date.parse(hold.expiresAt) - now) / 1000))
       : 0,
-    selectedSeats = seats.filter((s) => selected.includes(s.number)),
+    activeSegment = selectedSegmentKey
+      ? trip?.segmentFares?.find(
+          (seg) => `${seg.fromCity}->${seg.toCity}` === selectedSegmentKey,
+        )
+      : undefined,
+    displayedSeats = activeSegment
+      ? seats.map((s) =>
+          s.isDriver || s.number === "D" || s.category === "driver"
+            ? s
+            : {
+                ...s,
+                farePaise: activeSegment.seatFares?.[s.number] ?? activeSegment.farePaise,
+              },
+        )
+      : seats,
+    selectedSeats = displayedSeats.filter((s) => selected.includes(s.number)),
     selectionKey = [...selected].sort().join("|");
   const dirty =
     busy ||
@@ -193,6 +244,22 @@ export function BookingCounter({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const fetchCities = counterApi.cities;
+    if (!fetchCities) return;
+    const controller = new AbortController();
+    void fetchCities(controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted && res?.data) {
+          setCityCatalog({
+            cities: Array.isArray(res.data.cities) ? res.data.cities : [],
+            destinationsByOrigin: res.data.destinationsByOrigin || {},
+          });
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [ws.revision]);
   useEffect(() => {
     if (hold && seconds === 0) {
       activeHold.current = null;
@@ -261,7 +328,12 @@ export function BookingCounter({
         selectTrip(response.data.find((t) => t.capabilities.inventory) || null);
       } else if (trip) {
         const fresh = response.data.find((t) => t.id === trip.id);
-        if (fresh) setTrip(fresh);
+        if (fresh) {
+          setTrip(fresh);
+          if (!hold && (fresh.matchedSegment || trip.matchedSegment)) {
+            setSelectedSegmentKey(resolveMatchedSegmentKey(fresh));
+          }
+        }
       }
     } catch (e) {
       if (!controller.signal.aborted) setSearchError((e as Error).message);
@@ -276,6 +348,7 @@ export function BookingCounter({
     setManageInventory(false);
     setSeats([]);
     setFareOverrides({});
+    setSelectedSegmentKey(resolveMatchedSegmentKey(value));
     setSelected([]);
     setQuote(null);
     setError("");
@@ -320,29 +393,99 @@ export function BookingCounter({
     }
   }
 
-  async function saveCustomSeatFare(seatNum: string) {
+  async function saveSchedule() {
     if (!trip) return;
-    const amount = fareOverrides[seatNum]?.trim() ?? "";
-    const val = Number(amount);
-    if (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(Math.round(val * 100))) {
-      setError("Enter a valid seat fare in rupees with up to two decimal places.");
-      return;
+    setScheduleSaving(true);
+    setScheduleError("");
+    try {
+      const { data } = await api<{ departureAt: string; arrivalAt: string; version: number }>(
+        `/operator/trips/${trip.id}/schedule`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            departureAt: `${trip.journeyDate}T${schedule.departure}:00+05:30`,
+            arrivalAt: `${schedule.arrivalDate}T${schedule.arrival}:00+05:30`,
+            expectedVersion: trip.version,
+          }),
+        },
+      );
+      setTrip((current) => current?.id === trip.id ? { ...current, ...data } : current);
+      setTripControl(null);
+      setNotice("Departure timing updated.");
+      void search(committed, searchPage);
+    } catch (error) {
+      setScheduleError((error as Error).message);
+    } finally {
+      setScheduleSaving(false);
     }
-    setFareSaving(seatNum);
+  }
+
+  async function saveAmenities() {
+    if (!trip) return;
+    setAmenitiesSaving(true);
+    setAmenitiesError("");
+    try {
+      const { data } = await api<{ amenities: string[]; version: number }>(`/operator/trips/${trip.id}/amenities`, {
+        method: "PATCH",
+        body: JSON.stringify({ amenities, expectedVersion: trip.version }),
+      });
+      setTrip((current) => current?.id === trip.id ? { ...current, ...data } : current);
+      setNotice("Amenities updated for this departure.");
+      setTripControl(null);
+    } catch (error) {
+      setAmenitiesError((error as Error).message);
+    } finally {
+      setAmenitiesSaving(false);
+    }
+  }
+
+  async function saveCustomSeatFares(
+    segmentFares?: {
+      fromCity: string;
+      toCity: string;
+      distanceKm?: number;
+      farePaise: number;
+    }[],
+  ) {
+    if (!trip) return;
+    const seatFares: Record<string, number> = {};
+    for (const [number, value] of Object.entries(fareOverrides)) {
+      const amount = value.trim();
+      const paise = Math.round(Number(amount) * 100);
+      if (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(paise)) {
+        setError(`Enter a valid fare in rupees for seat ${number}, with up to two decimal places.`);
+        return;
+      }
+      seatFares[number] = paise;
+    }
+    const payload: Record<string, unknown> = {};
+    if (Object.keys(seatFares).length > 0) payload.seatFares = seatFares;
+    if (segmentFares && segmentFares.length > 0) payload.segmentFares = segmentFares;
+    if (!Object.keys(payload).length) return;
+    setFareSaving(true);
     setError("");
     try {
-      const paiseVal = Math.round(val * 100);
-      await api(`/operator/trips/${trip.id}/seat-fares`, {
-        method: "PATCH",
-        body: JSON.stringify({ seatFares: { [seatNum]: paiseVal } }),
-      });
-      setNotice(`Seat ${seatNum} fare updated to ₹${val}.`);
+      const res = await api<{ segmentFares?: CounterTrip["segmentFares"] }>(
+        `/operator/trips/${trip.id}/seat-fares`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (res.data?.segmentFares) {
+        setTrip((current) =>
+          current?.id === trip.id
+            ? { ...current, segmentFares: res.data.segmentFares }
+            : current,
+        );
+      }
+      setNotice("Seat fares updated for this departure.");
+      setTripControl(null);
       await loadInventory();
       setPolicyRevision((v) => v + 1);
     } catch (e: any) {
       setError(e.message || "Failed to update seat fare");
     } finally {
-      setFareSaving(null);
+      setFareSaving(false);
     }
   }
 
@@ -405,6 +548,9 @@ export function BookingCounter({
             ...(hold ? { holdId: hold.holdId } : {}),
             ...(promo.trim() ? { promoCode: promo.trim().toUpperCase() } : {}),
             operatorDiscountPaise: Math.round(Number(discount || 0) * 100),
+            ...(activeSegment
+              ? { fromCity: activeSegment.fromCity, toCity: activeSegment.toCity }
+              : {}),
           },
           controller.signal,
         );
@@ -428,6 +574,7 @@ export function BookingCounter({
     policyRevision,
     ws.revision,
     uncertain,
+    selectedSegmentKey,
     selectedSeats.map((s) => s.state).join("|"),
   ]);
   useEffect(() => {
@@ -472,7 +619,12 @@ export function BookingCounter({
     setError("");
     const id = trip.id;
     try {
-      const response = await counterApi.hold(id, selected);
+      const response = activeSegment
+        ? await counterApi.hold(id, selected, {
+            fromCity: activeSegment.fromCity,
+            toCity: activeSegment.toCity,
+          })
+        : await counterApi.hold(id, selected);
       if (!mounted.current) return;
       activeHold.current = response.data;
       pendingPayload.current = null;
@@ -589,6 +741,9 @@ export function BookingCounter({
           holdId: hold!.holdId,
           ...(salesPartnerId ? { salesPartnerId } : {}),
           quoteId: quote!.quoteId,
+          ...(activeSegment
+            ? { fromCity: activeSegment.fromCity, toCity: activeSegment.toCity }
+            : {}),
           passengers: selected.map((seat) => ({
             ...passengers[seat],
             phone: passengers[seat].phone || phone || undefined,
@@ -796,6 +951,33 @@ export function BookingCounter({
           </button>
         </div>
       )}
+      {trip && counterView === "booking" && (
+        <Panel title="Trip controls" aside={<Badge value={trip.bookingOpen ? "Open for booking" : "Booking stopped"} />}>
+          <div className="counter-controls" inert={uncertain}>
+            {trip.inventoryOwner === "internal" && canManageTrip && allowed("pricing:write") &&
+              <button className="btn secondary" disabled={busy || !!hold || !seats.some(canRepriceSeat)} onClick={() => { setError(""); setFareOverrides({}); setTripControl("fare"); }}>Seat-wise Fare</button>}
+            {trip.inventoryOwner === "internal" && canManageTrip && allowed("routes:write") && <>
+              <button className="btn secondary" disabled={busy || !!hold} onClick={() => {
+                setSchedule({
+                  departure: time(trip.departureAt),
+                  arrival: trip.arrivalAt ? time(trip.arrivalAt) : "",
+                  arrivalDate: trip.arrivalAt ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(trip.arrivalAt)) : trip.journeyDate,
+                });
+                setScheduleError("");
+                setTripControl("schedule");
+              }}>Trip Schedule</button>
+              <button className="btn secondary" disabled={busy || !!hold} onClick={() => {
+                setAmenities(trip.amenities ?? []);
+                setAmenitiesError("");
+                setTripControl("amenities");
+              }}>Amenities</button>
+            </>}
+            {allowed("manifest:read") && <button className="btn secondary" onClick={() => setChartOpen(true)}>Passenger chart</button>}
+            {allowed("routes:write") && <button className="btn counter-stop" disabled={busy || !!hold || trip.inventoryOwner !== "internal"}
+              onClick={() => setOperation("stop")}>{trip.bookingOpen ? "Stop booking" : "Resume booking"}</button>}
+          </div>
+        </Panel>
+      )}
       <div
         className={`counter-workbench${trip ? " has-trip" : ""}`}
         style={counterView === "booking" ? undefined : { display: "none" }}
@@ -809,7 +991,7 @@ export function BookingCounter({
                 ? `Vehicle : ${trip.registration || (trip.busName && trip.busName !== "Bus unavailable" ? trip.busName : "Car Fleet")} (${trip.busType || "Car"})`
                 : "Vehicle : Select a trip"
             }
-            seats={seats}
+            seats={displayedSeats}
             selected={selected}
             onToggle={toggle}
             disabled={busy || !!hold || uncertain}
@@ -863,7 +1045,7 @@ export function BookingCounter({
           </div>
           {trip && (
             <Panel
-              title="Trip controls"
+              title="Seat inventory controls"
               aside={
                 <Badge
                   value={
@@ -919,28 +1101,6 @@ export function BookingCounter({
                     </button>
                   </>
                 )}
-                {allowed("manifest:read") && (
-                  <button className="btn" onClick={() => setChartOpen(true)}>
-                    <Users size={14} />
-                    Passenger chart
-                  </button>
-                )}
-                {allowed("routes:write") && (
-                  <button
-                    className="btn counter-stop"
-                    disabled={
-                      busy || !!hold || trip.inventoryOwner !== "internal"
-                    }
-                    onClick={() => setOperation("stop")}
-                  >
-                    {trip.bookingOpen ? (
-                      <Pause size={14} />
-                    ) : (
-                      <Play size={14} />
-                    )}
-                    {trip.bookingOpen ? "Stop booking" : "Resume booking"}
-                  </button>
-                )}
               </div>
             </Panel>
           )}
@@ -987,29 +1147,19 @@ export function BookingCounter({
               }}
             >
               <div className="counter-fields">
-                <label>
-                  From
-                  <div className="counter-input">
-                    <MapPin size={14} />
-                    <input
-                      aria-label="Counter from"
-                      value={from}
-                      onChange={(e) => setFrom(e.target.value)}
-                      placeholder="Origin city"
-                      disabled={!!hold || busy}
-                    />
-                    {from && (
-                      <button
-                        type="button"
-                        aria-label="Clear origin"
-                        disabled={!!hold}
-                        onClick={() => setFrom("")}
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                </label>
+                <CityAutocomplete
+                  label="From"
+                  ariaLabel="Counter from"
+                  clearAriaLabel="Clear origin"
+                  placeholder="Origin city"
+                  value={from}
+                  onChange={setFrom}
+                  onSelectCity={() => toInputRef.current?.focus()}
+                  cities={cityCatalog.cities}
+                  disabled={!!hold || busy}
+                  clearDisabled={!!hold}
+                  inputRef={fromInputRef}
+                />
                 <button
                   type="button"
                   className="crs-swap"
@@ -1022,29 +1172,23 @@ export function BookingCounter({
                 >
                   <ArrowLeftRight size={20} />
                 </button>
-                <label>
-                  To
-                  <div className="counter-input">
-                    <MapPin size={14} />
-                    <input
-                      aria-label="Counter to"
-                      value={to}
-                      onChange={(e) => setTo(e.target.value)}
-                      placeholder="Destination city"
-                      disabled={!!hold || busy}
-                    />
-                    {to && (
-                      <button
-                        type="button"
-                        aria-label="Clear destination"
-                        disabled={!!hold}
-                        onClick={() => setTo("")}
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                </label>
+                <CityAutocomplete
+                  label="To"
+                  ariaLabel="Counter to"
+                  clearAriaLabel="Clear destination"
+                  placeholder="Destination city"
+                  value={to}
+                  onChange={setTo}
+                  cities={cityCatalog.cities}
+                  preferredCities={
+                    from.trim()
+                      ? cityCatalog.destinationsByOrigin[from.trim().toLowerCase()] || []
+                      : []
+                  }
+                  disabled={!!hold || busy}
+                  clearDisabled={!!hold}
+                  inputRef={toInputRef}
+                />
                 <label>
                   Journey date
                   <input
@@ -1208,6 +1352,30 @@ export function BookingCounter({
                       ? "Next: hold these seats, then enter passenger details."
                       : "Step 1: Search a trip and select green available seats."}
               </p>
+              {trip && trip.segmentFares && trip.segmentFares.length > 0 && !hold && (
+                <div className="crs-counter-segment-picker">
+                  <label>
+                    Distance / Stop Segment
+                    <select
+                      aria-label="Distance / Stop Segment"
+                      value={selectedSegmentKey}
+                      onChange={(e) => setSelectedSegmentKey(e.target.value)}
+                    >
+                      <option value="">Default seat fare ({trip.route})</option>
+                      {trip.segmentFares.map((seg) => (
+                        <option
+                          key={`${seg.fromCity}->${seg.toCity}`}
+                          value={`${seg.fromCity}->${seg.toCity}`}
+                        >
+                          {seg.fromCity} → {seg.toCity}
+                          {seg.distanceKm ? ` (${seg.distanceKm} km)` : ""} —{" "}
+                          {money(seg.farePaise / 100)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
               <div className="crs-fare-grid">
                 {[
                   ["Seats", String(selected.length)],
@@ -1221,17 +1389,15 @@ export function BookingCounter({
                   ],
                   [
                     "Base fare",
-                    quote
-                      ? money(quote.pricing.grossPaise / 100)
-                      : selected.length &&
-                          selectedSeats.length === selected.length
-                        ? money(
-                            selectedSeats.reduce(
-                              (sum, seat) => sum + seat.farePaise,
-                              0,
-                            ) / 100,
-                          )
-                        : "—",
+                    (() => {
+                      if (quote) return money(quote.pricing.grossPaise / 100);
+                      if (selected.length && selectedSeats.length === selected.length) {
+                        return money(
+                          selectedSeats.reduce((sum, seat) => sum + seat.farePaise, 0) / 100,
+                        );
+                      }
+                      return "—";
+                    })(),
                   ],
                   [
                     "Discount",
@@ -1281,119 +1447,19 @@ export function BookingCounter({
                       : "Select available seats to calculate the fare."}
                 </p>
               )}
-              {trip &&
-                seats.some((seat) => seat.state === "available" && seat.isBookable !== false && !seat.isDriver && seat.number !== "D" && seat.category !== "driver") &&
-                !hold &&
-                allowed("pricing:write") && (
-                  <div
-                    className="counter-fare-override-card"
-                    style={{
-                      margin: "8px 0 10px",
-                      padding: "8px 10px",
-                      background: "#f8fafc",
-                      border: "1.5px solid #cbd5e1",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <Tag size={13} color="#2563eb" />
-                        Seat fares
-                      </span>
-                      <span style={{ fontSize: "10px", color: "#64748b" }}>
-                        Edit seat fare directly
-                      </span>
-                    </div>
-                    <div
-                      style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}
-                    >
-                      {seats.filter((seat) => seat.state === "available" && seat.isBookable !== false && !seat.isDriver && seat.number !== "D" && seat.category !== "driver").map((curSeat) => {
-                        const seatNum = curSeat.number;
-                        const currentVal =
-                          fareOverrides[seatNum] ??
-                          (curSeat ? String(curSeat.farePaise / 100) : "");
-                        return (
-                          <div
-                            key={seatNum}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              background: "#ffffff",
-                              padding: "3px 6px",
-                              borderRadius: "4px",
-                              border: "1px solid #94a3b8",
-                            }}
-                          >
-                            <strong
-                              style={{ fontSize: "11px", color: "#1e293b" }}
-                            >
-                              {seatNum}:
-                            </strong>
-                            <span
-                              style={{ fontSize: "11px", color: "#64748b" }}
-                            >
-                              ₹
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              aria-label={`Fare in rupees for seat ${seatNum}`}
-                              style={{
-                                width: "60px",
-                                padding: "2px 4px",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                color: "#0f172a",
-                                border: "1px solid #cbd5e1",
-                                borderRadius: "3px",
-                              }}
-                              value={currentVal}
-                              onChange={(e) =>
-                                setFareOverrides({
-                                  ...fareOverrides,
-                                  [seatNum]: e.target.value,
-                                })
-                              }
-                            />
-                            <button
-                              type="button"
-                              className="btn primary"
-                              style={{
-                                padding: "2px 6px",
-                                fontSize: "10px",
-                                height: "22px",
-                                minHeight: "22px",
-                                cursor: "pointer",
-                              }}
-                              disabled={busy || uncertain || fareSaving !== null || fareOverrides[seatNum] === undefined}
-                              onClick={() => void saveCustomSeatFare(seatNum)}
-                            >
-                              {fareSaving === seatNum ? "…" : "Set"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              {trip && !hold && tripControl === "fare" && canManageTrip && allowed("pricing:write") && (
+                <SeatWiseFareModal
+                  trip={trip}
+                  seats={seats}
+                  fareOverrides={fareOverrides}
+                  setFareOverrides={setFareOverrides}
+                  fareSaving={fareSaving}
+                  error={error}
+                  canRepriceSeat={canRepriceSeat}
+                  onClose={() => setTripControl(null)}
+                  onSave={(segmentFares) => void saveCustomSeatFares(segmentFares)}
+                />
+              )}
               {trip && !hold && allowed("bookings:write") && (
                 <div className="counter-summary" style={{ paddingTop: "4px" }}>
                   <button
@@ -1830,6 +1896,31 @@ export function BookingCounter({
             onSourceCounts={setCounterSources}
           />
         </div>
+      )}
+      {trip && tripControl === "schedule" && canManageTrip && (
+        <TripScheduleModal
+          trip={trip}
+          seats={seats}
+          schedule={schedule}
+          setSchedule={setSchedule}
+          scheduleSaving={scheduleSaving}
+          scheduleError={scheduleError}
+          onClose={() => setTripControl(null)}
+          onSwitchRepeat={() => setTripControl("repeat")}
+          onSave={() => void saveSchedule()}
+        />
+      )}
+      {trip && tripControl === "repeat" && canManageTrip && <CarTripMaster fromTrip={trip} onClose={() => { setTripControl(null); void search(committed, searchPage); }} />}
+      {trip && tripControl === "amenities" && canManageTrip && (
+        <TripAmenitiesModal
+          trip={trip}
+          amenities={amenities}
+          setAmenities={setAmenities}
+          amenitiesSaving={amenitiesSaving}
+          amenitiesError={amenitiesError}
+          onClose={() => setTripControl(null)}
+          onSave={() => void saveAmenities()}
+        />
       )}
       {policyOpen && (
         <PricingDialog

@@ -1,3 +1,4 @@
+import { tripAmenitiesSchema } from "../validators/operator.schemas.js";
 import { resolveAreaRoutes } from "../services/area-master.service.js";
 import { Router, type Request } from "express";
 import type { Config } from "../config/env.js";
@@ -21,6 +22,7 @@ import {
   validatePassengers,
 } from "../services/pricing.service.js";
 import {
+  amount,
   asyncRoute,
   dateOnly,
   fail,
@@ -66,6 +68,53 @@ export function counterRouter(config: Config) {
     next();
   });
   router.get(
+    "/counter/cities",
+    permit("read"),
+    asyncRoute(async (req, res) => {
+      const [savedCities, rawRoutes] = await Promise.all([
+        M.City.find({ ...tenant(req), status: { $ne: "Inactive" } })
+          .select({ name: 1 })
+          .lean(),
+        M.Route.find({ ...tenant(req), status: { $ne: "Inactive" } }).lean(),
+      ]);
+      const routes = await resolveAreaRoutes(req.auth.operatorId!, rawRoutes);
+      const cityByKey = new Map<string, string>();
+      const registerCity = (raw: unknown) => {
+        const name = String(raw || "").trim();
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (!cityByKey.has(key)) cityByKey.set(key, name);
+      };
+      for (const c of savedCities as any[]) registerCity(c.name);
+      const destSets = new Map<string, Set<string>>();
+      for (const r of routes as any[]) {
+        const ordered = [
+          r.source,
+          ...(Array.isArray(r.viaStops) ? r.viaStops.map((v: any) => v.city) : []),
+          r.destination,
+        ]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean);
+        for (const stop of ordered) registerCity(stop);
+        for (let i = 0; i < ordered.length - 1; i++) {
+          const fromKey = ordered[i].toLowerCase();
+          if (!destSets.has(fromKey)) destSets.set(fromKey, new Set());
+          const targets = destSets.get(fromKey)!;
+          for (let j = i + 1; j < ordered.length; j++) {
+            const toCanonical = cityByKey.get(ordered[j].toLowerCase()) || ordered[j];
+            if (toCanonical.toLowerCase() !== fromKey) targets.add(toCanonical);
+          }
+        }
+      }
+      const cities = [...cityByKey.values()].sort((a, b) => a.localeCompare(b));
+      const destinationsByOrigin: Record<string, string[]> = {};
+      for (const [originKey, dests] of destSets.entries()) {
+        destinationsByOrigin[originKey] = [...dests];
+      }
+      ok(res, { cities, destinationsByOrigin });
+    }),
+  );
+  router.get(
     "/counter/trips",
     permit("read"),
     asyncRoute(async (req, res) => {
@@ -79,13 +128,56 @@ export function counterRouter(config: Config) {
         })
         .strict()
         .parse(req.query);
-      const routeFilter: any = { ...tenant(req) };
-      if (q.from) routeFilter.source = literalRegex(q.from);
-      if (q.to) routeFilter.destination = literalRegex(q.to);
-      const routes = await resolveAreaRoutes(
+      const routeAnd: any[] = [];
+      if (q.from) {
+        const re = literalRegex(q.from);
+        routeAnd.push({ $or: [{ source: re }, { "viaStops.city": re }] });
+      }
+      if (q.to) {
+        const re = literalRegex(q.to);
+        routeAnd.push({ $or: [{ destination: re }, { "viaStops.city": re }] });
+      }
+      const routeFilter: any = {
+        ...tenant(req),
+        ...(routeAnd.length ? { $and: routeAnd } : {}),
+      };
+      const allResolvedRoutes = await resolveAreaRoutes(
         req.auth.operatorId!,
         await M.Route.find(routeFilter).lean(),
       );
+      const fromRe = q.from ? literalRegex(q.from) : null;
+      const toRe = q.to ? literalRegex(q.to) : null;
+      const matchedSegmentsByRoute = new Map<
+        string,
+        { fromCity: string; toCity: string }
+      >();
+      const routes = allResolvedRoutes.filter((r: any) => {
+        const ordered = [
+          r.source,
+          ...(Array.isArray(r.viaStops) ? r.viaStops.map((v: any) => v.city) : []),
+          r.destination,
+        ].filter(Boolean) as string[];
+        if (!fromRe && !toRe) return true;
+        if (fromRe && toRe) {
+          for (let i = 0; i < ordered.length - 1; i++) {
+            if (!fromRe.test(ordered[i])) continue;
+            for (let j = i + 1; j < ordered.length; j++) {
+              if (toRe.test(ordered[j])) {
+                matchedSegmentsByRoute.set(String(r._id), {
+                  fromCity: ordered[i],
+                  toCity: ordered[j],
+                });
+                return true;
+              }
+            }
+          }
+          return false;
+        }
+        if (fromRe) {
+          return ordered.slice(0, -1).some((c) => fromRe.test(c));
+        }
+        return ordered.slice(1).some((c) => toRe!.test(c));
+      });
       const filter = {
         ...tenant(req),
         routeId: { $in: routes.map((r) => r._id) },
@@ -138,6 +230,23 @@ export function counterRouter(config: Config) {
 
           const seats = t.seats as any[],
             internal = t.inventoryOwner === "internal";
+          const routeSegment = matchedSegmentsByRoute.get(String(t.routeId));
+          const segFare =
+            routeSegment && Array.isArray(t.segmentFares)
+              ? (t.segmentFares as any[]).find(
+                  (seg) =>
+                    String(seg.fromCity || "").trim().toLowerCase() ===
+                      routeSegment.fromCity.trim().toLowerCase() &&
+                    String(seg.toCity || "").trim().toLowerCase() ===
+                      routeSegment.toCity.trim().toLowerCase(),
+                )
+              : undefined;
+          const isSubSegment =
+            routeSegment &&
+            (routeSegment.fromCity.trim().toLowerCase() !==
+              String(route?.source || "").trim().toLowerCase() ||
+              routeSegment.toCity.trim().toLowerCase() !==
+                String(route?.destination || "").trim().toLowerCase());
           return {
             id: String(t._id),
             routeId: String(t.routeId),
@@ -147,9 +256,25 @@ export function counterRouter(config: Config) {
             destination: route?.destination,
             boarding: route?.boarding || [],
             dropping: route?.dropping || [],
+            viaLabel: route?.viaLabel || "",
+            viaStops: route?.viaStops || [],
+            distanceKm: route?.distanceKm ?? null,
+            durationMinutes: route?.durationMinutes ?? null,
+            segmentFares: t.segmentFares || [],
+            ...(routeSegment
+              ? {
+                  matchedSegment: {
+                    fromCity: routeSegment.fromCity,
+                    toCity: routeSegment.toCity,
+                    ...(segFare ? { farePaise: segFare.farePaise } : {}),
+                  },
+                }
+              : {}),
             busName: vehicleName,
             registration: vehicleReg,
             busType: vehicleType,
+            amenities: t.amenities ?? bus?.amenities ?? [],
+            tripType: t.tripType,
             journeyDate: t.journeyDate,
             departureAt: t.departureAt,
             arrivalAt: t.arrivalAt,
@@ -183,11 +308,13 @@ export function counterRouter(config: Config) {
               : null,
             baseFarePaise:
               internal && seats.length
-                ? Math.min(
-                    ...seats
-                      .filter((s) => !s.isDriver && s.number !== "D")
-                      .map((s) => s.farePaise),
-                  )
+                ? isSubSegment && segFare
+                  ? segFare.farePaise
+                  : Math.min(
+                      ...seats
+                        .filter((s) => !s.isDriver && s.number !== "D")
+                        .map((s) => s.farePaise),
+                    )
                 : null,
             capabilities: {
               inventory: internal,
@@ -365,40 +492,168 @@ export function counterRouter(config: Config) {
     }),
   );
   router.patch(
+    "/trips/:id/schedule",
+    permit("routes:write"),
+    asyncRoute(async (req, res) => {
+      if (req.auth.agentId || req.auth.role !== "operator_admin")
+        return fail(403, "FORBIDDEN", "Only operator admins can reschedule departures");
+      const tripId = id.parse(req.params.id);
+      const { departureAt, arrivalAt, expectedVersion } = z.object({
+        departureAt: z.string().datetime({ offset: true }),
+        arrivalAt: z.string().datetime({ offset: true }),
+        expectedVersion: z.number().int().nonnegative(),
+      }).strict().parse(req.body);
+      const departure = new Date(departureAt), arrival = new Date(arrivalAt);
+      const journeyDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(departure);
+      if (departure <= new Date() || arrival <= departure)
+        return fail(400, "INVALID_SCHEDULE", "Choose a future departure and an arrival after it");
+      const owner = tenant(req);
+      const result = await mongoose.connection.transaction(async (session) => {
+        const trip = await M.Trip.findOne({ _id: tripId, ...owner }).session(session);
+        if (!trip) return fail(404, "NOT_FOUND", "Trip not found");
+        internalTrip(trip.toObject(), false);
+        if (trip.journeyDate !== journeyDate || !trip.carId)
+          return fail(409, "INVALID_SCHEDULE", "Change times on the original journey date for a vehicle departure");
+        const vehicle = await M.Car.updateOne({ _id: trip.carId, ...owner, status: "Active" },
+          { $inc: { schedulingRevision: 1 } }, { session });
+        if (!vehicle.matchedCount) return fail(409, "INACTIVE_RESOURCE", "The assigned vehicle is unavailable");
+        if (await M.Booking.exists({ ...owner, tripId }).session(session) ||
+            (trip.seats as { state: string }[]).some((seat) => seat.state === "held" || seat.state === "booked"))
+          return fail(409, "TRIP_HAS_RESERVATIONS", "This departure has bookings or holds and cannot be rescheduled here");
+        if (await M.Trip.exists({
+          ...owner, _id: { $ne: tripId }, status: { $ne: "Cancelled" },
+          departureAt: { $lt: arrival },
+          $and: [
+            { $or: [{ carId: trip.carId }, { busId: trip.carId }] },
+            { $or: [{ arrivalAt: { $gt: departure } }, { arrivalAt: null, departureAt: { $gte: departure } }] },
+          ],
+        }).session(session))
+          return fail(409, "CAR_SCHEDULE_CONFLICT", "The vehicle has an overlapping departure");
+        const updated = await M.Trip.findOneAndUpdate({
+          _id: tripId, ...owner, __v: expectedVersion,
+          departureAt: { $gt: new Date() }, status: "Scheduled",
+        }, { $set: { departureAt: departure, arrivalAt: arrival, estimatedArrivalAt: arrival }, $inc: { __v: 1 } },
+        { new: true, session });
+        if (!updated) return fail(409, "TRIP_CHANGED", "Refresh the trip and try again");
+        await record(req, "trip.schedule.update", tripId, session);
+        return { departureAt: updated.departureAt, arrivalAt: updated.arrivalAt, version: updated.__v };
+      });
+      ok(res, result);
+    }),
+  );
+  router.patch(
+    "/trips/:id/amenities",
+    permit("routes:write"),
+    asyncRoute(async (req, res) => {
+      if (req.auth.agentId || req.auth.role !== "operator_admin")
+        return fail(403, "FORBIDDEN", "Only operator admins can edit trip amenities");
+      const { amenities, expectedVersion } = z.object({
+        amenities: tripAmenitiesSchema,
+        expectedVersion: z.number().int().nonnegative(),
+      }).strict().parse(req.body);
+      const tripId = id.parse(req.params.id);
+      const result = await mongoose.connection.transaction(async (session) => {
+        const trip = await M.Trip.findOneAndUpdate({
+          _id: tripId, ...tenant(req), inventoryOwner: "internal",
+          status: "Scheduled", departureAt: { $gt: new Date() }, __v: expectedVersion,
+        }, { $set: { amenities }, $inc: { __v: 1 } }, { new: true, session });
+        if (!trip) return fail(409, "TRIP_CHANGED", "Trip is unavailable or changed. Refresh and try again.");
+        await record(req, "trip.amenities.update", tripId, session);
+        return { amenities: trip.amenities, version: trip.__v };
+      });
+      ok(res, result);
+    }),
+  );
+  router.patch(
     "/trips/:id/seat-fares",
     permit("pricing:write"),
     asyncRoute(async (req, res) => {
       if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
         return fail(403, "FORBIDDEN", "Only authorized operator staff can edit seat fares");
-      if (req.auth.agentId || !["operator_admin", "manager"].includes(req.auth.role))
-        return fail(403, "FORBIDDEN", "Only authorized operator staff can edit seat fares");
       const tripId = id.parse(req.params.id);
-      const { seatFares } = z
+      const segmentFareSchema = z
         .object({
-          seatFares: z.record(z.string(), z.number().int().min(0).max(Number.MAX_SAFE_INTEGER))
-            .refine((fares) => Object.keys(fares).length > 0, "Provide at least one seat fare"),
+          fromCity: text,
+          toCity: text,
+          distanceKm: z.coerce.number().min(0).max(5000).optional(),
+          farePaise: amount,
+          seatFares: z.record(z.string(), amount).optional(),
+        })
+        .strict();
+      const { seatFares, segmentFares } = z
+        .object({
+          seatFares: z.record(z.string(), amount).optional(),
+          segmentFares: z.array(segmentFareSchema).max(200).optional(),
         })
         .strict()
+        .refine(
+          (v) =>
+            (v.seatFares && Object.keys(v.seatFares).length > 0) ||
+            (v.segmentFares && v.segmentFares.length > 0),
+          "Provide at least one seat fare or segment fare",
+        )
         .parse(req.body);
 
-      const seats = await mongoose.connection.transaction(async (session) => {
+      const updated = await mongoose.connection.transaction(async (session) => {
         const trip = await M.Trip.findOne({ _id: tripId, ...tenant(req) }).session(session);
         if (!trip) return fail(404, "NOT_FOUND", "Trip not found");
         internalTrip(trip.toObject(), false);
-        for (const [seatNum, fare] of Object.entries(seatFares)) {
-          const seat = (trip.seats as { number: string; isDriver?: boolean; isBookable?: boolean; category?: string; state: string; farePaise: number }[]).find((item) => item.number === seatNum);
-          if (!seat || seat.isDriver || seat.isBookable === false || seat.number === "D" || seat.category === "driver")
-            return fail(400, "INVALID_SEAT", `Choose a passenger seat for ${seatNum}`);
-          if (seat.state !== "available")
-            return fail(409, "SEAT_UNAVAILABLE", `Seat ${seatNum} is no longer available for repricing`);
-          seat.farePaise = fare;
+        const tripSeats = trip.seats as {
+          number: string;
+          isDriver?: boolean;
+          isBookable?: boolean;
+          category?: string;
+          state: string;
+          farePaise: number;
+        }[];
+        const ensurePassengerSeat = (seatNum: string) => {
+          const seat = tripSeats.find((item) => item.number === seatNum);
+          if (
+            !seat ||
+            seat.isDriver ||
+            seat.isBookable === false ||
+            seat.number === "D" ||
+            seat.category === "driver"
+          ) {
+            fail(400, "INVALID_SEAT", `Choose a passenger seat for ${seatNum}`);
+          }
+          return seat!;
+        };
+        if (seatFares) {
+          for (const [seatNum, fare] of Object.entries(seatFares)) {
+            const seat = ensurePassengerSeat(seatNum);
+            if (seat.state !== "available")
+              return fail(
+                409,
+                "SEAT_UNAVAILABLE",
+                `Seat ${seatNum} is no longer available for repricing`,
+              );
+            seat.farePaise = fare;
+          }
+        }
+        if (segmentFares) {
+          for (const seg of segmentFares) {
+            if (seg.seatFares) {
+              for (const seatNum of Object.keys(seg.seatFares)) {
+                ensurePassengerSeat(seatNum);
+              }
+            }
+          }
+          trip.set("segmentFares", segmentFares);
         }
         await trip.save({ session });
-        return trip.seats;
+        await record(req, "trip.seat_fares.update", tripId, session);
+        return {
+          seats: trip.seats,
+          segmentFares: trip.segmentFares || [],
+        };
       });
       ok(res, {
         message: "Seat fares updated successfully",
-        seats,
+        seats: updated.seats,
+        segmentFares: updated.segmentFares,
       });
     }),
   );

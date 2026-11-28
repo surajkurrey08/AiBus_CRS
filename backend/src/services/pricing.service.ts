@@ -19,12 +19,45 @@ export const pricingOptions = z
       .regex(/^[A-Z\d_-]{3,24}$/)
       .optional(),
     operatorDiscountPaise: amount.default(0),
+    fromCity: z.string().trim().min(1).max(80).optional(),
+    toCity: z.string().trim().min(1).max(80).optional(),
   })
   .strict();
 export type PricingOptions = {
   promoCode?: string;
   operatorDiscountPaise?: number;
+  fromCity?: string;
+  toCity?: string;
 };
+
+/** Resolve per-seat base fare in paise, applying configured segment overrides when matching fromCity/toCity. */
+export function resolveSeatFares(
+  trip: any,
+  numbers: string[],
+  fromCity?: string,
+  toCity?: string,
+) {
+  const seats = (trip.seats as any[]).filter((s) => numbers.includes(s.number));
+  const segment =
+    fromCity && toCity && Array.isArray(trip.segmentFares)
+      ? (trip.segmentFares as any[]).find(
+          (seg) =>
+            String(seg.fromCity || "").trim().toLowerCase() === fromCity.trim().toLowerCase() &&
+            String(seg.toCity || "").trim().toLowerCase() === toCity.trim().toLowerCase(),
+        )
+      : null;
+
+  return seats.map((s) => {
+    let basePaise = s.farePaise;
+    if (segment) {
+      const overrides = segment.seatFares instanceof Map
+        ? segment.seatFares.get(s.number)
+        : segment.seatFares?.[s.number];
+      basePaise = Number.isSafeInteger(overrides) ? overrides : segment.farePaise;
+    }
+    return { ...s, farePaise: basePaise };
+  });
+}
 export const contactInput = z
   .object({
     phone: phoneNumber.optional(),
@@ -76,7 +109,7 @@ export async function priceTrip(
       "PRICING_POLICY_REQUIRED",
       "An authorized manager must configure tax and charge rules before bookings can be priced",
     );
-  const seats = (trip.seats as any[]).filter((s) => numbers.includes(s.number));
+  const seats = resolveSeatFares(trip, numbers, options.fromCity, options.toCity);
   if (seats.length !== numbers.length)
     fail(400, "INVALID_SEAT", "One or more selected seats do not exist");
   const grossPaise = seats.reduce((n, s) => n + s.farePaise, 0);
@@ -241,6 +274,8 @@ export async function issueQuote(
   const pricing = await priceTrip(auth, trip, numbers, {
     promoCode: options.promoCode,
     operatorDiscountPaise: options.operatorDiscountPaise,
+    fromCity: options.fromCity,
+    toCity: options.toCity,
   });
   const quote = await Quote.create({
     operatorId: auth.operatorId,

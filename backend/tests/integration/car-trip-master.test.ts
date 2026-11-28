@@ -102,6 +102,84 @@ describe("Operator Car Trip Master Scheduling Integration", () => {
     await mongo.stop();
   });
 
+  it("provisions a separate owner session and preserves trip ownership after vehicle reassignment", async () => {
+    const auth = `Bearer ${token}`;
+    const first = await M.FleetOwner.create({ operatorId: operator._id, name: "Vehicle Owner A" });
+    const password = "SecureOwner123!";
+    const register = (body: { ownerId?: string; name?: string; email: string }) =>
+      request(app).post("/api/v1/operator/vehicle-owners").set("Authorization", auth).send({ ...body, password });
+    const firstEmail = "owner-a@carcrs.test";
+    const firstLogin = await register({ ownerId: String(first._id), email: firstEmail });
+    expect(firstLogin.status).toBe(201);
+    const secondEmail = "owner-b@carcrs.test";
+    const second = await register({ name: "Vehicle Owner B", email: secondEmail });
+    expect(second.status).toBe(201);
+    const ownerA = firstLogin.body.data.id, ownerB = second.body.data.id;
+    const foreign = await M.Operator.create({ company: "Other fleet", email: "other-fleet@carcrs.test", status: "approved" });
+    const foreignOwner = await M.FleetOwner.create({ operatorId: foreign._id, name: "Foreign owner" });
+    const assign = (ownerId: string | null, expectedOwnerId: string | null) =>
+      request(app).patch(`/api/v1/operator/cars/${carSedan._id}/owner`).set("Authorization", auth)
+        .send({ ownerId, expectedOwnerId });
+    expect((await assign(String(foreignOwner._id), null)).status).toBe(404);
+    expect((await assign(ownerA, null)).status).toBe(200);
+    const schedule = (day: string) => request(app).post("/api/v1/operator/trips").set("Authorization", auth).send({
+      carId: String(carSedan._id), routeId: String(route._id), journeyDate: day,
+      departureAt: `${day}T08:00:00+05:30`, arrivalAt: `${day}T12:00:00+05:30`, baseFarePaise: 45000,
+    });
+    const before = await schedule("2031-12-09");
+    expect(before.status).toBe(201);
+    expect((await assign(ownerB, null)).status).toBe(409);
+    expect((await assign(ownerB, ownerA)).status).toBe(200);
+    const after = await schedule("2031-12-10");
+    expect(after.status).toBe(201);
+    const login = (email: string) => request(app).post("/api/v1/auth/login").set("X-Aibus-Client", "owner")
+      .set("Origin", "http://127.0.0.1:5177").send({ email, password });
+    const a = await login(firstEmail), b = await login(secondEmail);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(a.headers["set-cookie"][0]).toContain("aibus_owner_refresh=");
+    const aToken = `Bearer ${a.body.data.accessToken}`, bToken = `Bearer ${b.body.data.accessToken}`;
+    const overview = "/api/v1/owner/overview?from=2031-12-09&to=2031-12-10";
+    const viewA = await request(app).get(overview).set("Authorization", aToken);
+    const viewB = await request(app).get(overview).set("Authorization", bToken);
+    expect(viewA.status).toBe(200);
+    expect(viewA.body.data.vehicles).toEqual([]);
+    expect(viewA.body.data.trips).toEqual([expect.objectContaining({ id: before.body.data._id, capacity: 4, bookedSeats: 0 })]);
+    expect(viewB.body.data.vehicles).toEqual([expect.objectContaining({ id: String(carSedan._id) })]);
+    expect(viewB.body.data.trips).toEqual([expect.objectContaining({ id: after.body.data._id })]);
+    expect(viewB.body.data.trips[0]).not.toHaveProperty("seats");
+    expect((await request(app).get(overview + `&ownerId=${ownerB}`).set("Authorization", aToken)).status).toBe(400);
+    expect((await request(app).get("/api/v1/operator/cars").set("Authorization", bToken)).status).toBe(403);
+    expect((await request(app).get(overview).set("Authorization", auth)).status).toBe(403);
+    expect((await request(app).post("/api/v1/auth/login").send({ email: firstEmail, password })).status).toBe(403);
+  });
+
+  it("persists amenities and reschedules an empty departure using its current version", async () => {
+    const auth = `Bearer ${token}`;
+    const payload = {
+      carId: String(carSedan._id), routeId: String(route._id), journeyDate: "2031-12-02",
+      departureAt: "2031-12-02T08:00:00+05:30", arrivalAt: "2031-12-02T12:00:00+05:30",
+      baseFarePaise: 45000, amenities: ["AC", "USB charging"],
+    };
+    const created = await request(app).post("/api/v1/operator/trips").set("Authorization", auth).send(payload);
+    expect(created.status).toBe(201);
+    expect(created.body.data.amenities).toEqual(payload.amenities);
+    const path = `/api/v1/operator/trips/${created.body.data._id}`;
+    const updated = await request(app).patch(`${path}/amenities`).set("Authorization", auth)
+      .send({ amenities: ["AC", "Wi-Fi"], expectedVersion: 0 });
+    expect(updated.status).toBe(200);
+    expect(updated.body.data).toEqual({ amenities: ["AC", "Wi-Fi"], version: 1 });
+    const timing = { departureAt: "2031-12-02T09:00:00+05:30", arrivalAt: "2031-12-02T13:00:00+05:30" };
+    expect((await request(app).patch(`${path}/schedule`).set("Authorization", auth)
+      .send({ ...timing, expectedVersion: 0 })).status).toBe(409);
+    const changed = await request(app).patch(`${path}/schedule`).set("Authorization", auth)
+      .send({ ...timing, expectedVersion: 1 });
+    expect(changed.status).toBe(200);
+    expect(changed.body.data).toMatchObject({ departureAt: "2031-12-02T03:30:00.000Z", version: 2 });
+    const saved = await request(app).get(path).set("Authorization", auth);
+    expect(saved.body.data.amenities).toEqual(["AC", "Wi-Fi"]);
+  });
+
   it("saves and schedules a 12-passenger mini bus using its own seat layout", async () => {
     const auth = `Bearer ${token}`;
     const vehicle = await request(app).post("/api/v1/operator/cars").set("Authorization", auth).send({
@@ -313,5 +391,103 @@ describe("Operator Car Trip Master Scheduling Integration", () => {
     await expect(createHold(auth,String(trip._id),["FP"])).rejects.toMatchObject({code:"SEAT_UNAVAILABLE"});
     expect(await M.Ticket.countDocuments({bookingId:booking._id})).toBe(1);
     expect(await M.JournalEntry.countDocuments({bookingId:booking._id})).toBe(1);
+  });
+
+  it("creates a route with viaLabel and viaStops and saves segmentFares on trips", async () => {
+    const routeRes = await request(app)
+      .post("/api/v1/operator/routes")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        source: "Pune",
+        destination: "Mumbai",
+        departure: "08:00",
+        arrival: "11:00",
+        durationMinutes: 180,
+        distanceKm: 150,
+        viaLabel: "NH01",
+        viaStops: [
+          { city: "Lonavla", distanceKm: 50, durationMinutes: 70 },
+          { city: "Thana", distanceKm: 120, durationMinutes: 120 },
+        ],
+        boarding: [{ name: "Pune Main Stand", time: "08:00" }],
+        dropping: [{ name: "M Bus Stand", time: "11:00" }],
+        status: "Active",
+      });
+    expect(routeRes.status).toBe(201);
+    expect(routeRes.body.data.viaLabel).toBe("NH01");
+    expect(routeRes.body.data.viaStops).toHaveLength(2);
+
+    const trip: any = await M.Trip.findOne({ carId: carSedan._id, status: "Scheduled" }).lean();
+    const fareRes = await request(app)
+      .patch(`/api/v1/operator/trips/${trip._id}/seat-fares`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        segmentFares: [
+          { fromCity: "Pune", toCity: "Lonavla", distanceKm: 50, farePaise: 20000 },
+          { fromCity: "Pune", toCity: "Mumbai", distanceKm: 150, farePaise: 50000 },
+        ],
+      });
+    expect(fareRes.status).toBe(200);
+    expect(fareRes.body.data.segmentFares).toHaveLength(2);
+
+    const viaTripRes = await request(app)
+      .post("/api/v1/operator/trips")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        carId: String(carSedan._id),
+        routeId: routeRes.body.data._id,
+        journeyDate: "2030-12-05",
+        departureAt: "2030-12-05T08:00:00+05:30",
+        estimatedArrivalAt: "2030-12-05T11:00:00+05:30",
+        tripType: "ONE_WAY",
+        baseFareRupees: 450,
+        status: "Scheduled",
+      });
+    expect(viaTripRes.status).toBe(201);
+
+    await request(app)
+      .patch(`/api/v1/operator/trips/${viaTripRes.body.data._id}/seat-fares`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        segmentFares: [
+          { fromCity: "Pune", toCity: "Thana", distanceKm: 120, farePaise: 36000 },
+          { fromCity: "Pune", toCity: "Mumbai", distanceKm: 150, farePaise: 45000 },
+        ],
+      });
+
+    const matchSearch = await request(app)
+      .get("/api/v1/operator/counter/trips?from=pune&to=thana&journeyDate=2030-12-05")
+      .set("Authorization", `Bearer ${token}`);
+    expect(matchSearch.status).toBe(200);
+    expect(matchSearch.body.data).toHaveLength(1);
+    expect(matchSearch.body.data[0].matchedSegment).toEqual({
+      fromCity: "Pune",
+      toCity: "Thana",
+      farePaise: 36000,
+    });
+    expect(matchSearch.body.data[0].baseFarePaise).toBe(36000);
+
+    const reverseSearch = await request(app)
+      .get("/api/v1/operator/counter/trips?from=thana&to=pune&journeyDate=2030-12-05")
+      .set("Authorization", `Bearer ${token}`);
+    expect(reverseSearch.status).toBe(200);
+    expect(reverseSearch.body.data).toHaveLength(0);
+
+    const savedCities = await M.City.find({ operatorId: operator._id }).lean();
+    const savedNames = savedCities.map((c: any) => c.name);
+    expect(savedNames).toEqual(
+      expect.arrayContaining(["Pune", "Lonavla", "Thana", "Mumbai"]),
+    );
+
+    const citiesRes = await request(app)
+      .get("/api/v1/operator/counter/cities")
+      .set("Authorization", `Bearer ${token}`);
+    expect(citiesRes.status).toBe(200);
+    expect(citiesRes.body.data.cities).toEqual(
+      expect.arrayContaining(["Pune", "Lonavla", "Thana", "Mumbai"]),
+    );
+    expect(citiesRes.body.data.destinationsByOrigin.pune).toEqual(
+      expect.arrayContaining(["Lonavla", "Thana", "Mumbai"]),
+    );
   });
 });

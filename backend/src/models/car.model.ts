@@ -92,12 +92,14 @@ export const Car = model(
       default: undefined,
     },
     activeLayoutId: objectId,
+    ownerId: objectId,
     schedulingRevision: { type: Number, default: 0 },
     ...mapping,
   },
   [
     { keys: { operatorId: 1, status: 1 } },
     { keys: { operatorId: 1, category: 1 } },
+    { keys: { operatorId: 1, ownerId: 1 } },
     { keys: { operatorId: 1, registration: 1 }, options: { unique: true } },
   ],
 );

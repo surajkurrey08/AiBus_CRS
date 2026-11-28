@@ -6,7 +6,7 @@ const good = {
   REDIS_URL: 'rediss://ci:synthetic@localhost:6379', JWT_SECRET: 'synthetic-ci-key-'.repeat(5),
   PUBLIC_API_JWT_SECRET: 'different-synthetic-ci-key-'.repeat(4),
   WEB_ORIGIN: 'https://bookmybus.pro', ADMIN_WEB_ORIGIN: 'https://admin.bookmybus.pro',
-  PARTNER_WEB_ORIGIN: 'https://partner.bookmybus.pro', TRUST_PROXY: '2',
+  PARTNER_WEB_ORIGIN: 'https://partner.bookmybus.pro', OWNER_WEB_ORIGIN: 'https://owner.bookmybus.pro', TRUST_PROXY: '2',
 };
 assert.equal(readConfig(good).NODE_ENV, 'production');
 for (const invalid of [

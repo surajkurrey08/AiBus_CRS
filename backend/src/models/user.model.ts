@@ -7,6 +7,7 @@ export const User = model(
   {
     operatorId: { type: objectId, index: true, immutable: true },
     partnerId: { type: objectId, immutable: true, index: true },
+    fleetOwnerId: { type: objectId, immutable: true },
     partnerRole: { type: String, enum: partnerRoles },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -20,6 +21,7 @@ export const User = model(
         "booking_staff",
         "read_only",
         "agent",
+        "vehicle_owner",
         "partner",
       ],
       required: true,
@@ -40,5 +42,11 @@ export const User = model(
     commissionRate: { type: Number, default: 500 },
     salesPartnerId: { type: objectId },
   },
-  [{ keys: { operatorId: 1, salesPartnerId: 1 } }, { keys: {partnerId:1,role:1,active:1} }],
+  [
+    { keys: { operatorId: 1, salesPartnerId: 1 } },
+    { keys: { partnerId: 1, role: 1, active: 1 } },
+    { keys: { operatorId: 1, fleetOwnerId: 1 }, options: {
+      unique: true, partialFilterExpression: { role: "vehicle_owner" },
+    } },
+  ],
 );

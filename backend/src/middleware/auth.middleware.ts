@@ -35,7 +35,7 @@ export function originGuard(config: Config): RequestHandler {
     const origin = req.get("origin");
     const client = req.get("X-Aibus-Client");
     const portal =
-      client === "partner"
+      client === "owner" ? "Vehicle owner" : client === "partner"
         ? "Partner"
         : client === "admin"
           ? "Admin"
@@ -43,7 +43,9 @@ export function originGuard(config: Config): RequestHandler {
             ? "Agent"
             : "Operator";
     const portalOrigin =
-      client === "partner"
+      client === "owner"
+        ? config.OWNER_WEB_ORIGIN || (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5177" : config.WEB_ORIGIN)
+        : client === "partner"
         ? config.PARTNER_WEB_ORIGIN ||
           (!isProductionLike(config.NODE_ENV)
             ? "http://127.0.0.1:5176"
@@ -74,6 +76,7 @@ export function originGuard(config: Config): RequestHandler {
       (req.cookies?.aibus_refresh ||
         req.cookies?.aibus_admin_refresh ||
         req.cookies?.aibus_agent_refresh ||
+        req.cookies?.aibus_owner_refresh ||
         req.cookies?.aibus_partner_refresh) &&
       !origin
     )

@@ -1,6 +1,8 @@
 import { phoneNumber } from "./account-input.schemas.js";
 import { z } from "zod";
 import { amount, dateOnly, id, text } from "../utils/core.js";
+export const tripAmenitiesSchema = z.array(z.string().trim().min(1).max(60)).max(30).refine((items) => new Set(items.map(item => item.toLowerCase())).size === items.length, 'Choose unique amenities');
+
 export const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 export const status = z.enum(["Active", "Inactive"]).default("Active");
@@ -57,6 +59,14 @@ export const point = z
   .object({ name: text, time: time.optional(), address: text.optional() })
   .strict();
 
+export const viaStop = z
+  .object({
+    city: text,
+    distanceKm: z.coerce.number().min(0).max(5000).default(0),
+    durationMinutes: z.coerce.number().int().min(0).max(4320).default(0),
+  })
+  .strict();
+
 export const routeInput = z
   .object({
     source: text,
@@ -69,6 +79,8 @@ export const routeInput = z
     arrival: time,
     durationMinutes: z.coerce.number().int().min(1).max(4320),
     distanceKm: z.coerce.number().positive().max(5000).optional(),
+    viaLabel: z.string().trim().max(240).optional(),
+    viaStops: z.array(viaStop).max(50).optional(),
     status,
   })
   .strict();
@@ -143,6 +155,7 @@ export const tripInput = z
     journeyDate: dateOnly,
     departureAt: z.string().datetime({offset:true}),
     arrivalAt: z.string().datetime({offset:true}).optional(),
+    amenities: tripAmenitiesSchema.optional(),
     estimatedArrivalAt: z.string().datetime({offset:true}).optional(),
     baseFarePaise: amount.optional(),
     baseFareRupees: z.coerce.number().optional(),

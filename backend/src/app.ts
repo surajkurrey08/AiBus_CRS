@@ -36,6 +36,7 @@ import {
   type Limiter,
 } from "./modules/auth/index.js";
 import { operatorRouter } from "./routes/operator.routes.js";
+import { vehicleOwnerManagementRouter, vehicleOwnerRouter } from "./routes/vehicle-owner.routes.js";
 import { paymentRouter } from "./routes/payment.routes.js";
 import { razorpayWebhook } from "./services/razorpay.service.js";
 import {
@@ -219,6 +220,8 @@ export function createApp(
   );
   app.use("/api/v1/finance", authenticate(config), financeRouter());
   app.use("/api/v1/operator", authenticate(config), operatorStaffOnly);
+  app.use("/api/v1/owner", authenticate(config), vehicleOwnerRouter());
+  app.use("/api/v1/operator", vehicleOwnerManagementRouter());
   app.use("/api/v1/operator/operations", operationsRouter(config));
   app.use(
     "/api/v1/platform/operations",

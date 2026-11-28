@@ -18,13 +18,14 @@ for attempt in {1..20}; do
   sleep 1
 done
 docker exec "$run" nginx -t
-for host in bookmybus.pro admin.bookmybus.pro partner.bookmybus.pro; do
+for host in bookmybus.pro admin.bookmybus.pro partner.bookmybus.pro owner.bookmybus.pro; do
   actual=$(docker exec "$run" wget -q -O - --header "Host: $host" http://127.0.0.1:8080/deployment-revision)
   [[ $actual == "$revision" ]]
   case $host in
     bookmybus.pro) panel=operator ;;
     admin.bookmybus.pro) panel=admin ;;
     partner.bookmybus.pro) panel=partner ;;
+    owner.bookmybus.pro) panel=owner ;;
   esac
   expected=$(docker exec "$run" sha256sum "/usr/share/nginx/$panel/index.html" | cut -d ' ' -f 1)
   actual=$(docker exec "$run" wget -q -O - --header "Host: $host" http://127.0.0.1:8080/ | sha256sum | cut -d ' ' -f 1)

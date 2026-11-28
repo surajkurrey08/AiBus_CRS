@@ -44,6 +44,26 @@ export const stop = new Schema(
   { _id: false, strict: "throw" },
 );
 
+export const viaStopSchema = new Schema(
+  {
+    city: { type: String, required: true },
+    distanceKm: { type: Number, default: 0 },
+    durationMinutes: { type: Number, default: 0 },
+  },
+  { _id: false, strict: "throw" },
+);
+
+export const segmentFareSchema = new Schema(
+  {
+    fromCity: { type: String, required: true },
+    toCity: { type: String, required: true },
+    distanceKm: { type: Number, default: 0 },
+    farePaise: { type: Number, required: true },
+    seatFares: Schema.Types.Mixed,
+  },
+  { _id: false, strict: "throw" },
+);
+
 export const inventorySeat = new Schema(
   {
     number: String,

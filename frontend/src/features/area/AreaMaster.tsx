@@ -260,6 +260,22 @@ export function AreaMaster({ defaultTab = "cities" }: { defaultTab?: string }) {
                       <dd>{details.distanceKm} km</dd>
                     </div>
                   )}
+                  {details.viaLabel && (
+                    <div>
+                      <dt>Via / Highway</dt>
+                      <dd>{details.viaLabel}</dd>
+                    </div>
+                  )}
+                  {details.viaStops?.length > 0 && (
+                    <div>
+                      <dt>Via Cities</dt>
+                      <dd>
+                        {details.viaStops
+                          .map((v: any) => `${v.city}${v.distanceKm ? ` (${v.distanceKm} km)` : ""}`)
+                          .join(" → ")}
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt>Status</dt>
                     <dd>{details.status}</dd>

@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  ContactRound,
   Download,
   Headphones,
   Folders,
@@ -76,6 +77,7 @@ import { SeatInventory } from "../features/inventory/SeatInventory.tsx";
 import { AgentDailySettlement } from "../features/agents/AgentDailySettlement.tsx";
 import { TripCalendar } from "../features/trips/TripCalendar.tsx";
 import { CarMaster } from "../features/car-master/CarMaster";
+import { VehicleOwnersPage } from "../features/vehicle-owner/VehicleOwnersPage";
 import { CarTripMaster } from "../features/car-trip-master/CarTripMaster";
 import { VehicleLayoutEditor } from "../features/car-layout/VehicleLayoutEditor";
 import { AreaMaster } from "../features/area/AreaMaster";
@@ -100,6 +102,7 @@ const nav = [
   ["Finance", IndianRupee],
   ["Reports", ChartNoAxesCombined],
   ["Settings", Settings],
+  ["Owners", ContactRound],
 ] as const;
 const navCaptions = [
   "Overview",
@@ -114,6 +117,7 @@ const navCaptions = [
   "Finance",
   "Reports",
   "Settings",
+  "Owners",
 ];
 const descriptions = [
   "Your car operator records, departures and recorded ticket sales.",
@@ -128,6 +132,7 @@ const descriptions = [
   "Manage agency funds and approved credit with ledger-backed records.",
   "Understand operational performance and track car seat revenues.",
   "Manage your company, team and workspace preferences.",
+  "Create vehicle owner accounts and view their login details.",
 ];
 export function App({ demo = false }: { demo?: boolean }) {
   return (
@@ -138,6 +143,8 @@ export function App({ demo = false }: { demo?: boolean }) {
 }
 function Dashboard() {
   const ws = useWorkspace();
+  const canManageOwners = !ws.demo && ws.user.role === "operator_admin" &&
+    ws.user.permissions.includes("fleet:write");
   const agentWorkspace = isAgentWorkspace(ws.user.role);
   const pageLabel = (index: number) =>
     agentWorkspace && index === 0 ? "Bookings" : nav[index][0];
@@ -207,13 +214,13 @@ function Dashboard() {
   const navigate = (i: number) => {
     const proceed = () => {
       let target = i;
-      if (i === 12) target = 1;
-      else if (i === 13) target = 2;
+      if (i === 13) target = 2;
       else if (i === 14) target = 3;
       else if (i === 15) target = 1;
       else if (i === 16) target = 9;
       if (
         !canOpenWorkspacePage(ws.user.role, i) ||
+        (target === 12 && !canManageOwners) ||
         !canOpenWorkspacePage(ws.user.role, target)
       )
         return;
@@ -327,6 +334,7 @@ function Dashboard() {
         <nav id="workspace-navigation" aria-label="Workspace navigation">
           {nav.map(([label, Icon], i) => {
             if (!canOpenWorkspacePage(ws.user.role, i)) return null;
+            if (i === 12 && !canManageOwners) return null;
             if (i === 7 && !permitted("manifest:read")) return null;
             if ([9, 10].includes(i) && !permitted("finance:read")) return null;
             return (
@@ -403,7 +411,7 @@ function Dashboard() {
             </button>
             Workspace
             <ChevronRight size={13} />
-            {[12, 13, 14].includes(page) && (
+            {[13, 14].includes(page) && (
               <>
                 <button
                   className="text-btn"
@@ -1034,7 +1042,7 @@ function Dashboard() {
             </>
           )}
           {page === 11 && <LiveSettings />}
-          {page === 12 && <CarMaster />}
+          {page === 12 && canManageOwners && <VehicleOwnersPage onOpenVehicles={() => navigate(1)} />}
           {page === 13 && <AreaMaster defaultTab="cities" />}
           {page === 14 && <CarTripMaster />}
           {page === 15 && <MasterHub onOpen={navigate} />}

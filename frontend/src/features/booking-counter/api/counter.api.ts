@@ -14,9 +14,27 @@ export interface CounterTrip {
   destination: string;
   boarding: { name: string; time?: string; address?: string }[];
   dropping: { name: string; time?: string; address?: string }[];
+  viaLabel?: string;
+  viaStops?: { city: string; distanceKm: number; durationMinutes: number }[];
+  distanceKm?: number | null;
+  durationMinutes?: number | null;
+  segmentFares?: {
+    fromCity: string;
+    toCity: string;
+    distanceKm?: number;
+    farePaise: number;
+    seatFares?: Record<string, number>;
+  }[];
+  matchedSegment?: {
+    fromCity: string;
+    toCity: string;
+    farePaise?: number;
+  };
   busName: string;
   registration: string;
   busType: string;
+  amenities?: string[];
+  tripType?: string;
   journeyDate: string;
   departureAt: string;
   arrivalAt?: string;
@@ -123,6 +141,8 @@ export const counterApi = {
       holdId?: string;
       promoCode?: string;
       operatorDiscountPaise?: number;
+      fromCity?: string;
+      toCity?: string;
     },
     signal?: AbortSignal,
   ) =>
@@ -131,10 +151,15 @@ export const counterApi = {
       body: JSON.stringify(body),
       signal,
     }),
-  hold: (id: string, seats: string[]) =>
+  hold: (id: string, seats: string[], segment?: { fromCity?: string; toCity?: string }) =>
     api<CounterHold>(`/operator/trips/${id}/holds`, {
       method: "POST",
-      body: JSON.stringify({ seats }),
+      body: JSON.stringify({
+        seats,
+        ...(segment?.fromCity && segment?.toCity
+          ? { fromCity: segment.fromCity, toCity: segment.toCity }
+          : {}),
+      }),
     }),
   release: (id: string, holdId: string) =>
     api(`/operator/trips/${id}/holds/${holdId}`, { method: "DELETE" }),
@@ -144,6 +169,11 @@ export const counterApi = {
       { signal },
     ),
   policy: () => api<PricingPolicy | null>("/operator/pricing-policy"),
+  cities: (signal?: AbortSignal) =>
+    api<{ cities: string[]; destinationsByOrigin: Record<string, string[]> }>(
+      "/operator/counter/cities",
+      { signal },
+    ),
   confirmDirect: (id: string) =>
     api<{ status: string; paymentStatus: string; pnr?: string; reference: string }>(
       `/operator/bookings/${id}/confirm-direct`,

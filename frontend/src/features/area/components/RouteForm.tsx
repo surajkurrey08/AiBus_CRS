@@ -1,7 +1,8 @@
 import { useState, useId } from "react";
-import { ArrowRight, Clock, MapPin, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, MapPin, Plus, Trash2 } from "lucide-react";
 import { api } from "../../../api/client";
 import { Overlay } from "../../../components/ui/Overlay";
+import "../../car-master/car-master.css";
 
 export function RouteForm({
   record,
@@ -28,6 +29,19 @@ export function RouteForm({
   );
   const [distanceKm, setDistanceKm] = useState<string>(
     record?.distanceKm !== undefined ? String(record.distanceKm) : "",
+  );
+  const [viaLabel, setViaLabel] = useState<string>(record?.viaLabel || "");
+  const [viaQuickText, setViaQuickText] = useState<string>("");
+  const [viaStops, setViaStops] = useState<
+    { city: string; distanceKm: string; durationMinutes: string }[]
+  >(() =>
+    Array.isArray(record?.viaStops)
+      ? record.viaStops.map((s: any) => ({
+          city: s.city || "",
+          distanceKm: s.distanceKm !== undefined ? String(s.distanceKm) : "",
+          durationMinutes: s.durationMinutes !== undefined ? String(s.durationMinutes) : "",
+        }))
+      : [],
   );
   const [status, setStatus] = useState<string>(record?.status || "Active");
 
@@ -143,8 +157,10 @@ export function RouteForm({
       onClose={() => {
         if (!busy) onClose();
       }}
+      className="car-editor-dialog route-editor-dialog"
     >
       <form
+        className="car-editor-form"
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy) return;
@@ -194,6 +210,26 @@ export function RouteForm({
             if (distanceKm && !isNaN(Number(distanceKm)) && Number(distanceKm) > 0) {
               payload.distanceKm = Number(distanceKm);
             }
+            if (viaLabel.trim()) {
+              payload.viaLabel = viaLabel.trim();
+            }
+            const cleanViaStops = viaStops
+              .filter(
+                (v) =>
+                  v.city.trim() &&
+                  v.city.trim().toLowerCase() !== source.trim().toLowerCase() &&
+                  v.city.trim().toLowerCase() !== destination.trim().toLowerCase(),
+              )
+              .map((v) => ({
+                city: v.city.trim(),
+                distanceKm: Math.max(0, Number(v.distanceKm) || 0),
+                durationMinutes: Math.max(0, Math.round(Number(v.durationMinutes) || 0)),
+              }));
+            if (cleanViaStops.length) {
+              payload.viaStops = cleanViaStops;
+            } else if (record?.viaStops?.length) {
+              payload.viaStops = [];
+            }
 
             await api(
               record ? `/operator/routes/${record._id || record.id}` : "/operator/routes",
@@ -211,34 +247,25 @@ export function RouteForm({
           }
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Visual Route Preview Banner */}
-          <div
-            style={{
-              padding: "12px 16px",
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              fontSize: "15px",
-              fontWeight: 600,
-              color: "#166534",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>{source.trim() || "From (e.g. Pune)"}</span>
-              <ArrowRight size={18} />
-              <span>{destination.trim() || "To (e.g. Nashik)"}</span>
-            </div>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "#15803d" }}>
-              {departure} → {arrival} ({hours > 0 ? `${hours}h ` : ""}{mins}m)
-            </span>
+        {/* Visual Route Preview Banner */}
+        <div className="route-editor-banner">
+          <div className="route-editor-banner-pair">
+            <span>{source.trim() || "From (e.g. Pune)"}</span>
+            <ArrowRight size={16} />
+            <span>{destination.trim() || "To (e.g. Nashik)"}</span>
+            {viaLabel.trim() && (
+              <span className="route-editor-via-tag">{viaLabel.trim()}</span>
+            )}
           </div>
+          <span className="route-editor-banner-meta">
+            {departure} → {arrival} ({hours > 0 ? `${hours}h ` : ""}{mins}m)
+            {distanceKm && Number(distanceKm) > 0 ? ` · ${distanceKm} km` : ""}
+          </span>
+        </div>
 
-          {/* City Pair Inputs */}
-          <div className="form-grid">
+        <div className="car-editor-body route-editor-body">
+          {/* City Pair & Core Timing Grid */}
+          <div className="route-editor-grid">
             <label>
               From / Origin city *
               <input
@@ -302,7 +329,7 @@ export function RouteForm({
             </label>
 
             <label>
-              Total Duration (minutes) *
+              Total Duration (mins) *
               <input
                 aria-label="Duration in minutes"
                 required
@@ -312,9 +339,6 @@ export function RouteForm({
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value) || 0)}
               />
-              <span style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                Auto-calculated: {hours}h {mins}m
-              </span>
             </label>
 
             <label>
@@ -341,223 +365,317 @@ export function RouteForm({
                 <option value="Inactive">Inactive</option>
               </select>
             </label>
+
+            <label>
+              Highway / Via Route Note
+              <input
+                aria-label="Highway / Via Route Note"
+                type="text"
+                placeholder="e.g. Via NH-60 (approx 5 hrs)"
+                value={viaLabel}
+                onChange={(e) => setViaLabel(e.target.value)}
+              />
+            </label>
           </div>
 
-          {/* Boarding (Pickup) Points Section */}
-          <div
-            style={{
-              padding: "14px",
-              border: "1px solid var(--border)",
-              borderRadius: "8px",
-              background: "#fafafa",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "10px",
-              }}
-            >
-              <strong style={{ fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
-                <MapPin size={15} color="#ea580c" />
-                Boarding / Pickup Points ({source.trim() || "Origin"})
+          {/* Via Cities / Intermediate Stops Section */}
+          <div className="route-editor-card">
+            <div className="route-editor-card-head">
+              <strong>
+                <MapPin size={15} color="#0f766e" />
+                Via Cities / Intermediate Stops (Distance &amp; Time from {source.trim() || "Origin"})
               </strong>
               <button
                 type="button"
                 className="text-btn"
-                style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}
                 onClick={() =>
-                  setBoarding([...boarding, { name: "", time: departure }])
+                  setViaStops([...viaStops, { city: "", distanceKm: "", durationMinutes: "" }])
                 }
               >
-                <Plus size={13} /> Add stop
+                <Plus size={13} /> Add via city
               </button>
             </div>
-
-            {sourceLocationSuggestions.length > 0 && (
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted)" }}>Quick add:</span>
-                {sourceLocationSuggestions.slice(0, 4).map((loc) => (
-                  <button
-                    key={loc._id}
-                    type="button"
-                    className="btn"
-                    style={{ fontSize: "11px", padding: "2px 8px", height: "auto" }}
-                    onClick={() =>
-                      setBoarding([...boarding, { name: loc.name, time: departure, address: loc.address }])
-                    }
-                  >
-                    + {loc.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {boarding.map((stop, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 110px auto",
-                    gap: "8px",
-                    alignItems: "center",
-                  }}
-                >
-                  <input
-                    type="text"
-                    required
-                    placeholder={`Stop name (e.g. ${source.trim() || "Pune"} Swargate)`}
-                    value={stop.name}
-                    onChange={(e) => {
-                      const updated = [...boarding];
-                      updated[idx].name = e.target.value;
-                      setBoarding(updated);
-                    }}
-                  />
-                  <input
-                    type="time"
-                    value={stop.time || departure}
-                    onChange={(e) => {
-                      const updated = [...boarding];
-                      updated[idx].time = e.target.value;
-                      setBoarding(updated);
-                    }}
-                  />
-                  {boarding.length > 1 && (
-                    <button
-                      type="button"
-                      className="text-btn"
-                      title="Remove stop"
-                      onClick={() => setBoarding(boarding.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 size={15} color="#ef4444" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Dropping Points Section */}
-          <div
-            style={{
-              padding: "14px",
-              border: "1px solid var(--border)",
-              borderRadius: "8px",
-              background: "#fafafa",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "10px",
-              }}
-            >
-              <strong style={{ fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
-                <MapPin size={15} color="#0284c7" />
-                Dropping Points ({destination.trim() || "Destination"})
-              </strong>
+            <div className="route-via-quick-bar">
+              <input
+                type="text"
+                aria-label="Quick add via cities"
+                placeholder="Paste cities separated by comma (e.g. Moshi, Chakan, Rajgurunagar, Manchar, Sangamner)"
+                value={viaQuickText}
+                onChange={(e) => setViaQuickText(e.target.value)}
+              />
               <button
                 type="button"
-                className="text-btn"
-                style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}
-                onClick={() =>
-                  setDropping([...dropping, { name: "", time: arrival }])
-                }
+                className="btn secondary"
+                disabled={!viaQuickText.trim()}
+                onClick={() => {
+                  const names = viaQuickText
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  if (!names.length) return;
+                  const totalDist = Number(distanceKm) || 0;
+                  const totalDur = Number(durationMinutes) || 0;
+                  const generated = names.map((city, idx) => {
+                    const ratio = (idx + 1) / (names.length + 1);
+                    return {
+                      city,
+                      distanceKm: totalDist > 0 ? String(Math.round(totalDist * ratio)) : "",
+                      durationMinutes: totalDur > 0 ? String(Math.round(totalDur * ratio)) : "",
+                    };
+                  });
+                  setViaStops([...viaStops.filter((v) => v.city.trim()), ...generated]);
+                  setViaQuickText("");
+                }}
               >
-                <Plus size={13} /> Add stop
+                Add stops
               </button>
             </div>
-
-            {destLocationSuggestions.length > 0 && (
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted)" }}>Quick add:</span>
-                {destLocationSuggestions.slice(0, 4).map((loc) => (
-                  <button
-                    key={loc._id}
-                    type="button"
-                    className="btn"
-                    style={{ fontSize: "11px", padding: "2px 8px", height: "auto" }}
-                    onClick={() =>
-                      setDropping([...dropping, { name: loc.name, time: arrival, address: loc.address }])
-                    }
-                  >
-                    + {loc.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {dropping.map((stop, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 110px auto",
-                    gap: "8px",
-                    alignItems: "center",
-                  }}
-                >
-                  <input
-                    type="text"
-                    required
-                    placeholder={`Stop name (e.g. ${destination.trim() || "Nashik"} CBS)`}
-                    value={stop.name}
-                    onChange={(e) => {
-                      const updated = [...dropping];
-                      updated[idx].name = e.target.value;
-                      setDropping(updated);
-                    }}
-                  />
-                  <input
-                    type="time"
-                    value={stop.time || arrival}
-                    onChange={(e) => {
-                      const updated = [...dropping];
-                      updated[idx].time = e.target.value;
-                      setDropping(updated);
-                    }}
-                  />
-                  {dropping.length > 1 && (
+            {viaStops.length > 0 && (
+              <div className="route-via-list">
+                <div className="route-via-row route-via-cols-head">
+                  <span>#</span>
+                  <span>City Name</span>
+                  <span>Distance (km)</span>
+                  <span>Time (mins)</span>
+                  <span />
+                </div>
+                {viaStops.map((vStop, idx) => (
+                  <div key={idx} className="route-via-row">
+                    <span className="route-via-index">{idx + 1}</span>
+                    <input
+                      type="text"
+                      list={sourceDatalistId}
+                      placeholder={`City ${idx + 1} (e.g. Rajgurunagar)`}
+                      value={vStop.city}
+                      onChange={(e) => {
+                        const updated = [...viaStops];
+                        updated[idx].city = e.target.value;
+                        setViaStops(updated);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={5000}
+                      placeholder="Km"
+                      title="Distance from origin (km)"
+                      value={vStop.distanceKm}
+                      onChange={(e) => {
+                        const updated = [...viaStops];
+                        updated[idx].distanceKm = e.target.value;
+                        setViaStops(updated);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={4320}
+                      placeholder="Mins"
+                      title="Approximate travel minutes from origin"
+                      value={vStop.durationMinutes}
+                      onChange={(e) => {
+                        const updated = [...viaStops];
+                        updated[idx].durationMinutes = e.target.value;
+                        setViaStops(updated);
+                      }}
+                    />
                     <button
                       type="button"
                       className="text-btn"
-                      title="Remove stop"
-                      onClick={() => setDropping(dropping.filter((_, i) => i !== idx))}
+                      title="Remove via city"
+                      onClick={() => setViaStops(viaStops.filter((_, i) => i !== idx))}
                     >
                       <Trash2 size={15} color="#ef4444" />
                     </button>
-                  )}
+                  </div>
+                ))}
+                <p className="route-via-path-preview">
+                  Path: {[
+                    source.trim() || "Origin",
+                    ...viaStops
+                      .map((v) => v.city.trim())
+                      .filter(
+                        (c) =>
+                          c &&
+                          c.toLowerCase() !== source.trim().toLowerCase() &&
+                          c.toLowerCase() !== destination.trim().toLowerCase(),
+                      ),
+                    destination.trim() || "Destination",
+                  ].join(" → ")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="route-stops-split">
+            {/* Boarding (Pickup) Points Section */}
+            <div className="route-editor-card">
+              <div className="route-editor-card-head">
+                <strong>
+                  <MapPin size={15} color="#ea580c" />
+                  Boarding Points ({source.trim() || "Origin"})
+                </strong>
+                <button
+                  type="button"
+                  className="text-btn"
+                  onClick={() =>
+                    setBoarding([...boarding, { name: "", time: departure }])
+                  }
+                >
+                  <Plus size={13} /> Add stop
+                </button>
+              </div>
+
+              {sourceLocationSuggestions.length > 0 && (
+                <div className="route-quick-chips">
+                  <span>Quick add:</span>
+                  {sourceLocationSuggestions.slice(0, 4).map((loc) => (
+                    <button
+                      key={loc._id}
+                      type="button"
+                      className="btn"
+                      onClick={() =>
+                        setBoarding([...boarding, { name: loc.name, time: departure, address: loc.address }])
+                      }
+                    >
+                      + {loc.name}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              <div className="route-stop-rows">
+                {boarding.map((stop, idx) => (
+                  <div key={idx} className="route-stop-row">
+                    <input
+                      type="text"
+                      required
+                      placeholder={`Stop (e.g. ${source.trim() || "Pune"} Stand)`}
+                      value={stop.name}
+                      onChange={(e) => {
+                        const updated = [...boarding];
+                        updated[idx].name = e.target.value;
+                        setBoarding(updated);
+                      }}
+                    />
+                    <input
+                      type="time"
+                      value={stop.time || departure}
+                      onChange={(e) => {
+                        const updated = [...boarding];
+                        updated[idx].time = e.target.value;
+                        setBoarding(updated);
+                      }}
+                    />
+                    {boarding.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-btn"
+                        title="Remove stop"
+                        onClick={() => setBoarding(boarding.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 size={15} color="#ef4444" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Dropping Points Section */}
+            <div className="route-editor-card">
+              <div className="route-editor-card-head">
+                <strong>
+                  <MapPin size={15} color="#0284c7" />
+                  Dropping Points ({destination.trim() || "Destination"})
+                </strong>
+                <button
+                  type="button"
+                  className="text-btn"
+                  onClick={() =>
+                    setDropping([...dropping, { name: "", time: arrival }])
+                  }
+                >
+                  <Plus size={13} /> Add stop
+                </button>
+              </div>
+
+              {destLocationSuggestions.length > 0 && (
+                <div className="route-quick-chips">
+                  <span>Quick add:</span>
+                  {destLocationSuggestions.slice(0, 4).map((loc) => (
+                    <button
+                      key={loc._id}
+                      type="button"
+                      className="btn"
+                      onClick={() =>
+                        setDropping([...dropping, { name: loc.name, time: arrival, address: loc.address }])
+                      }
+                    >
+                      + {loc.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="route-stop-rows">
+                {dropping.map((stop, idx) => (
+                  <div key={idx} className="route-stop-row">
+                    <input
+                      type="text"
+                      required
+                      placeholder={`Stop (e.g. ${destination.trim() || "Nashik"} CBS)`}
+                      value={stop.name}
+                      onChange={(e) => {
+                        const updated = [...dropping];
+                        updated[idx].name = e.target.value;
+                        setDropping(updated);
+                      }}
+                    />
+                    <input
+                      type="time"
+                      value={stop.time || arrival}
+                      onChange={(e) => {
+                        const updated = [...dropping];
+                        updated[idx].time = e.target.value;
+                        setDropping(updated);
+                      }}
+                    />
+                    {dropping.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-btn"
+                        title="Remove stop"
+                        onClick={() => setDropping(dropping.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 size={15} color="#ef4444" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {error && (
-            <p className="error" role="alert" style={{ margin: "4px 0" }}>
+            <p className="error" role="alert" style={{ margin: 0 }}>
               {error}
             </p>
           )}
+        </div>
 
-          <div className="dialog-foot">
-            <button
-              className="btn"
-              type="button"
-              disabled={busy}
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button className="btn primary" disabled={busy}>
-              {busy ? "Saving..." : record ? "Save changes" : "Save route"}
-            </button>
-          </div>
+        <div className="car-editor-footer">
+          <button
+            className="btn secondary"
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button className="btn primary" disabled={busy}>
+            {busy ? "Saving..." : record ? "Save changes" : "Save route"}
+          </button>
         </div>
       </form>
     </Overlay>

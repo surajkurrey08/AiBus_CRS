@@ -29,6 +29,7 @@ import {
   contactInput,
   gstInput,
   priceTrip,
+  resolveSeatFares,
   validatePassengers,
 } from "./pricing.service.js";
 export const seatList = z
@@ -86,6 +87,7 @@ export async function createHold(
   tripId: string,
   numbers: string[],
   trustedHoldId?: string,
+  segment?: { fromCity?: string; toCity?: string },
 ) {
   if (!auth.permissions.includes("bookings:write"))
     fail(403, "FORBIDDEN", "Booking permission is required to hold seats");
@@ -106,9 +108,13 @@ export async function createHold(
     const existing = trip!.seats as { number: string; farePaise: number }[];
     if (numbers.some((n) => !existing.some((s) => s.number === n)))
       fail(400, "INVALID_SEAT", "One or more seats do not exist");
-    const amountPaise = existing
-      .filter((s) => numbers.includes(s.number))
-      .reduce((sum, s) => sum + s.farePaise, 0);
+    const resolved = resolveSeatFares(
+      trip,
+      numbers,
+      segment?.fromCity,
+      segment?.toCity,
+    );
+    const amountPaise = resolved.reduce((sum, s) => sum + s.farePaise, 0);
     const updated = await Trip.updateOne(
       {
         _id: tripId,
@@ -327,6 +333,8 @@ export async function createBooking(
     promoCode?: string;
     operatorDiscountPaise?: number;
     quoteId?: string;
+    fromCity?: string;
+    toCity?: string;
     contact?: z.infer<typeof contactInput>;
     gst?: z.infer<typeof gstInput>;
   },
@@ -432,6 +440,8 @@ export async function createBooking(
         {
           promoCode: input.promoCode,
           operatorDiscountPaise: input.operatorDiscountPaise,
+          fromCity: input.fromCity,
+          toCity: input.toCity,
         },
         session,
       );

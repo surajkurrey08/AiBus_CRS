@@ -6,6 +6,7 @@ COPY frontend/package.json frontend/package.json
 COPY backend/package.json backend/package.json
 COPY admin/package.json admin/package.json
 COPY partner/package.json partner/package.json
+COPY owner/package.json owner/package.json
 RUN npm ci --no-audit --no-fund
 
 FROM dependencies AS build
@@ -13,6 +14,7 @@ COPY frontend frontend
 COPY backend backend
 COPY admin admin
 COPY partner partner
+COPY owner owner
 COPY integrations integrations
 COPY scripts scripts
 RUN npm run build
@@ -68,6 +70,7 @@ COPY deploy/nginx/car-sandbox-proxy.inc /etc/nginx/bookmybus-car-sandbox-proxy.i
 COPY --from=build /app/frontend/dist /usr/share/nginx/operator
 COPY --from=build /app/admin/dist /usr/share/nginx/admin
 COPY --from=build /app/partner/dist /usr/share/nginx/partner
+COPY --from=build /app/owner/dist /usr/share/nginx/owner
 RUN printf '%s\n' "$REVISION" > /usr/share/nginx/revision.txt
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD wget -q -O /dev/null http://127.0.0.1:8080/gateway-health || exit 1

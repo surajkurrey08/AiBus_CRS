@@ -8,6 +8,7 @@ const mockWorkspace = {
   demo: false,
   revision: 0,
   user: {
+    role: "operator_admin",
     permissions: ["read", "routes:write", "fleet:write"],
   },
   records: {
@@ -110,8 +111,8 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
     });
   });
 
-  it.each(["once", "weekends"])("submits the correct car trips for %s scheduling", async (repeat) => {
-    const scheduled: { journeyDate: string; departureAt: string; arrivalAt: string }[] = [];
+  it.each(["once", "weekends", "alternate", "selected"])("submits the correct car trips for %s scheduling", async (repeat) => {
+    const scheduled: { journeyDate: string; departureAt: string; arrivalAt: string; amenities: string[] }[] = [];
     (api as any).mockImplementation((url: string, opts?: any) => {
       if (url.includes("/operator/trips") && opts?.method === "POST") {
         scheduled.push(JSON.parse(opts.body));
@@ -164,10 +165,15 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
       expect(screen.getByText("Schedule Vehicle Trip")).toBeDefined();
     });
 
-    if (repeat === "weekends") {
+    fireEvent.click(screen.getByRole("checkbox", { name: "USB charging" }));
+    if (repeat !== "once") {
       fireEvent.change(screen.getByLabelText("Departure Date"), { target: { value: "2030-01-04" } });
       fireEvent.change(screen.getByLabelText("Estimated Arrival Date"), { target: { value: "2030-01-05" } });
-      fireEvent.change(screen.getByLabelText("Repeat schedule"), { target: { value: "weekends" } });
+      fireEvent.change(screen.getByLabelText("Repeat schedule"), { target: { value: repeat } });
+      if (repeat === "selected") {
+        fireEvent.click(screen.getByRole("checkbox", { name: "Fri" }));
+        fireEvent.click(screen.getByRole("checkbox", { name: "Mon" }));
+      }
       fireEvent.change(screen.getByLabelText("Repeat through"), { target: { value: "2030-01-07" } });
     }
 
@@ -185,6 +191,9 @@ describe("CarTripMaster Component UI & Scheduling Modal", () => {
         })
       );
     });
+    expect(scheduled.every((trip) => trip.amenities.includes("USB charging"))).toBe(true);
+    if (repeat === "alternate") expect(scheduled.map((trip) => trip.journeyDate)).toEqual(["2030-01-04", "2030-01-06"]);
+    if (repeat === "selected") expect(scheduled.map((trip) => trip.journeyDate)).toEqual(["2030-01-04", "2030-01-07"]);
     if (repeat === "weekends") {
       expect(scheduled.map((trip) => trip.journeyDate)).toEqual(["2030-01-05", "2030-01-06"]);
       expect(Date.parse(scheduled[1].arrivalAt) - Date.parse(scheduled[0].arrivalAt)).toBe(86_400_000);

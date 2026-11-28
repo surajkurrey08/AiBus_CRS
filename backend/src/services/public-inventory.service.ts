@@ -133,7 +133,7 @@ export async function publicTrip(identity: PartnerIdentity, id: string) {
   return {
     id,
     operator: operator!.company,
-    bus: { type: bus.type, amenities: bus.amenities || [] },
+    bus: { type: bus.type, amenities: trip.amenities ?? bus.amenities ?? [] },
     route: {
       id: await resourceId("route", String(route._id)),
       from: {

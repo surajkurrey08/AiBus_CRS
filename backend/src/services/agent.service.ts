@@ -18,6 +18,12 @@ export async function identityFor(
     if (!partner || !partnerRolePermissions[user.partnerRole]) fail(403, "PARTNER_NOT_APPROVED", "Partner access is pending approval or suspended");
     return { role: "partner", partnerId: String(partner._id), partnerRole: user.partnerRole, permissions: partnerRolePermissions[user.partnerRole] as any };
   }
+  if (user.role === "vehicle_owner") {
+    if (!user.operatorId || !user.fleetOwnerId || !await M.FleetOwner.exists({
+      _id: user.fleetOwnerId, operatorId: user.operatorId, status: "Active",
+    })) fail(403, "OWNER_INACTIVE", "Your vehicle owner access is unavailable");
+    return { role: "vehicle_owner", permissions: [] };
+  }
   if (user.role !== "agent" && !user.salesPartnerId)
     return {
       role: user.role as Role,

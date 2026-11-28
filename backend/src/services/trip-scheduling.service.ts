@@ -24,6 +24,8 @@ export async function createScheduledTrip(
   if (!auth.permissions.includes("routes:write"))
     fail(403, "FORBIDDEN", "Trip scheduling permission is required");
   const input = tripInput.parse(raw);
+  if (input.amenities && (auth.agentId || auth.role !== "operator_admin"))
+    fail(403, "FORBIDDEN", "Only operator admins can set trip amenities");
   if (input.seatSideFares && !auth.permissions.includes("pricing:write"))
     fail(403, "FORBIDDEN", "You do not have permission to set trip fares");
   const create = async (session: mongoose.ClientSession) => {
@@ -324,7 +326,9 @@ export async function createScheduledTrip(
         [
           {
             ...owner,
+            amenities: input.amenities,
             carId: car._id,
+            fleetOwnerId: car.ownerId ?? null,
             busId: car._id,
             routeId: route._id,
             tripNumber,
@@ -570,6 +574,7 @@ export async function createScheduledTrip(
         {
           ...input,
           ...owner,
+          fleetOwnerId: bus.ownerId ?? null,
           crewIds,
           arrivalAt,
           inventoryOwner: "internal",

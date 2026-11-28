@@ -24,6 +24,7 @@ import {
 import { AppError, asyncRoute, fail, ok, text } from "../utils/core.js";
 
 const authClient = (req: Request) =>
+  req.get("X-Aibus-Client") === "owner" ? "owner" :
   req.get("X-Aibus-Client") === "partner" ? "partner" :
   req.get("X-Aibus-Client") === "agent"
     ? "agent"
@@ -31,6 +32,7 @@ const authClient = (req: Request) =>
       ? "admin"
       : "operator";
 const refreshCookieName = (req: Request) =>
+  authClient(req) === "owner" ? "aibus_owner_refresh" :
   authClient(req) === "partner" ? "aibus_partner_refresh" :
   authClient(req) === "agent"
     ? "aibus_agent_refresh"
@@ -39,6 +41,8 @@ const refreshCookieName = (req: Request) =>
       : "aibus_refresh";
 async function clientIdentity(req: Request, user: any) {
   const identity = await identityFor(user);
+  if ((authClient(req) === "owner") !== (identity.role === "vehicle_owner"))
+    fail(403, "OWNER_PORTAL_REQUIRED", "Use the correct workspace for this account");
   if ((authClient(req) === "partner") !== (identity.role === "partner")) fail(403, "PARTNER_PORTAL_REQUIRED", "Use the correct organization portal");
   if (authClient(req) === "agent" && identity.role !== "agent")
     fail(403, "AGENT_REQUIRED", "Sign in with an operator-owned agency login");

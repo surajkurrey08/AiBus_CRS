@@ -52,6 +52,7 @@ vi.mock("../features/booking-counter/api/counter.api.ts", () => ({
     release: vi.fn(),
     bookings: vi.fn(),
     policy: vi.fn(),
+    cities: vi.fn(),
   },
   ticketHtml: vi.fn(),
 }));
@@ -189,6 +190,9 @@ beforeEach(() => {
       version: 1,
     },
   });
+  vi.mocked(counterApi.cities as any).mockResolvedValue({
+    data: { cities: [], destinationsByOrigin: {} },
+  });
   vi.mocked(counterApi.bookings).mockResolvedValue({
     data: {
       bookings: [],
@@ -252,6 +256,189 @@ async function submitSearch(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Search trips" }));
 }
 describe("Booking Counter", () => {
+  it("saves trip amenities with the selected departure version", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api).mockResolvedValueOnce({ data: { amenities: ["Wi-Fi"], version: 1 } });
+    render(<BookingCounter />);
+    await submitSearch(user);
+    await user.click(await screen.findByRole("button", { name: "Amenities" }));
+    await user.click(screen.getByRole("checkbox", { name: "Wi-Fi" }));
+    await user.click(screen.getByRole("button", { name: "Save amenities" }));
+    expect(api).toHaveBeenCalledWith(`/operator/trips/${trip.id}/amenities`, {
+      method: "PATCH",
+      body: JSON.stringify({ amenities: ["Wi-Fi"], expectedVersion: 0 }),
+    });
+    expect(await screen.findByText("Amenities updated for this departure.")).toBeTruthy();
+  });
+
+  it("sets seat fares in paise from the top controls", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api).mockResolvedValueOnce({ data: {} });
+    render(<BookingCounter />);
+    await submitSearch(user);
+    const button = await screen.findByRole("button", { name: "Seat-wise Fare" });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    await user.click(button);
+    await user.type(screen.getByRole("textbox", { name: /Seat L1/ }), "1500.50");
+    await user.click(screen.getByRole("button", { name: "Save fares" }));
+    expect(api).toHaveBeenCalledWith(`/operator/trips/${trip.id}/seat-fares`, {
+      method: "PATCH",
+      body: JSON.stringify({ seatFares: { L1: 150050 } }),
+    });
+  });
+
+  it("auto-calculates distance-wise segment fares in the Seat-wise Fare workbench", async () => {
+    const user = userEvent.setup();
+    vi.mocked(counterApi.search).mockResolvedValue({
+      data: [
+        {
+          ...trip,
+          source: "Pune",
+          destination: "Nashik",
+          route: "Pune → Nashik",
+          distanceKm: 200,
+          viaLabel: "Via NH-60",
+          viaStops: [
+            { city: "Rajgurunagar", distanceKm: 50, durationMinutes: 75 },
+            { city: "Sangamner", distanceKm: 150, durationMinutes: 210 },
+          ],
+          baseFarePaise: 60000,
+        },
+      ],
+      meta: { total: 1, page: 1, pages: 1 },
+    } as any);
+    vi.mocked(api).mockResolvedValueOnce({ data: {} });
+    render(<BookingCounter />);
+    await submitSearch(user);
+    const button = await screen.findByRole("button", { name: "Seat-wise Fare" });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    await user.click(button);
+    await user.click(
+      screen.getByRole("button", { name: /Auto-Calculate by Distance/i }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save fares" }));
+    const patchCall = vi.mocked(api).mock.calls.find(
+      ([url, opts]) =>
+        url === `/operator/trips/${trip.id}/seat-fares` && opts?.method === "PATCH",
+    );
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(patchCall![1]!.body as string);
+    expect(body.segmentFares).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fromCity: "Pune",
+          toCity: "Rajgurunagar",
+          distanceKm: 50,
+          farePaise: 15000,
+        }),
+        expect.objectContaining({
+          fromCity: "Pune",
+          toCity: "Nashik",
+          distanceKm: 200,
+          farePaise: 60000,
+        }),
+      ]),
+    );
+  });
+
+  it("updates car seat map prices when a matched distance segment or dropdown segment is selected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(counterApi.search).mockResolvedValue({
+      data: [
+        {
+          ...trip,
+          route: "Pune → Mumbai",
+          source: "Pune",
+          destination: "Mumbai",
+          busType: "7-Passenger MUV",
+          baseFarePaise: 20000,
+          matchedSegment: {
+            fromCity: "Pune",
+            toCity: "Lonavla",
+            distanceKm: 50,
+            farePaise: 20000,
+          },
+          segmentFares: [
+            { fromCity: "Pune", toCity: "Lonavla", distanceKm: 50, farePaise: 20000 },
+            { fromCity: "Pune", toCity: "Mumbai", distanceKm: 150, farePaise: 45000 },
+          ],
+        },
+      ],
+      meta: { total: 1 },
+    } as any);
+    vi.mocked(counterApi.seats).mockResolvedValue({
+      data: {
+        tripId: trip.id,
+        inventoryOwner: "internal",
+        seats: [
+          { number: "D", row: 1, column: 2, deck: "lower", category: "driver", farePaise: 0, state: "blocked", isDriver: true, isBookable: false },
+          { number: "FP", row: 1, column: 1, deck: "lower", category: "front_passenger", farePaise: 55000, state: "available" },
+          { number: "2L", row: 2, column: 1, deck: "lower", category: "window", farePaise: 50000, state: "available" },
+        ],
+      },
+    } as any);
+
+    render(<BookingCounter />);
+    await submitSearch(user);
+
+    expect(await screen.findByRole("button", { name: "FP, available, 200 rupees" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "2L, available, 200 rupees" })).toBeTruthy();
+
+    await user.selectOptions(screen.getByLabelText("Distance / Stop Segment"), "");
+    expect(screen.getByRole("button", { name: "FP, available, 550 rupees" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "2L, available, 500 rupees" })).toBeTruthy();
+  });
+
+  it("shows matching saved cities in From/To dropdowns when typing partial letters", async () => {
+    const user = userEvent.setup();
+    vi.mocked(counterApi.cities as any).mockResolvedValue({
+      data: {
+        cities: ["Lonavla", "Mumbai", "Nashik", "Pune"],
+        destinationsByOrigin: {
+          pune: ["Lonavla", "Mumbai"],
+        },
+      },
+    });
+
+    render(<BookingCounter />);
+
+    const fromInput = screen.getByLabelText("Counter from");
+    await user.type(fromInput, "p");
+
+    const fromListbox = await screen.findByRole("listbox", { name: "From suggestions" });
+    expect(within(fromListbox).getByRole("option", { name: /Pune/i })).toBeTruthy();
+    expect(within(fromListbox).queryByRole("option", { name: /Mumbai/i })).toBeNull();
+
+    await user.click(within(fromListbox).getByRole("option", { name: /Pune/i }));
+    expect((fromInput as HTMLInputElement).value).toBe("Pune");
+
+    const toInput = screen.getByLabelText("Counter to");
+    await user.type(toInput, "m");
+    const toListbox = await screen.findByRole("listbox", { name: "To suggestions" });
+    expect(within(toListbox).getByRole("option", { name: /Mumbai/i })).toBeTruthy();
+
+    await user.click(within(toListbox).getByRole("option", { name: /Mumbai/i }));
+    expect((toInput as HTMLInputElement).value).toBe("Mumbai");
+  });
+
+  it("submits a timing change in IST for the selected departure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api).mockResolvedValueOnce({ data: { departureAt: trip.departureAt, arrivalAt: trip.arrivalAt, version: 1 } });
+    render(<BookingCounter />);
+    await submitSearch(user);
+    await user.click(await screen.findByRole("button", { name: "Trip Schedule" }));
+    fireEvent.change(screen.getByLabelText("Departure time (IST)"), { target: { value: "22:00" } });
+    await user.click(screen.getByRole("button", { name: "Save timing" }));
+    expect(api).toHaveBeenCalledWith(`/operator/trips/${trip.id}/schedule`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        departureAt: "2030-11-13T22:00:00+05:30",
+        arrivalAt: "2030-11-14T06:30:00+05:30",
+        expectedVersion: 0,
+      }),
+    });
+  });
+
   it("disables booked and blocked seats for booking and keeps release management separate", async () => {
     const user = userEvent.setup();
     vi.mocked(counterApi.seats).mockResolvedValue({

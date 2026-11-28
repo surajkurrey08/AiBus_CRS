@@ -98,6 +98,51 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 describe("live API workspace", () => {
+  it("lets an operator admin create an owner login without opening Vehicles", async () => {
+    const user = userEvent.setup();
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!;
+    const owner = { id: "owner-1", name: "Owner A", loginEmail: "owner@example.test" };
+    let owners: typeof owner[] = [];
+    vi.mocked(fetch).mockImplementation(async (path, options) => {
+      if (String(path).includes("/auth/login")) return reply({
+        accessToken: "test-memory-token",
+        user: { ...identity, role: "operator_admin", permissions: ["read", "fleet:write"] },
+      });
+      if (String(path).includes("/operator/vehicle-owners")) {
+        if (options?.method === "POST") {
+          expect(JSON.parse(String(options.body))).toEqual({
+            name: owner.name, email: owner.loginEmail, password: "SecureOwner123!",
+          });
+          owners = [owner];
+          return reply(owner);
+        }
+        return reply(owners);
+      }
+      return defaultFetch(path, options!);
+    });
+    render(<App />);
+    await user.type(await screen.findByLabelText("Email"), identity.email);
+    await user.type(screen.getByLabelText("Password"), "private-test-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(await screen.findByRole("button", { name: "Owners" }));
+    expect(await screen.findByRole("link", { name: "Owner sign-in" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Create owner" }));
+    await user.type(screen.getByLabelText("Owner name"), owner.name);
+    await user.type(screen.getByLabelText("Owner login email"), owner.loginEmail);
+    const password = screen.getByLabelText("Initial password");
+    await user.type(password, "Abc1234!");
+    await user.click(screen.getByRole("button", { name: "Create owner login" }));
+    expect(await screen.findByText("Password must include at least 4 lowercase letters.")).toBeTruthy();
+    expect(vi.mocked(fetch).mock.calls.some(([path, options]) =>
+      String(path).includes("/operator/vehicle-owners") && options?.method === "POST",
+    )).toBe(false);
+    await user.clear(password);
+    await user.type(password, "SecureOwner123!");
+    await user.click(screen.getByRole("button", { name: "Create owner login" }));
+    expect(await screen.findByRole("cell", { name: owner.loginEmail })).toBeTruthy();
+    expect(screen.queryByLabelText("Initial password")).toBeNull();
+  });
+
   it.each(["agent", "booking_staff"])(
     "hides master and inventory navigation for %s and displays Agent",
     async (role) => {
@@ -141,6 +186,7 @@ describe("live API workspace", () => {
         "Seat Layout Designer",
         "Seat Availability",
         "Agents",
+        "Owners",
         "Finance",
         "Reports",
         "Settings",

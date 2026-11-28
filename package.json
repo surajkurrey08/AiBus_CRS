@@ -7,7 +7,8 @@
     "frontend",
     "backend",
     "admin",
-    "partner"
+    "partner",
+    "owner"
   ],
   "scripts": {
     "setup": "node scripts/setup-env.mjs",
@@ -28,6 +29,7 @@
     "test:e2e:isolated": "node scripts/run-isolated-e2e.mjs",
     "check:public-client": "tsc integrations/public-api/client.ts --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --skipLibCheck",
     "dev:partner": "npm run dev -w partner",
+    "dev:owner": "npm run dev -w owner",
     "lint": "eslint .",
     "typecheck": "node scripts/ci/typecheck.mjs",
     "check:ci-env": "tsx scripts/ci/check-env.ts",

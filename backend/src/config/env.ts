@@ -35,6 +35,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       WEB_ORIGIN: browserOrigin.default("http://127.0.0.1:5173"),
       ADMIN_WEB_ORIGIN: browserOrigin.optional(),
       PARTNER_WEB_ORIGIN: browserOrigin.optional(),
+      OWNER_WEB_ORIGIN: browserOrigin.optional(),
       AGENT_WEB_ORIGIN: browserOrigin.optional(),
       SMTP_HOST: z.string().optional(),
       SMTP_PORT: z.coerce.number().default(587),
@@ -149,6 +150,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
         parsed.ADMIN_WEB_ORIGIN,
         parsed.AGENT_WEB_ORIGIN,
         parsed.PARTNER_WEB_ORIGIN,
+        parsed.OWNER_WEB_ORIGIN,
       ].some((origin) => origin && !origin.startsWith("https://"))
     )
       throw new Error("Production-like dashboard origins must use HTTPS");
@@ -218,4 +220,6 @@ export const allowedWebOrigins = (config: Config) =>
     config.AGENT_WEB_ORIGIN,
     config.PARTNER_WEB_ORIGIN ??
       (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5176" : ""),
+    config.OWNER_WEB_ORIGIN ??
+      (!isProductionLike(config.NODE_ENV) ? "http://127.0.0.1:5177" : ""),
   ].filter((origin): origin is string => !!origin);
