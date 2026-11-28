@@ -51,6 +51,7 @@ import { analytics } from "../services/analytics.service.js";
 
 import { counterRouter } from "./counter.routes.js";
 import { createScheduledTrip } from "../services/trip-scheduling.service.js";
+import { readPublishedCarInventory } from "../services/car-inventory-preview.service.js";
 import { commissionConfig } from "../validators/agent.schemas.js";
 
 import { contactInput, gstInput } from "../services/pricing.service.js";
@@ -892,6 +893,15 @@ export function operatorRouter(config: Config) {
         );
       });
       ok(res, trip);
+    }),
+  );
+  router.get(
+    "/trips/:id/car-inventory-preview",
+    permit("read"),
+    asyncRoute(async (req, res) => {
+      const trip = await owned(M.Trip, req, parseId(req));
+      res.set("Cache-Control", "no-store");
+      ok(res, await readPublishedCarInventory(String(trip.operatorId), String(trip._id)));
     }),
   );
   router.get(
