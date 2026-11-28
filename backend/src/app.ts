@@ -186,7 +186,7 @@ export function createApp(
     }),
   );
   app.use("/api/v1/public", publicApiRouter(config, limiter));
-  app.use("/api/v1/live-car", liveCarInventoryRouter(config, limiter));
+  app.use("/api/v1/live-car", liveCarInventoryRouter(limiter));
   app.get("/api/v1/openapi.json", authenticate(config), (_req, res) =>
     res.json(openapi),
   );

@@ -49,6 +49,28 @@ export const reviewInput = z
     requestsPerMinute: z.number().int().min(1).max(120).optional(),
   })
   .strict();
+const ipAddress = z.string().trim().refine(
+  (value) =>
+    /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/.test(value) ||
+    /^[a-f\d:]+$/i.test(value),
+  "Enter a valid IPv4 or IPv6 address",
+);
+export const productionAccessInput = z
+  .object({
+    ...secretReview,
+    status: z.enum(["Disabled", "Enabled", "Suspended"]),
+    operatorIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).max(50),
+    allowedIps: z.array(ipAddress).max(20),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.status === "Enabled" && !value.operatorIds.length)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["operatorIds"],
+        message: "Select at least one operator before enabling production access",
+      });
+  });
 export const teamInput = z
   .object({
     ...secretReview,

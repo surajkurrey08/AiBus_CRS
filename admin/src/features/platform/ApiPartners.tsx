@@ -22,6 +22,9 @@ const opts = (items: string[]) =>
   items.map((value) => ({ label: value, value }));
 export function ApiPartners({ user }: { user: Identity }) {
   const [grantOpen, setGrantOpen] = useState(false);
+  const [productionOperators, setProductionOperators] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0),
     [selected, setSelected] = useState(""),
@@ -48,6 +51,22 @@ export function ApiPartners({ user }: { user: Identity }) {
     return () => abort.abort();
   }, [selected, revision]);
   const writable = user.permissions.includes("platform:partners:write");
+  useEffect(() => {
+    if (!writable) return;
+    const abort = new AbortController();
+    void api("/platform/operators?limit=100", { signal: abort.signal })
+      .then((result) => {
+        if (!abort.signal.aborted)
+          setProductionOperators(
+            result.data.map((operator: any) => ({
+              value: operator._id,
+              label: operator.company,
+            })),
+          );
+      })
+      .catch(() => {});
+    return () => abort.abort();
+  }, [writable]);
   useEffect(() => {
     setGrantOpen(false);
     setNotice("");
@@ -131,8 +150,8 @@ export function ApiPartners({ user }: { user: Identity }) {
                   </p>
                 )}
                 <p>
-                  {record.partner.onboardingStatus} · Sandbox · Production
-                  unavailable
+                  {record.partner.onboardingStatus} · Sandbox · Production{" "}
+                  {record.productionAccess?.status || "Disabled"}
                 </p>
                 {writable && (
                   <div className="platform-actions">
@@ -204,6 +223,61 @@ export function ApiPartners({ user }: { user: Identity }) {
                     </button>
                     <button className="btn" onClick={() => setGrantOpen(true)}>
                       Manage inventory grant
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        open(
+                          "Configure production access",
+                          "/production-access",
+                          [
+                            {
+                              name: "status",
+                              label: "Production access",
+                              options: opts(["Disabled", "Enabled", "Suspended"]),
+                              value: record.productionAccess?.status || "Disabled",
+                              helperText:
+                                "Enabled allows real operator inventory. Suspended blocks access immediately.",
+                            },
+                            {
+                              name: "operatorIds",
+                              label: "Approved operators",
+                              value: JSON.stringify(record.productionAccess?.operatorIds || []),
+                              helperText: "Select the operators whose real inventory this partner may access.",
+                              multiple: true,
+                              options: productionOperators,
+                              optional: true,
+                            },
+                            {
+                              name: "allowedIps",
+                              label: "Allowed backend IP addresses",
+                              value: (record.productionAccess?.allowedIps || []).join(", "),
+                              helperText: "Optional fixed outgoing server IP addresses separated by commas.",
+                              optional: true,
+                            },
+                          ],
+                          (v) => ({
+                            ...v,
+                            operatorIds: JSON.parse(v.operatorIds || "[]"),
+                            allowedIps: v.allowedIps.split(",").map((value: string) => value.trim()).filter(Boolean),
+                          }),
+                        )
+                      }
+                    >
+                      Configure production access
+                    </button>
+                    <button
+                      className="btn"
+                      disabled={record.productionAccess?.status !== "Enabled"}
+                      onClick={() =>
+                        open(
+                          "Issue production credential",
+                          "/production-credential",
+                          [],
+                        )
+                      }
+                    >
+                      Issue or rotate production credential
                     </button>
                   </div>
                 )}
@@ -326,14 +400,16 @@ export function ApiPartners({ user }: { user: Identity }) {
                       : "Save reviewed decision"
               : undefined
           }
-          description="This changes sandbox partner access. Review the company, permissions and reason before confirming."
+          description="Review the partner access and reason before confirming."
           fields={form.fields}
           onClose={() => setForm(undefined)}
           onSave={async (v, key) => {
-            await api(form.path, {
+            const response = await api(form.path, {
               method: "POST",
               body: JSON.stringify({ ...(form.map ? form.map(v) : v), key }),
             });
+            if (form.path.endsWith("/production-credential"))
+              setNotice(`Copy this production credential now. ${response.data.credential}`);
             setRevision((v) => v + 1);
           }}
         />

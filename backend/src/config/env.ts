@@ -47,10 +47,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
         .default("false")
         .transform((v) => v === "true"),
       PUBLIC_API_JWT_SECRET: z.string().min(64).optional(),
-      LIVE_CAR_INVENTORY_TOKEN: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-      LIVE_CAR_INVENTORY_OPERATOR_IDS: z.string()
-        .regex(/^[a-fA-F0-9]{24}(,[a-fA-F0-9]{24})*$/)
-        .optional(),
       // Private control-plane bridge; never exposed as a VITE/browser setting.
       SANDBOX_PORTAL_BRIDGE_SECRET: z.string().min(64).optional(),
       SANDBOX_PORTAL_URL: z.string().url().optional(),
@@ -85,8 +81,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     .parse(env);
   if (parsed.PUBLIC_API_SANDBOX && parsed.NODE_ENV === "production")
     throw new Error("Public sandbox cannot run in production");
-  if (Boolean(parsed.LIVE_CAR_INVENTORY_TOKEN) !== Boolean(parsed.LIVE_CAR_INVENTORY_OPERATOR_IDS))
-    throw new Error("Live car inventory requires both a token and an operator allowlist");
   if (
     parsed.PUBLIC_API_JWT_SECRET &&
     parsed.PUBLIC_API_JWT_SECRET === parsed.JWT_SECRET

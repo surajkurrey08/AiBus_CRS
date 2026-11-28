@@ -60,6 +60,20 @@ export const ApiPartner = model("ApiPartner", {
     default: 0,
     validate: Number.isInteger,
   },
+  productionAccess: {
+    status: {
+      type: String,
+      enum: ["Disabled", "Enabled", "Suspended"],
+      default: "Disabled",
+    },
+    operatorIds: { type: [objectId], default: [] },
+    allowedIps: { type: [String], default: [] },
+    credentialHash: { type: String, select: false },
+    credentialIssuedAt: Date,
+    enabledAt: Date,
+    enabledBy: objectId,
+    updatedAt: Date,
+  },
 });
 ApiPartner.schema.index({ onboardingStatus: 1, createdAt: -1 });
 export const ApiCredential = model("ApiCredential", {
