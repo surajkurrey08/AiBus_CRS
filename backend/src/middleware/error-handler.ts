@@ -43,8 +43,18 @@ export function errorHandler(
     code = "FILE_TOO_LARGE";
     message = "Image exceeds 5 MB limit";
   }
-  if (status >= 500)
-    logger.error({ requestId: req.requestId, code }, "Request failed");
+  if (status >= 500) {
+    const details = error as { name?: string; message?: string };
+    logger.error(
+      {
+        requestId: req.requestId,
+        code,
+        errorName: details?.name,
+        errorMessage: details?.message,
+      },
+      "Request failed",
+    );
+  }
   res
     .status(status)
     .json({ error: { code, message, requestId: req.requestId } });
